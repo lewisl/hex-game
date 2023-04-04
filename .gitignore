@@ -1,12 +1,13 @@
 # hack to ignore binaries
-    # Ignore all
-    *
+# Ignore all
+*
 
-    # Unignore all with extensions
-    !*.*
+# Unignore all with extensions
+!*.*
 
-    # Unignore all dirs
-    !*/
+# Unignore all dirs
+!*/
 
 # other ignores
 *.DS_Store
+*.vscode
