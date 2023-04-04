@@ -1,0 +1,16 @@
+node 1       // nodes must be positive integers; first line must be node n
+    edge 2 4  // 1st int is to_node; 2nd int is cost
+    edge 3 2  // as of now, no error checking--to_nodes must exist
+    edge 4 3
+node 2        // nodes do not need to be consecutive or in order
+    edge 5 5
+node 3
+    edge 5 4
+node 4
+    edge 7 11
+node 5
+    edge 6 4
+    edge 7 6
+node 6
+    edge 7 3
+node 7
