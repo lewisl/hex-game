@@ -1,0 +1,12 @@
+# hack to ignore binaries
+    # Ignore all
+    *
+
+    # Unignore all with extensions
+    !*.*
+
+    # Unignore all dirs
+    !*/
+
+# other ignores
+*.DS_Store
