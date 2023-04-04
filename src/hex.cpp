@@ -161,6 +161,8 @@ bool is_in(int val, deque<int> deq)
 }
 
 
+class HexBoard;   // forward declaration for need for class Graph
+
 
 // ##########################################################################
 // #                            class Graph
@@ -171,9 +173,11 @@ bool is_in(int val, deque<int> deq)
 // ##########################################################################
 class Graph
 {
-    
+// friends
     friend class HexBoard;
     friend class Dijkstra;
+    friend int who_won(HexBoard &); 
+    
 // members
 private:
     unordered_map<int, vector<Edge>> graph;  
@@ -192,7 +196,7 @@ public:
     void load_graph_from_file(string);
     void add_edge(int, int, int, bool);
     
-    int count_nodes()
+    int count_nodes() const
     {
         return made_size;
     }
@@ -202,22 +206,22 @@ public:
         node_data[idx] = val;
     }
     
-    int get_node_data(int idx)
+    int get_node_data(int idx) const
     {
         return node_data[idx];
     }
     
     // get the neighbors of a node as a vector of edges
-    inline vector<Edge> get_neighbors(int current_node)  
+    const vector<Edge> & get_neighbors(int current_node) const
     {
-        return graph[current_node];  //the value type of graph is vector<Edge> and holds the neighbors
+        return graph.at(current_node);  //the value type of graph is vector<Edge> and holds the neighbors
     }
     
     // get the neighbors that match the select data--the player whose marker is there
-    inline vector<Edge> get_neighbors(int current_node, int data_filter)  
+    const inline vector<Edge> get_neighbors(int current_node, int data_filter) const
     {
         vector<Edge> ve;
-        for (auto e : graph[current_node]) {
+        for (auto e : graph.at(current_node)) {
             if (node_data[e.to_node] == data_filter) {
                 ve.push_back(e);
             }
@@ -226,13 +230,11 @@ public:
     }
     
     // get the neighbors that match the select data and are not in the exclude set
-    inline vector<Edge> get_neighbors(int current_node, int data_filter, set<int> exclude_set)  
+    inline const vector<Edge> get_neighbors(int current_node, int data_filter, set<int> exclude_set) const 
     {
         vector<Edge> ve;
-        int test_node;
-        for (auto e : graph[current_node]) {
-            test_node = e.to_node;
-            if (node_data[test_node] == data_filter && !is_in(test_node, exclude_set)) {
+        for (auto e : graph.at(current_node)) {
+            if (node_data[e.to_node] == data_filter && !is_in(node_data[e.to_node], exclude_set)) {
                 ve.push_back(e);
             }
         }
@@ -380,7 +382,8 @@ class HexBoard
 private:
 
     // hexboard as a graph with convenient shortcut aliases
-    Graph hxg;                             
+    // using "composition" rather than inheritance
+    Graph hxg;                    
     vector<int> &positions = hxg.node_data;
 
     vector<int> side_one_start;                     // positions in the north-south starting border
@@ -612,12 +615,12 @@ public:
         return positions[linear] == EMPTY_HEX;
     }
     
-    int count_nodes()
+    inline int count_nodes() const
     {
         return positions.size();
     }
     
-    int get_node_data(int node)
+    inline int get_node_data(int node) const
     {
         return positions[node];  
     }
@@ -745,13 +748,6 @@ void HexBoard::load_board_from_file(string filename)
 
 
 
-// ##################################################################################
-//    class Graph externally defined methods
-// ##################################################################################
-
-
-
-
 // ##########################################################################
 // #             class Dijkstra
 // ##########################################################################
@@ -768,10 +764,10 @@ public:
     int start_node;
     
     // externally defined method: effectively the real constructor
-    void find_shortest_paths(Graph &, int, int, bool);
+    void find_shortest_paths(const Graph &, int, int, bool);
     
     // friends for playing game
-    friend int who_won(const HexBoard &); 
+    friend int who_won(HexBoard &); 
 
     
     // print all shortest paths start_node to all other nodes
@@ -794,26 +790,11 @@ public:
     {
         return path_sequences.find(node) != path_sequences.end() ? true : false;
     }
-    
-    
-    // note: always test first for the existence of the finish_node's path_sequence
-    bool is_in_path_sequence(int search_node, int finish_node)
-    {
-        bool ret = false;
-        if (path_sequences.find(finish_node) != path_sequences.end()) {
-            if (path_sequences.find(search_node) != path_sequences.end()) {
-                ret = true;
-            }
-        }
-        
-        return ret;
-    }
-    
 };
 // end of class Dijkstra
 
 
-void Dijkstra::find_shortest_paths(Graph &graf, int start_here, int data_filter, bool verbose=false)
+void Dijkstra::find_shortest_paths(const Graph &graf, int start_here, int data_filter, bool verbose=false)
 {
     int num_nodes = graf.count_nodes();
     
@@ -913,15 +894,15 @@ void Dijkstra::find_shortest_paths(Graph &graf, int start_here, int data_filter,
             prev_node = walk_node;
             while (prev_node != start_node) {
                 tmpsequence.push_front(prev_node);  // it's a deque
-                if (verbose) cout << prev_node << "  ";
                 prev_node = previous[prev_node];
-                if (verbose) cout << prev_node << "\n";
             } ;
             tmpsequence.push_front(prev_node);
             path_sequences[walk_node] = tmpsequence;
             
             tmpsequence.clear();  // IMPORTANT: clear before reusing to build a new sequence!
         }
+    
+    if (verbose) cout << *this << endl;
 }
 
 
@@ -1096,18 +1077,24 @@ bool HexBoard::is_valid_move(RankCol rc)
 }
 
 
-int who_won(HexBoard &hb) 
+int who_won(HexBoard & hb) 
 {
     int winner=0;
     int finish_hex;
     int start_hex;
+    
             
     // test for side one victory
     // for each hex in side_one_finish, find a path that ends in side_one_start
     for (int finish_hex : hb.side_one_finish) {
         if (hb.get_hex_position(finish_hex) != PLAYER1_X) continue;
+                
         Dijkstra paths;
-        paths.find_shortest_paths(hb.hxg, finish_hex, PLAYER1_X);   // 
+        
+        cout << "got here in who won\n";
+        return 1;
+
+        paths.find_shortest_paths(hb.hxg, finish_hex, PLAYER1_X, true);   // hb.hxg
         for (int start_hex : hb.side_one_start) {
             if (paths.path_sequence_exists(start_hex)) {
                 winner = PLAYER1_X;
@@ -1121,7 +1108,7 @@ int who_won(HexBoard &hb)
     for (int finish_hex : hb.side_two_finish) {
         if (hb.get_hex_position(finish_hex) != PLAYER2_O) continue;
         Dijkstra paths;
-        paths.find_shortest_paths(hb.hxg, finish_hex, PLAYER2_O);   // 
+        paths.find_shortest_paths(hb.hxg, finish_hex, PLAYER2_O);   // // hb.hxg
         for (int start_hex : hb.side_two_start) {
             if (paths.path_sequence_exists(start_hex)) {
                 winner = PLAYER2_O;
