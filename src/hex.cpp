@@ -16,6 +16,9 @@
 
 using namespace std;
 
+const int PLAYER1_X = 1;
+const int PLAYER2_O = 2;
+const int EMPTY_HEX = 0;
 
 // for random shuffling of board moves
 random_device rd;
@@ -202,11 +205,11 @@ private:
         
         if (last) spacer = "";
         
-        if (val == 0)
+        if (val == EMPTY_HEX)
             symunit = dot + spacer;
-        else if (val == 1)
+        else if (val == PLAYER1_X)
             symunit = x + spacer;
-        else if (val == 2)
+        else if (val == PLAYER2_O)
             symunit = o + spacer;
         else {
             cout << "Error: invalid hexboard value: " << val << endl;
@@ -256,7 +259,7 @@ public:
     int edge_len = 0;
     int max_rank = 0;   // == max_col -> so, only need one
     int max_idx = 0;    // maximum linear index
-    set<int> all_nodes;    // maintains sorted list of nodes by linear index
+    vector<int> all_nodes;    // maintains sorted list of nodes by linear index
     vector<int> rand_nodes;  // use to shuffle nodes for monte carlo simulation of game moves
     
     // externally defined methods to create a valid Hex game board and graph representation
@@ -281,7 +284,8 @@ public:
 
     // class used to find longest paths on the board
     friend class Dijkstra;
-        
+
+
     // print the ascii board on screen
     void display_board()
     {
@@ -316,7 +320,7 @@ public:
     {                
         int val=0;
         for (int i=0; i < positions.size(); i++) {
-            while (val == 0) {
+            while (val == EMPTY_HEX) {
                 val = rand() % 3;
             }
             positions[i] = val;
@@ -442,7 +446,7 @@ public:
     }
     
     inline bool is_empty(int linear) {
-        return positions[linear] == 0;
+        return positions[linear] == EMPTY_HEX;
     }
     
     int count_nodes()
@@ -454,7 +458,6 @@ public:
     {
         return positions[node];  
     }
-
 
 };  
 // ######################################################
@@ -480,25 +483,29 @@ void HexBoard::make_board(int border_len)       // initialize board positions
     board_regions();
     
     // initialize positions
-    positions.insert(positions.begin(), max_idx, 0);
+    positions.insert(positions.begin(), max_idx, EMPTY_HEX);
     
     // add nodes:  the required hexagonal "tiles" on the board
     // initial values:  all tiles are empty = 0
     for (int i=0; i < max_idx; i++) {
-        all_nodes.insert(i);             // set of nodes used to find paths
+        all_nodes.push_back(i);             // set of nodes used to find paths
         graph[i] = vector<Edge>();       // create empty edge list for each tile (aka, node)
-        rand_nodes.insert(rand_nodes.begin(), i);   // vector of nodes
+        rand_nodes.push_back(i);   // vector of nodes
     }
     
     // add graph edges for adjacent hexes based on the layout of a Hex game board
     // 4 corners                                tested OK
+    // upper left
     add_edge(linear_index(1, 1), linear_index(2, 1));  
     add_edge(linear_index(1, 1), linear_index(1, 2));
+    // lower right
     add_edge(linear_index(edge_len, edge_len), linear_index(edge_len, max_rank));  
     add_edge(linear_index(edge_len, edge_len), linear_index(max_rank, edge_len));
+    // upper right
     add_edge(linear_index(1, edge_len), linear_index(1, max_rank));
     add_edge(linear_index(1, edge_len), linear_index(2, edge_len));
     add_edge(linear_index(1, edge_len), linear_index(2, max_rank));
+    // lower left
     add_edge(linear_index(edge_len, 1), linear_index(max_rank, 1));
     add_edge(linear_index(edge_len, 1), linear_index(edge_len, 2));
     add_edge(linear_index(edge_len, 1), linear_index(max_rank, 2));
@@ -544,8 +551,6 @@ void HexBoard::make_board(int border_len)       // initialize board positions
             add_edge(linear_index(r, c), linear_index(r-1, c));
         }
     }
-    
-    
 }  // end of make_board
 
 
@@ -610,13 +615,13 @@ void HexBoard::load_board_from_file(string filename)
                 graph.reserve(max_idx);
                 positions.reserve(max_idx);
                 
-                // initialize all the positions as zero
-                positions.insert(positions.begin(), max_idx, 0);
+                // initialize positions
+                positions.insert(positions.begin(), max_idx, EMPTY_HEX);
             }
             else if (leader == "node") {
                 ss >> node_id;
                 graph[node_id] = vector<Edge>();  // create node with empty vector of Edges
-                all_nodes.insert(node_id);
+                all_nodes.push_back(node_id);
             }   
             else if (leader == "edge") {
                 ss >> to_node >> cost;
@@ -666,14 +671,14 @@ class Dijkstra
 private:
     set<int> path_nodes;
     unordered_map<int, int> path_costs;  // dest. node -> cost to reach 
-    unordered_map<int, deque<int>> path_sequences;  // dest. node -> path of nodes to it
+    unordered_map<int, deque<int>> path_sequences;  // dest. node -> path of nodes this node
     
 public:
     Dijkstra() = default;   
     ~Dijkstra() = default;
     int start_node;
     
-    // externally defined methods: effectively the real constructor
+    // externally defined method: effectively the real constructor
     void find_shortest_paths(HexBoard &, int, int, bool);
     
     // friends for playing game
@@ -718,6 +723,7 @@ public:
 };
 // end of class Dijkstra
 
+
 void Dijkstra::find_shortest_paths(HexBoard &graf, int start_here, int data_filter, bool verbose=false)
 {
     int num_nodes = graf.count_nodes();
@@ -737,22 +743,19 @@ void Dijkstra::find_shortest_paths(HexBoard &graf, int start_here, int data_filt
     int tmp_cost = 0;
     int node_val = -1;
     deque<int> tmpsequence; 
-    set<int> candidate_nodes(graf.all_nodes);   // initialize with copy constructor
+    set<int> candidate_nodes;   // initialized below with only valid nodes
     vector<Edge>  neighbors;   // end_node and cost for each neighbor node
     unordered_map<int, int> previous;
         previous.reserve(num_nodes);
         
-    // if using data, eliminate nodes that don't match data selection criteria from candidate list
-        for (auto node : graf.all_nodes) {    // iterate nodes #2 through end
+    // candidates for the shortest paths must match the current player in 'data_filter'
+        for (auto node : graf.all_nodes) {    
             node_val = graf.get_node_data(node);
-            if (node_val != data_filter) {
-                candidate_nodes.erase(node);   // eliminate from candidate nodes
+            if (node_val == data_filter) {    
+                candidate_nodes.insert(node);   
+                path_costs[node] = inf;   // initialize costs to inf for Dijkstra alg.
             }
         }
-    
-    for (auto tmp_node : candidate_nodes) {
-        path_costs[tmp_node] = inf;
-    }
     
     path_costs[start_node] = 0;
     previous[start_node] = -1;
@@ -761,6 +764,9 @@ void Dijkstra::find_shortest_paths(HexBoard &graf, int start_here, int data_filt
     while (!(candidate_nodes.empty()))
         {
             // current_node begins as start_node
+            
+            if (verbose)
+                cout << "\ncurrent_node at top of loop " << current_node << endl;
             
             if (graf.get_node_data(current_node) != data_filter) break;
             
@@ -774,7 +780,23 @@ void Dijkstra::find_shortest_paths(HexBoard &graf, int start_here, int data_filt
                 }
             }
             
-            if (current_node == start_node && neighbors.empty()) break;
+            if (current_node == start_node && neighbors.empty()) break;  // start_node is detached from all others
+            
+            if (verbose) {
+                //  for debugging shortest path algorithm
+                cout << "**** STATUS ****\n";
+                cout << "  current_node " << current_node << endl;
+                cout << "  neighbors\n";
+                cout << neighbors << endl;
+                cout << "  path_nodes\n";
+                cout << "    " << path_nodes << endl;
+                cout << "  candidate_nodes\n";
+                cout << "    " <<  candidate_nodes << endl;
+                cout << "  previous\n";
+                cout << previous << endl;
+                cout << "  path cost\n";
+                cout << path_costs << endl;
+            }
             
             path_nodes.insert(current_node);
             candidate_nodes.erase(current_node);  // we won't look at this node again
@@ -789,10 +811,11 @@ void Dijkstra::find_shortest_paths(HexBoard &graf, int start_here, int data_filt
                 }
             }
             
-            if (min == inf) {
+            if (min == inf) {   // none of the remaining nodes are reachable
                 break;
-                current_node = *candidate_nodes.begin();    // arbitrarily pick a node
             }
+            
+            if (verbose) cout << "  current node at bottom: " << current_node << endl;
         }
     
     // build sequences by walking backwards from each dest. node to start_node 
@@ -801,12 +824,14 @@ void Dijkstra::find_shortest_paths(HexBoard &graf, int start_here, int data_filt
             prev_node = walk_node;
             while (prev_node != start_node) {
                 tmpsequence.push_front(prev_node);  // it's a deque
+                if (verbose) cout << prev_node << "  ";
                 prev_node = previous[prev_node];
+                if (verbose) cout << prev_node << "\n";
             } ;
             tmpsequence.push_front(prev_node);
             path_sequences[walk_node] = tmpsequence;
             
-            tmpsequence.clear();  // IMPORTANT: clear before reusing to build new sequence!
+            tmpsequence.clear();  // IMPORTANT: clear before reusing to build a new sequence!
         }
 }
 
@@ -991,12 +1016,12 @@ int who_won(HexBoard &hb)
     // test for side one victory
     // for each hex in side_one_finish, find a path that ends in side_one_start
     for (int finish_hex : hb.side_one_finish) {
-        if (hb.get_hex_position(finish_hex) != 1) continue;
+        if (hb.get_hex_position(finish_hex) != PLAYER1_X) continue;
         Dijkstra paths;
-        paths.find_shortest_paths(hb, finish_hex, 1);   // 
+        paths.find_shortest_paths(hb, finish_hex, PLAYER1_X);   // 
         for (int start_hex : hb.side_one_start) {
             if (paths.path_sequence_exists(start_hex)) {
-                winner = 1;
+                winner = PLAYER1_X;
                 return winner;
             }
         }
@@ -1005,12 +1030,12 @@ int who_won(HexBoard &hb)
     // test for side two victory
     // for each hex in side_two_finish, find a path that ends in side_two_start
     for (int finish_hex : hb.side_two_finish) {
-        if (hb.get_hex_position(finish_hex) != 2) continue;
+        if (hb.get_hex_position(finish_hex) != PLAYER2_O) continue;
         Dijkstra paths;
-        paths.find_shortest_paths(hb, finish_hex, 2);   // 
+        paths.find_shortest_paths(hb, finish_hex, PLAYER2_O);   // 
         for (int start_hex : hb.side_two_start) {
             if (paths.path_sequence_exists(start_hex)) {
-                winner = 2;
+                winner = PLAYER2_O;
                 return winner;
             }
         }
@@ -1025,8 +1050,8 @@ void play_game(HexBoard & hb, bool simulate=false)
     RankCol computer_rc;   // computer's move
     bool valid_move;
     bool end_game = false;
-    int person_marker = 1;
-    int computer_marker = 2;
+    int person_marker = PLAYER1_X;
+    int computer_marker = PLAYER2_O;
     int move_count=0;
     int winning_side;
     
