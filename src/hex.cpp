@@ -173,6 +173,10 @@ class HexBoard;   // forward declaration for need for class Graph
 // ##########################################################################
 class Graph
 {
+public:
+    Graph() = default;
+    ~Graph() = default;
+        
 // friends
     friend class HexBoard;
     friend class Dijkstra;
@@ -316,8 +320,6 @@ void Graph::load_graph_from_file(string filename)
             if (leader == "size") {  // define size constants and reserve memory
                 ss >> made_size;
                 
-                
-                
                 // reserve storage
                 graph.reserve(made_size);
                 node_data.reserve(made_size);
@@ -375,7 +377,9 @@ void Graph::display_graph(ostream& ot=cout, string filename="")
 // ##########################################################################
 class HexBoard
 {
-    
+public:
+    HexBoard() = default;
+    ~HexBoard() = default;
     // no explicit constructor: compiler default constructor makes everything empty or 0.
     // use explicit methods to initialize members or load from file
     
@@ -642,7 +646,6 @@ void HexBoard::make_board(int border_len)       // initialize board positions
     // REMINDER!!!: rank and col indices are treated as 1-based!
     
     // reserve storage
-    hxg.graph.reserve(max_idx);
     positions.reserve(max_idx);
     
     // define the board regions
@@ -650,6 +653,10 @@ void HexBoard::make_board(int border_len)       // initialize board positions
     
     // initialize positions
     positions.insert(positions.begin(), max_idx, EMPTY_HEX);
+    
+    // create the Graph member hxg
+    hxg.graph.reserve(max_idx);
+    hxg.made_size = max_idx;
     
     // add nodes:  the required hexagonal "tiles" on the board
     // initial values:  all tiles are empty = 0
@@ -796,6 +803,7 @@ public:
 
 void Dijkstra::find_shortest_paths(const Graph &graf, int start_here, int data_filter, bool verbose=false)
 {
+    
     int num_nodes = graf.count_nodes();
     
     // reserve memory for members
@@ -1088,13 +1096,8 @@ int who_won(HexBoard & hb)
     // for each hex in side_one_finish, find a path that ends in side_one_start
     for (int finish_hex : hb.side_one_finish) {
         if (hb.get_hex_position(finish_hex) != PLAYER1_X) continue;
-                
         Dijkstra paths;
-        
-        cout << "got here in who won\n";
-        return 1;
-
-        paths.find_shortest_paths(hb.hxg, finish_hex, PLAYER1_X, true);   // hb.hxg
+        paths.find_shortest_paths(hb.hxg, finish_hex, PLAYER1_X);   // hb.hxg
         for (int start_hex : hb.side_one_start) {
             if (paths.path_sequence_exists(start_hex)) {
                 winner = PLAYER1_X;
