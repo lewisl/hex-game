@@ -6,7 +6,7 @@
 // Date: April 2023
 
 #include <iostream>
-#include <stdlib.h>
+#include <stdlib.h>         // for atoi()
 #include <random>
 #include <vector>
 #include <deque>            // sequence of nodes in a path between start and destination
@@ -174,6 +174,7 @@ bool is_in(int val, deque<int> deq)
 }
 
 
+
 class HexBoard;   // forward declaration for need for class Graph
 
 
@@ -269,6 +270,9 @@ public:
         }
         return ve;
     }
+          
+        
+        
 };  // end class Graph
 
 // ##########################################################################
@@ -317,6 +321,9 @@ void Graph::add_edge(int x, int y, int cost=1, bool bidirectional=false)
 //         edge 1 4
 //         edge 3 5
 // 
+//     Note: in this format, edges are assumed to be directional. If you want bidirectional 
+//           (or non-directional that go both ways) then you have to add 2 reciprocal edges.
+//
 void Graph::load_graph_from_file(string filename)
 {
     // prepare input file
@@ -558,6 +565,17 @@ public:
             val = 0;
         }
     }
+        
+        
+    // copy RankCol positions to a set of ints.   caller provides destination set.
+    inline void make_move_set(vector<RankCol> moves, set<int> & cands)
+    {
+        int node;
+        for (auto m : moves) {
+            node = linear_index(m);
+            cands.insert(node);
+        }
+    }  
   
     // game play methods use rank and col for board positions
         // rank and col indices are 1-based for end users playing the game
@@ -635,9 +653,7 @@ public:
             cout << "Error: rank or col >= edge length\n";
             return RankCol(-1,-1);
         } 
-
     }
-
 
     inline bool is_empty(RankCol rc)
     {
@@ -664,10 +680,10 @@ public:
 // ######################################################
 
 
-// for an empty HexBoard
-   // initialize all members
+   
 void HexBoard::make_board(int border_len)       // initialize board positions
 {
+    // initialize all members
     edge_len = border_len;
     max_rank = edge_len - 1;
     max_idx = edge_len * edge_len;  // same as size
@@ -690,9 +706,9 @@ void HexBoard::make_board(int border_len)       // initialize board positions
     // add nodes:  the required hexagonal "tiles" on the board
     // initial values:  all tiles are empty = 0
     for (int i=0; i < max_idx; i++) {
-        all_nodes.push_back(i);             // set of nodes used to find paths for both HexBoard and Graph
+        all_nodes.push_back(i);              // set of nodes used to find paths for both HexBoard and Graph
         hxg.graph[i] = vector<Edge>();       // create empty edge list for each tile (aka, node)
-        rand_nodes.push_back(i);   // vector of nodes
+        rand_nodes.push_back(i);             // vector of nodes
     }
     
     // add graph edges for adjacent hexes based on the layout of a Hex game board
@@ -761,9 +777,10 @@ void HexBoard::load_board_from_file(string filename)
 {
     hxg.load_graph_from_file(filename);
 
+    // initialize HexBoard class members
     max_idx = hxg.count_nodes();
-
     edge_len = sqrt(max_idx);
+    max_rank = edge_len - 1;
 
     if (edge_len * edge_len != max_idx) {
         cout << "Error: incorrect size for hexboard. Got size = " << max_idx << endl;
@@ -771,11 +788,8 @@ void HexBoard::load_board_from_file(string filename)
         exit(-1);
     }
 
-    max_rank = edge_len - 1;
-    
     // define the board regions
     board_regions();
-
 } 
 
 // ##########################################################################
@@ -1169,14 +1183,18 @@ int HexBoard::who_won()
     int winner=0;
     int finish_hex;
     int start_hex;
-    
+    set<int> candidates;
             
     // test for side one victory
     // for each hex in side_one_finish, find a path that ends in side_one_start
     for (int finish_hex : side_one_finish) {
         if (get_hex_position(finish_hex) != PLAYER1_X) continue;
         Dijkstra paths;
-        paths.find_shortest_paths(hxg, finish_hex, PLAYER1_X);   // find a path that starts from the finish border
+        
+        
+        make_move_set(player_move_seq, candidates);
+        
+        paths.find_shortest_paths(hxg, finish_hex, PLAYER1_X, candidates);   // find a path that starts from the finish border
         for (int start_hex : side_one_start) {
             if (paths.path_sequence_exists(start_hex)) {         // to the starting border
                 winner = PLAYER1_X;
@@ -1185,12 +1203,18 @@ int HexBoard::who_won()
         }
     }
     
+    
+    candidates.clear();
+    
     // test for side two victory
     // for each hex in side_two_finish, find a path that ends in side_two_start
     for (int finish_hex : side_two_finish) {
         if (get_hex_position(finish_hex) != PLAYER2_O) continue;
         Dijkstra paths;
-        paths.find_shortest_paths(hxg, finish_hex, PLAYER2_O);  
+        
+        make_move_set(computer_move_seq, candidates);
+        
+        paths.find_shortest_paths(hxg, finish_hex, PLAYER2_O, candidates);  
         for (int start_hex : side_two_start) {
             if (paths.path_sequence_exists(start_hex)) {
                 winner = PLAYER2_O;
