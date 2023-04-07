@@ -5,9 +5,18 @@
 # Unignore all with extensions
 !*.*
 
-# Unignore all dirs
-!*/
+# include source files
+!src/
 
-# other ignores
-*.vscode
+# files in .vscode and all directories below .vscode
+.vscode/
+
 .DS_Store
+
+# xmake directories
+.xmake/
+build/
+
+# clangd
+src/.cache/
+.cache/

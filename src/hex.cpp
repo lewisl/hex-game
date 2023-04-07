@@ -195,7 +195,7 @@ public:
     friend class HexBoard;
     friend class Dijkstra;
     
-// members
+// fields
 private:
     unordered_map<int, vector<Edge>> graph;  
     vector<int> node_data;                  // holds Data values of all nodes
@@ -248,7 +248,7 @@ public:
     }
     
     // get the neighbors that match the select data--the player whose marker is there
-    const inline vector<Edge> get_neighbors(int current_node, int data_filter) const
+    const vector<Edge> get_neighbors(int current_node, int data_filter) const
     {
         vector<Edge> ve;
         for (auto e : graph.at(current_node)) {
@@ -260,7 +260,7 @@ public:
     }
     
     // get the neighbors that match the select data and are not in the exclude set
-    inline const vector<Edge> get_neighbors(int current_node, int data_filter, set<int> exclude_set) const 
+    const vector<Edge> get_neighbors(int current_node, int data_filter, set<int> exclude_set) const 
     {
         vector<Edge> ve;
         for (auto e : graph.at(current_node)) {
@@ -412,12 +412,12 @@ public:
     ~HexBoard() = default;
     
     
-// members
+// fields
 private:
     // a member of HexBoard that is a Graph object, using "composition" instead of inheritance 
         // the actual graph is created by either method: make_board or load_board_from_file
-    Graph hxg;                    
-    vector<int> &positions = hxg.node_data;  // a reference to the graph's node_data
+    Graph hex_graph;                    
+    vector<int> &positions = hex_graph.node_data;  // a reference to the graph's node_data
 
     vector<int> side_one_start;         // indices to the board in the north-south starting border
     vector<int> side_one_finish;        // etc....
@@ -432,7 +432,7 @@ public:
     int max_rank = 0;   // == max_col -> so, only need one
     int max_idx = 0;    // maximum linear index
     int move_count = 0;
-    vector<int> &all_nodes = hxg.all_nodes;    // maintains sorted list of nodes by linear index
+    vector<int> &all_nodes = hex_graph.all_nodes;    // maintains sorted list of nodes by linear index
     vector<int> rand_nodes;  // use to shuffle nodes for monte carlo simulation of game moves
 
 
@@ -557,18 +557,18 @@ public:
     void simulate_hexboard_positions()  // utility function creates random board positions
     {                
         int val=0;
-        for (int i=0; i < hxg.node_data.size(); i++) {
+        for (int i=0; i < hex_graph.node_data.size(); i++) {
             while (val == EMPTY_HEX) {
                 val = rand() % 3;
             }
-            hxg.node_data[i] = val;
+            hex_graph.node_data[i] = val;
             val = 0;
         }
     }
         
         
     // copy RankCol positions to a set of ints.   caller provides destination set.
-    inline void make_move_set(vector<RankCol> moves, set<int> & cands)
+    void make_move_set(vector<RankCol> moves, set<int> & cands)
     {
         int node;
         for (auto m : moves) {
@@ -699,74 +699,74 @@ void HexBoard::make_board(int border_len)       // initialize board positions
     // initialize positions: and also node_data because positions is a reference to it
     positions.insert(positions.begin(), max_idx, EMPTY_HEX);
     
-    // create the Graph member hxg
-    hxg.graph.reserve(max_idx);
-    hxg.made_size = max_idx;
+    // create the Graph member hex_graph
+    hex_graph.graph.reserve(max_idx);
+    hex_graph.made_size = max_idx;
     
     // add nodes:  the required hexagonal "tiles" on the board
     // initial values:  all tiles are empty = 0
     for (int i=0; i < max_idx; i++) {
         all_nodes.push_back(i);              // set of nodes used to find paths for both HexBoard and Graph
-        hxg.graph[i] = vector<Edge>();       // create empty edge list for each tile (aka, node)
+        hex_graph.graph[i] = vector<Edge>();       // create empty edge list for each tile (aka, node)
         rand_nodes.push_back(i);             // vector of nodes
     }
     
     // add graph edges for adjacent hexes based on the layout of a Hex game board
     // 4 corners                                tested OK
     // upper left
-    hxg.add_edge(linear_index(1, 1), linear_index(2, 1));  
-    hxg.add_edge(linear_index(1, 1), linear_index(1, 2));
+    hex_graph.add_edge(linear_index(1, 1), linear_index(2, 1));  
+    hex_graph.add_edge(linear_index(1, 1), linear_index(1, 2));
     // lower right
-    hxg.add_edge(linear_index(edge_len, edge_len), linear_index(edge_len, max_rank));  
-    hxg.add_edge(linear_index(edge_len, edge_len), linear_index(max_rank, edge_len));
+    hex_graph.add_edge(linear_index(edge_len, edge_len), linear_index(edge_len, max_rank));  
+    hex_graph.add_edge(linear_index(edge_len, edge_len), linear_index(max_rank, edge_len));
     // upper right
-    hxg.add_edge(linear_index(1, edge_len), linear_index(1, max_rank));
-    hxg.add_edge(linear_index(1, edge_len), linear_index(2, edge_len));
-    hxg.add_edge(linear_index(1, edge_len), linear_index(2, max_rank));
+    hex_graph.add_edge(linear_index(1, edge_len), linear_index(1, max_rank));
+    hex_graph.add_edge(linear_index(1, edge_len), linear_index(2, edge_len));
+    hex_graph.add_edge(linear_index(1, edge_len), linear_index(2, max_rank));
     // lower left
-    hxg.add_edge(linear_index(edge_len, 1), linear_index(max_rank, 1));
-    hxg.add_edge(linear_index(edge_len, 1), linear_index(edge_len, 2));
-    hxg.add_edge(linear_index(edge_len, 1), linear_index(max_rank, 2));
+    hex_graph.add_edge(linear_index(edge_len, 1), linear_index(max_rank, 1));
+    hex_graph.add_edge(linear_index(edge_len, 1), linear_index(edge_len, 2));
+    hex_graph.add_edge(linear_index(edge_len, 1), linear_index(max_rank, 2));
     
     // 4 borders (excluding corners)  4 edges per node. 
     // north-south edges: constant rank, vary col
     for (int c = 2; c < edge_len; c++) {     
         int r=1;
-        hxg.add_edge(linear_index(r, c), linear_index(r, c-1));
-        hxg.add_edge(linear_index(r, c), linear_index(r, c+1));
-        hxg.add_edge(linear_index(r, c), linear_index(r+1, c-1));
-        hxg.add_edge(linear_index(r, c), linear_index(r+1, c));
+        hex_graph.add_edge(linear_index(r, c), linear_index(r, c-1));
+        hex_graph.add_edge(linear_index(r, c), linear_index(r, c+1));
+        hex_graph.add_edge(linear_index(r, c), linear_index(r+1, c-1));
+        hex_graph.add_edge(linear_index(r, c), linear_index(r+1, c));
         
         r=edge_len;
-        hxg.add_edge(linear_index(r, c), linear_index(r, c-1));
-        hxg.add_edge(linear_index(r, c), linear_index(r, c+1));
-        hxg.add_edge(linear_index(r, c), linear_index(r-1, c));
-        hxg.add_edge(linear_index(r, c), linear_index(r-1, c+1));
+        hex_graph.add_edge(linear_index(r, c), linear_index(r, c-1));
+        hex_graph.add_edge(linear_index(r, c), linear_index(r, c+1));
+        hex_graph.add_edge(linear_index(r, c), linear_index(r-1, c));
+        hex_graph.add_edge(linear_index(r, c), linear_index(r-1, c+1));
     }
     // east-west edges: constant col, vary rank
     for (int r = 2; r < edge_len; r++) {      
         int c = 1;
-        hxg.add_edge(linear_index(r, c), linear_index(r-1, c));
-        hxg.add_edge(linear_index(r, c), linear_index(r-1, c+1));
-        hxg.add_edge(linear_index(r, c), linear_index(r, c+1));
-        hxg.add_edge(linear_index(r, c), linear_index(r+1, c));
+        hex_graph.add_edge(linear_index(r, c), linear_index(r-1, c));
+        hex_graph.add_edge(linear_index(r, c), linear_index(r-1, c+1));
+        hex_graph.add_edge(linear_index(r, c), linear_index(r, c+1));
+        hex_graph.add_edge(linear_index(r, c), linear_index(r+1, c));
         
         c = edge_len; 
-        hxg.add_edge(linear_index(r, c), linear_index(r-1, c));
-        hxg.add_edge(linear_index(r, c), linear_index(r, c-1));
-        hxg.add_edge(linear_index(r, c), linear_index(r+1, c-1));
-        hxg.add_edge(linear_index(r, c), linear_index(r+1, c));
+        hex_graph.add_edge(linear_index(r, c), linear_index(r-1, c));
+        hex_graph.add_edge(linear_index(r, c), linear_index(r, c-1));
+        hex_graph.add_edge(linear_index(r, c), linear_index(r+1, c-1));
+        hex_graph.add_edge(linear_index(r, c), linear_index(r+1, c));
     }
     
     // interior tiles: 6 edges per hex
     for (int r = 2; r < edge_len; r++) {
         for (int c = 2; c < edge_len; c++) {                
-            hxg.add_edge(linear_index(r, c), linear_index(r-1, c+1));
-            hxg.add_edge(linear_index(r, c), linear_index(r, c+1));
-            hxg.add_edge(linear_index(r, c), linear_index(r+1, c));
-            hxg.add_edge(linear_index(r, c), linear_index(r+1, c-1));
-            hxg.add_edge(linear_index(r, c), linear_index(r, c-1));
-            hxg.add_edge(linear_index(r, c), linear_index(r-1, c));
+            hex_graph.add_edge(linear_index(r, c), linear_index(r-1, c+1));
+            hex_graph.add_edge(linear_index(r, c), linear_index(r, c+1));
+            hex_graph.add_edge(linear_index(r, c), linear_index(r+1, c));
+            hex_graph.add_edge(linear_index(r, c), linear_index(r+1, c-1));
+            hex_graph.add_edge(linear_index(r, c), linear_index(r, c-1));
+            hex_graph.add_edge(linear_index(r, c), linear_index(r-1, c));
         }
     }
 }  // end of make_board
@@ -775,10 +775,10 @@ void HexBoard::make_board(int border_len)       // initialize board positions
 
 void HexBoard::load_board_from_file(string filename)
 {
-    hxg.load_graph_from_file(filename);
+    hex_graph.load_graph_from_file(filename);
 
     // initialize HexBoard class members
-    max_idx = hxg.count_nodes();
+    max_idx = hex_graph.count_nodes();
     edge_len = sqrt(max_idx);
     max_rank = edge_len - 1;
 
@@ -806,16 +806,21 @@ void HexBoard::load_board_from_file(string filename)
 // ##########################################################################
 class Dijkstra
 {
+public:
+    Dijkstra() = default;   
+    ~Dijkstra() = default;
+        
+// fields
 private:
     set<int> path_nodes;
     unordered_map<int, int> path_costs;  // dest. node -> cost to reach 
     unordered_map<int, deque<int>> path_sequences;  // dest. node -> path of nodes this node
     
 public:
-    Dijkstra() = default;   
-    ~Dijkstra() = default;
     int start_node;
     
+// methods
+    public:
     // externally defined methods: effectively the real constructor
     void find_shortest_paths(const Graph &, int, int, bool);
     void find_shortest_paths(const Graph &, int, int, set<int>, bool); 
@@ -843,6 +848,7 @@ public:
     }
 };
 // end of class Dijkstra
+
 
 // method for caller that doesn't prebuild candidate_nodes
 void Dijkstra::find_shortest_paths(const Graph &graf, int start_here, int data_filter, bool verbose=false)
@@ -981,6 +987,10 @@ void Dijkstra::find_shortest_paths(const Graph &graf, int start_here, int data_f
 // ##########################################################################
 
 
+// ##########################################################################
+// #             Class HexBoard game playing methods
+// ##########################################################################
+
 
 // the program makes a random move
 RankCol HexBoard::random_move()
@@ -1043,7 +1053,6 @@ RankCol HexBoard::naive_move()
     char pause;
     
     
-        
     if (computer_move_seq.empty()) {
         shuffle(side_two_start.begin(), side_two_start.end(), randgen);
         for (int maybe : side_two_start) {
@@ -1057,19 +1066,13 @@ RankCol HexBoard::naive_move()
         prev_move = computer_move_seq.back();
         prev_move_linear = linear_index(prev_move);
         
-        neighbor_nodes = hxg.get_neighbor_nodes(prev_move_linear, EMPTY_HEX);   
-
-            
-//          for (int node : neighbor_nodes) {
-//              cout << "available neighbor nodes: " << endl;
-//              cout << rank_col_index(node) << endl;
-//          }
-//          cin >> pause;
-//          
+        neighbor_nodes = hex_graph.get_neighbor_nodes(prev_move_linear, EMPTY_HEX);   
+        
         if (neighbor_nodes.empty()) return random_move();
         
         shuffle(neighbor_nodes.begin(), neighbor_nodes.end(), randgen);
         shuffle(neighbor_nodes.begin(), neighbor_nodes.end(), randgen);
+        
         for (int node : neighbor_nodes) {
             rc = rank_col_index(node);
             if (rc.col > prev_move.col) 
@@ -1127,7 +1130,7 @@ RankCol HexBoard::prompt_for_person_move(int side)
                 cout << "Error opening file: " << filename << " Terminating.\n";
                 exit(-1);
             }
-            hxg.display_graph(outfile);
+            hex_graph.display_graph(outfile);
 
         }
         
@@ -1194,7 +1197,7 @@ int HexBoard::who_won()
         
         make_move_set(player_move_seq, candidates);
         
-        paths.find_shortest_paths(hxg, finish_hex, PLAYER1_X, candidates);   // find a path that starts from the finish border
+        paths.find_shortest_paths(hex_graph, finish_hex, PLAYER1_X, candidates);   // find a path that starts from the finish border
         for (int start_hex : side_one_start) {
             if (paths.path_sequence_exists(start_hex)) {         // to the starting border
                 winner = PLAYER1_X;
@@ -1202,7 +1205,6 @@ int HexBoard::who_won()
             }
         }
     }
-    
     
     candidates.clear();
     
@@ -1214,7 +1216,7 @@ int HexBoard::who_won()
         
         make_move_set(computer_move_seq, candidates);
         
-        paths.find_shortest_paths(hxg, finish_hex, PLAYER2_O, candidates);  
+        paths.find_shortest_paths(hex_graph, finish_hex, PLAYER2_O, candidates);  
         for (int start_hex : side_two_start) {
             if (paths.path_sequence_exists(start_hex)) {
                 winner = PLAYER2_O;
@@ -1301,7 +1303,7 @@ int main(int argc, char *argv[])
         cout << "Let's go ahead and play a tiny game with a 5 x 5 board.\n";
         size = 5;
     }
-    if (size < 5) {
+    else if (size < 5) {
         cout << "Size should be from 5 through 11.\n";
         cout << "Let's go ahead and play a tiny game with a 5 x 5 board.\n";
         size = 5;
