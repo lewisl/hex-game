@@ -188,9 +188,10 @@ class HexBoard;   // forward declaration for need for class Graph
 class Graph
 {
 public:
+
     Graph() = default;
     ~Graph() = default;
-        
+
 // friends
     friend class HexBoard;
     friend class Dijkstra;
@@ -229,13 +230,13 @@ public:
     }
     
     // get the neighbors of a node as a vector of edges
-    const vector<Edge> & get_neighbors(int current_node) const
+    const vector<Edge>  get_neighbors(int current_node) const
     {
         return graph.at(current_node);  //the value type of graph is vector<Edge> and holds the neighbors
     }
         
     // get the neighbor_nodes as a vector of nodes instead of the edges
-    const vector<int> get_neighbor_nodes(int currrent_node, int data_filter) const
+    vector<int> get_neighbor_nodes(int currrent_node, int data_filter) const
     {
         vector<Edge> ve;
         vector<int> neighbor_nodes;
@@ -248,9 +249,9 @@ public:
     }
     
     // get the neighbors that match the select data--the player whose marker is there
-    const vector<Edge> get_neighbors(int current_node, int data_filter) const
+    vector<Edge> get_neighbors(int current_node, int data_filter) const
     {
-        vector<Edge> ve;
+        vector<Edge>  ve;
         for (auto e : graph.at(current_node)) {
             if (node_data[e.to_node] == data_filter) {
                 ve.push_back(e);
@@ -260,7 +261,7 @@ public:
     }
     
     // get the neighbors that match the select data and are not in the exclude set
-    const vector<Edge> get_neighbors(int current_node, int data_filter, set<int> exclude_set) const 
+    vector<Edge> get_neighbors(int current_node, int data_filter, set<int> exclude_set) const 
     {
         vector<Edge> ve;
         for (auto e : graph.at(current_node)) {
@@ -268,11 +269,8 @@ public:
                 ve.push_back(e);
             }
         }
-        return ve;
-    }
-          
-        
-        
+        return ve;  // in c++14 this returns an rvalue reference so the caller moves the returned value to a vector
+    }  
 };  // end class Graph
 
 // ##########################################################################
@@ -429,9 +427,9 @@ private:
     
 public:
     int edge_len = 0;
-    int max_rank = 0;   // == max_col -> so, only need one
-    int max_idx = 0;    // maximum linear index
-    int move_count = 0;
+    int max_rank = 0;    // and equals max_col -> so, only need one
+    int max_idx = 0;     // maximum linear index
+    int move_count = 0;  // number of moves played during the game
     vector<int> &all_nodes = hex_graph.all_nodes;    // maintains sorted list of nodes by linear index
     vector<int> rand_nodes;  // use to shuffle nodes for monte carlo simulation of game moves
 
@@ -699,7 +697,7 @@ void HexBoard::make_board(int border_len)       // initialize board positions
     // initialize positions: and also node_data because positions is a reference to it
     positions.insert(positions.begin(), max_idx, EMPTY_HEX);
     
-    // create the Graph member hex_graph
+    // reserve memory and initialize int for Graph member hex_graph
     hex_graph.graph.reserve(max_idx);
     hex_graph.made_size = max_idx;
     
@@ -807,9 +805,8 @@ void HexBoard::load_board_from_file(string filename)
 class Dijkstra
 {
 public:
-    Dijkstra() = default;   
+    Dijkstra() = default;    
     ~Dijkstra() = default;
-        
 // fields
 private:
     set<int> path_nodes;
@@ -915,8 +912,8 @@ void Dijkstra::find_shortest_paths(const Graph &graf, int start_here, int data_f
                 cout << "\ncurrent_node at top of loop " << current_node << endl;
             
             if (graf.get_node_data(current_node) != data_filter) break;
-            
-            neighbors = graf.get_neighbors(current_node, data_filter, path_nodes); //, path_nodes);  // vector<Edge>
+
+            neighbors = graf.get_neighbors(current_node, data_filter, path_nodes);  //, path_nodes);  // vector<Edge>
             for (auto & neighbor : neighbors) {    // neighbor is an Edge
                 neighbor_node = neighbor.to_node;
                 tmp_cost = path_costs[current_node] + neighbor.cost; // update path_costs for neighbors of current_node
@@ -1195,7 +1192,8 @@ int HexBoard::who_won()
         Dijkstra paths;
         
         
-        make_move_set(player_move_seq, candidates);
+        make_move_set(player_move_seq, candidates);  // has to be a copy because we need to keep player_move_seq
+                                                     //    and we're going to remove items from candidates
         
         paths.find_shortest_paths(hex_graph, finish_hex, PLAYER1_X, candidates);   // find a path that starts from the finish border
         for (int start_hex : side_one_start) {
