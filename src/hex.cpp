@@ -44,7 +44,8 @@ ostream& operator<< (ostream& os, const set<T> & s)
     return os;
 }
 
-ostream& operator<< (ostream& os, unordered_map<int, int> & um)
+template <class T>
+ostream& operator<< (ostream& os, unordered_map<int, int, T> & um)
 {
     int count = 0;
     for (const auto& p : um) {
@@ -174,6 +175,28 @@ bool is_in(int val, deque<int> deq)
 }
 
 
+// hash function for unorderered_map<int, int>
+// sometimes marginally faster for low-valued ints in small tables
+
+unsigned int jenkins_hash(unsigned int key) {
+  key = (key + 0x7ed55d16) + (key << 12);
+  key = (key ^ 0xc761c23c) ^ (key >> 19);
+  key = (key + 0x165667b1) + (key << 5);
+  key = (key + 0xd3a2646c) ^ (key << 9);
+  key = (key + 0xfd7046c5) + (key << 3);
+  key = (key ^ 0xb55a4f09) ^ (key >> 16);
+  return key;
+}
+
+struct IntHash {
+  std::size_t operator()(int key) const {
+    return static_cast<std::size_t>(
+        jenkins_hash(static_cast<unsigned int>(key))
+                                    );
+  }
+};
+
+
 
 class HexBoard;   // forward declaration for need for class Graph
 
@@ -198,7 +221,7 @@ public:
     
 // fields
 private:
-    unordered_map<int, vector<Edge>> graph;  
+    unordered_map<int, vector<Edge>, IntHash> graph;  
     vector<int> node_data;                  // holds Data values of all nodes
     int made_size=0;                        // size from loading a graph from file or creating random graph
     
@@ -810,8 +833,8 @@ public:
 // fields
 private:
     set<int> path_nodes;
-    unordered_map<int, int> path_costs;  // dest. node -> cost to reach 
-    unordered_map<int, deque<int>> path_sequences;  // dest. node -> path of nodes this node
+    unordered_map<int, int, IntHash> path_costs;  // dest. node -> cost to reach 
+    unordered_map<int, deque<int>, IntHash> path_sequences;  // dest. node -> path of nodes this node
     
 public:
     int start_node;
@@ -888,7 +911,7 @@ void Dijkstra::find_shortest_paths(const Graph &graf, int start_here, int data_f
     deque<int> tmpsequence; 
     // set<int> candidate_nodes;   // initialized below with only valid nodes
     vector<Edge>  neighbors;   // end_node and cost for each neighbor node
-    unordered_map<int, int> previous;
+    unordered_map<int, int, IntHash> previous;
         previous.reserve(num_nodes);
         
     // candidates for the shortest paths must match the current player in 'data_filter'
