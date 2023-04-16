@@ -190,9 +190,7 @@ unsigned int jenkins_hash(unsigned int key) {
 
 struct IntHash {
   std::size_t operator()(int key) const {
-    return static_cast<std::size_t>(
-        jenkins_hash(static_cast<unsigned int>(key))
-                                    );
+    return static_cast<std::size_t>(jenkins_hash(static_cast<unsigned int>(key)));
   }
 };
 
@@ -435,9 +433,7 @@ public:
     
 // fields
 private:
-    // a member of HexBoard that is a Graph object, using "composition" instead of inheritance 
-        // the actual graph is created by either method: make_board or load_board_from_file
-    Graph hex_graph;                    
+                
     vector<int> &positions = hex_graph.node_data;  // a reference to the graph's node_data
 
     vector<int> side_one_start;         // indices to the board in the north-south starting border
@@ -447,8 +443,12 @@ private:
     
     vector<RankCol> computer_move_seq;  // history of moves by the computer
     vector<RankCol> player_move_seq;    // history of moves by the human player
-    
+
 public:
+    // a member of HexBoard that is a Graph object, using "composition" instead
+        // of inheritance the actual graph is created by either method: make_board
+        // or load_board_from_file
+    Graph hex_graph;
     int edge_len = 0;
     int max_rank = 0;    // and equals max_col -> so, only need one
     int max_idx = 0;     // maximum linear index
@@ -822,14 +822,16 @@ void HexBoard::load_board_from_file(string filename)
 // ##########################################################################
 // #             class Dijkstra
 // # find minimum cost path, slightly adapted for playing Hex
+// # initialized with the graph through which we find the shortest paths
 // # inputs from class HexBoard make it possible to find a path of markers
 // #    on the board from one player's starting edge to the finish edge
 // ##########################################################################
 class Dijkstra
 {
 public:
-    Dijkstra() = default;    
+    Dijkstra(const Graph & graf) : graf(graf) {}  // initialize the graph to be analyzed.
     ~Dijkstra() = default;
+
 // fields
 private:
     set<int> path_nodes;
@@ -838,17 +840,16 @@ private:
     
 public:
     int start_node;
+    const Graph &graf;  // need to have a graf to analyze. use reference to avoid copying and we never change it.
     
 // methods
     public:
     // externally defined methods: effectively the real constructor
-    void find_shortest_paths(const Graph &, int, int, bool);
-    void find_shortest_paths(const Graph &, int, int, set<int>, bool); 
+      void find_shortest_paths(int, int, bool); 
+      void find_shortest_paths(int, int, set<int>, bool); 
 
-    
-    // print all shortest paths start_node to all other nodes
-    friend  ostream& operator<< (ostream& os, Dijkstra & dp)
-    {
+      // print all shortest paths start_node to all other nodes
+      friend ostream &operator<<(ostream &os, Dijkstra &dp) {
         for (int node : dp.path_nodes) {
             os << "||     Path to " << node << "     ||\n";
             os << "  cost: " << dp.path_costs[node] << "\n";
@@ -871,25 +872,23 @@ public:
 
 
 // method for caller that doesn't prebuild candidate_nodes
-void Dijkstra::find_shortest_paths(const Graph &graf, int start_here, int data_filter, bool verbose=false)
+void Dijkstra::find_shortest_paths(int start_here, int data_filter, bool verbose = false) 
 {
-    set<int> candidate_nodes; 
-    int node_val = 0;
-    // candidates for the shortest paths must match the value in 'data_filter'
-    for (auto node : graf.all_nodes) {    
-        node_val = graf.get_node_data(node);
-        if (node_val == data_filter) {    
-            candidate_nodes.insert(node);   
-        }
+  set<int> candidate_nodes;
+  int node_val = 0;
+  // candidates for the shortest paths must match the value in 'data_filter'
+  for (auto node : graf.all_nodes) {
+    node_val = graf.get_node_data(node);
+    if (node_val == data_filter) {
+      candidate_nodes.insert(node);
     }
+  }
 
-    find_shortest_paths(graf, start_here, data_filter, candidate_nodes, false);
+  find_shortest_paths(start_here, data_filter, candidate_nodes, false); 
 }
 
-
 // method for caller that prebuilds appropriate candidate nodes
-void Dijkstra::find_shortest_paths(const Graph &graf, int start_here, int data_filter, 
-    set<int> candidate_nodes, bool verbose=false)
+void Dijkstra::find_shortest_paths(int start_here, int data_filter, set<int> candidate_nodes, bool verbose=false)
 {
     
     int num_nodes = graf.count_nodes();
@@ -1212,13 +1211,12 @@ int HexBoard::who_won()
     // for each hex in side_one_finish, find a path that ends in side_one_start
     for (int finish_hex : side_one_finish) {
         if (get_hex_position(finish_hex) != PLAYER1_X) continue;
-        Dijkstra paths;
-        
+        Dijkstra paths(hex_graph);
         
         make_move_set(player_move_seq, candidates);  // has to be a copy because we need to keep player_move_seq
                                                      //    and we're going to remove items from candidates
-        
-        paths.find_shortest_paths(hex_graph, finish_hex, PLAYER1_X, candidates);   // find a path that starts from the finish border
+
+        paths.find_shortest_paths(finish_hex, PLAYER1_X, candidates); // find a path that starts from the finish border
         for (int start_hex : side_one_start) {
             if (paths.path_sequence_exists(start_hex)) {         // to the starting border
                 winner = PLAYER1_X;
@@ -1233,11 +1231,11 @@ int HexBoard::who_won()
     // for each hex in side_two_finish, find a path that ends in side_two_start
     for (int finish_hex : side_two_finish) {
         if (get_hex_position(finish_hex) != PLAYER2_O) continue;
-        Dijkstra paths;
+        Dijkstra paths(hex_graph);
         
         make_move_set(computer_move_seq, candidates);
-        
-        paths.find_shortest_paths(hex_graph, finish_hex, PLAYER2_O, candidates);  
+
+        paths.find_shortest_paths(finish_hex, PLAYER2_O, candidates); 
         for (int start_hex : side_two_start) {
             if (paths.path_sequence_exists(start_hex)) {
                 winner = PLAYER2_O;
