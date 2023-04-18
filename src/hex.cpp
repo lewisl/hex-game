@@ -155,11 +155,7 @@ bool is_in(int val, deque<int> deq)
 }
 
 // compare to a single value not wrapped in a container
-bool is_in(int val, int one)
-{
-	return val == one;
-}
-
+bool is_in(int val, int one) { return val == one; }
 
 class HexBoard; // forward declaration for need for class Graph
 
@@ -228,37 +224,33 @@ class Graph {
     vector<Edge> get_neighbors(int current_node, int data_filter, const Container &exclude_set) const
     {
         vector<Edge> vr;
-        for (auto n : graph.at(current_node)) {
-            if (node_data[n.to_node] == data_filter && !is_in(n.to_node, exclude_set))
-                vr.push_back(n);
+        for (auto e : graph.at(current_node)) {
+            if (node_data[e.to_node] == data_filter && !is_in(e.to_node, exclude_set))
+                vr.push_back(e);
         }
         return vr; // in c++14 this returns an rvalue reference so the caller
             // moves the returned value to a vector
     }
 
     // get the neighbor_nodes as a vector of nodes instead of the edges
-
-    vector<int> get_neighbor_nodes(int currrent_node, int data_filter) const
+    vector<int> get_neighbor_nodes(int current_node, int data_filter) const
     {
-        vector<Edge> ve;
         vector<int> neighbor_nodes;
-
-        ve = get_neighbors(currrent_node, data_filter);
-        for (auto e : ve) {
-            neighbor_nodes.push_back(e.to_node);
+        for (auto e : graph.at(current_node)) {
+            if (node_data[e.to_node] == data_filter)
+                neighbor_nodes.push_back(e.to_node);
         }
         return neighbor_nodes;
     }
 
+    // get the neighbor_nodes that match the filter while excluding a set or vector of nodes
     template <typename Container>
-    vector<int> get_neighbor_nodes(int currrent_node, int data_filter, const Container &exclude_set) const
+    vector<int> get_neighbor_nodes(int current_node, int data_filter, const Container &exclude_set) const
     {
-        vector<Edge> ve;
         vector<int> neighbor_nodes;
-
-        ve = get_neighbors(currrent_node, data_filter, exclude_set);
-        for (auto e : ve) {
-            neighbor_nodes.push_back(e.to_node);
+        for (auto e : graph.at(current_node)) {
+            if (node_data[e.to_node] == data_filter && !is_in(e.to_node, exclude_set))
+                neighbor_nodes.push_back(e.to_node);
         }
         return neighbor_nodes;
     }
@@ -521,10 +513,9 @@ class HexBoard {
         for (int i = 0; i < 3; i++) {
             move_seq.push_back(vector<RankCol>{});
             if (i > 0)
-                move_seq[i].reserve(max_idx/2 + 1);
+                move_seq[i].reserve(max_idx / 2 + 1);
         }
     }
-
 
     // print the ascii board on screen
     void display_board()
@@ -570,7 +561,7 @@ class HexBoard {
 
     // copy RankCol positions to a set of ints.   caller provides destination
     // container:  set or vector.
-    void make_move_set(vector<RankCol> moves, set<int> &cands)
+    void copy_move_seq(vector<RankCol> moves, set<int> &cands)
     {
         int node;
         cands.clear();
@@ -580,7 +571,7 @@ class HexBoard {
         }
     }
 
-    void make_move_set(vector<RankCol> moves, vector<int> &cands)
+    void copy_move_seq(vector<RankCol> moves, vector<int> &cands)
     {
         int node;
 
@@ -792,7 +783,7 @@ class Dijkstra {
     Dijkstra(const Graph &dijk_graph) : dijk_graph(dijk_graph) {} // initialize the graph to be analyzed.
     ~Dijkstra() = default;
 
-  // fields
+    // fields
   private:
     set<int> path_nodes;
     unordered_map<int, int> path_costs; // dest. node -> cost to reach
@@ -803,7 +794,7 @@ class Dijkstra {
     const Graph &dijk_graph; // need to have a graph to analyze. use reference
         // to avoid copying and we never change it.
 
-  // methods
+    // methods
   public:
     // externally defined methods: effectively the real constructor
     void find_shortest_paths(int, int, bool);
@@ -1181,16 +1172,31 @@ int HexBoard::follow_path(vector<int> linear_moves, int side, bool full_board = 
     char pause;
     deque<vector<int>> working;
     vector<int> neighbors;
-    vector<int> previous{-1};
-    
-    cout << "got to follow_path (enter any key and press enter to continue ";
-    cin >> pause;
+        neighbors.reserve(6);
+    vector<int> captured; // nodes that have been put into a candidate path
+        captured.reserve(max_idx / 2 + 1);
 
-    // setup sequences that start in starting border for this side
-    for (int i = 0; i < linear_moves.size(); i++) {
-        if (is_in(linear_moves[i], start_border[side])) {
-            working.push_back(vector<int>{linear_moves[i]});
+    //  cout << "got to follow_path (enter any key and press enter to continue ";
+    //  cin >> pause;
+
+    if (side == PLAYER1_X) {
+        for (auto i : linear_moves) {
+            if (i < edge_len) {
+                working.push_back(vector<int>{i});
+                captured.push_back(i);
+            }
         }
+    }
+    else if (side == PLAYER2_O) {
+        for (auto i : linear_moves) {
+            if (i % edge_len == 0) {
+                working.push_back(vector<int>{i});
+                captured.push_back(i);
+            }
+        }
+    }
+    else {
+        cout << "Error: side must be 1 or 2. Got: " << side << endl;
     }
 
     // shortcut: if full_board and no paths start in starting border then the other side has one
@@ -1206,13 +1212,11 @@ int HexBoard::follow_path(vector<int> linear_moves, int side, bool full_board = 
     // otherwise, we can discard the current sequence and grab another
     // if we exhaust the sequences without finding a winner, the other side wins
 
+    //  cout << "got to top of loop";
+    //  cin >> pause;
 
-    cout << "got to top of loop";
-    cin >> pause;
-
-    while (!working.empty()) 
-    {
-        auto &this_seq = working.front(); // grab a sequence
+    while (!working.empty()) {
+        auto &this_seq = working.back(); // grab a sequence
 
         // cout << "beginning of seq " << this_seq << endl;
 
@@ -1220,42 +1224,47 @@ int HexBoard::follow_path(vector<int> linear_moves, int side, bool full_board = 
         {
             current_node = this_seq.back();
 
-            neighbors = hex_graph.get_neighbor_nodes(current_node, side, this_seq);  
+            neighbors = hex_graph.get_neighbor_nodes(current_node, side, captured);
 
             // cout << "neighbors are: " << neighbors << endl;
             // cout << "pause... (any char and enter to continue)";
             // cin >> pause;
 
             if (neighbors.empty()) {
-              
-                cout << "Got to neighbors empty\n" ;
-                cout << this_seq << endl;
-                cin >> pause;
+
+                //              cout << "Got to neighbors empty\n" ;
+                //              cout << this_seq << endl;
+                //              cin >> pause;
 
                 if (is_in(current_node, finish_border[side])) { // if node in finish border we have a winner
-                    cout << "Side " << side << " won at finish border with no neighbors\n";
+                    //                  cout << "Side " << side << " won at finish border with no neighbors\n";
                     return winner = side;
                 }
                 else {
-                    working.pop_front(); // discard the current sequence
+                    working.pop_back(); // discard the current sequence
                     break; // break loop for this sequence: get another sequence
                 }
             }
             else if (neighbors.size() == 1) {
                 // add new node to this_seq and continue to extend
                 this_seq.push_back(neighbors.front());
-                previous[neighbors.front()] = current_node;
+                captured.push_back(neighbors.front());
             }
             else {
                 for (int i = 0; i < neighbors.size(); i++) {
+                    //                  cout << "got to branching path ";
+                    cin >> pause;
                     if (i == 0) {
-                        this_seq.push_back(neighbors.front());
-                        previous[neighbors.front()] = current_node;
+                        this_seq.push_back(neighbors[0]); // extend the current seq
+                        captured.push_back(neighbors[0]);
                     }
                     else {
-                        working.push_back(vector<int>(this_seq)); // copy the sequence as a new seq in working
+                        // copy this_seq up to next-to-last as a new seq in working
+                        working.emplace_back(this_seq.begin(), this_seq.end() - 1);
+                        //  cout << "size of working " << working.size() << endl;
+                        cin >> pause;
                         working.back().push_back(neighbors[i]); // add the current neighbor
-                        previous[neighbors[i]] = current_node;
+                        captured.push_back(neighbors[i]);
                     }
                 }
             }
@@ -1266,78 +1275,68 @@ int HexBoard::follow_path(vector<int> linear_moves, int side, bool full_board = 
 
 int HexBoard::who_won_dijkstra()
 {
-  int side = 0;
-  int winner = 0;
-  int finish_hex;
-  int start_hex;
-  set<int> candidates; 
-  
-  // use Dijkstra shortest path algorithm to find winner
-  // test for side one victory
-  // for each hex in the finish_border for side 1, find a path that ends in
-  // start_border for player 1 
-  
-  for (int finish_hex : finish_border[PLAYER1_X]) {
-    if (get_hex_marker(finish_hex) != PLAYER1_X)
-      continue;
-    Dijkstra paths(hex_graph);
-  
-    make_move_set(move_seq[PLAYER1_X], candidates);
-    // must be a copy because we remove items from candidates AND we need to keep move_seq
-  
-    // find a path that starts from the finish border 
-    paths.find_shortest_paths(finish_hex, PLAYER1_X, candidates);     
-    for (int start_hex :
-      start_border[PLAYER1_X]) {
-        if (paths.path_sequence_exists(start_hex)) {     // to the starting border
-          winner = PLAYER1_X;
-          return winner;
-        }
-      }
-  }
-  
-  // test for side two victory
-  // for each hex in finish border of side 2, find a path that ends in start border of side 2 
-  for (int finish_hex : finish_border[PLAYER2_O]) {
-    if (get_hex_marker(finish_hex) != PLAYER2_O)
-        continue;
-    Dijkstra paths(hex_graph);
-  
-    make_move_set(move_seq[PLAYER2_O], candidates);
-  
-    paths.find_shortest_paths(finish_hex, PLAYER2_O, candidates);
-    for (int start_hex : start_border[PLAYER2_O]) {
-      if (paths.path_sequence_exists(start_hex)) {
-        winner = PLAYER2_O;
-        return winner;
-      }
-    }
-  }
-  
-  return winner; // will always be 0
-}
-
-
-int HexBoard::who_won()
-{
     int side = 0;
     int winner = 0;
     int finish_hex;
     int start_hex;
-    vector<int> candidates; // use set<int> for Dijkstra
+    set<int> candidates;
 
-    // use follow_path to find winner
-    side = PLAYER1_X;
-    make_move_set(move_seq[side], candidates);
-    winner = follow_path(candidates, PLAYER1_X);
-    if (winner == 1)
-        return winner;
+    // use Dijkstra shortest path algorithm to find winner
+    // test for side one victory
+    // for each hex in the finish_border for side 1, find a path that ends in
+    // start_border for player 1
 
-    side = PLAYER2_O;
-    make_move_set(move_seq[side], candidates);
-    winner = follow_path(candidates, PLAYER2_O);
-    if (winner == 2)
-        return winner;
+    for (int finish_hex : finish_border[PLAYER1_X]) {
+        if (get_hex_marker(finish_hex) != PLAYER1_X)
+            continue;
+        Dijkstra paths(hex_graph);
+
+        copy_move_seq(move_seq[PLAYER1_X], candidates);
+        // must be a copy because we remove items from candidates AND we need to keep move_seq
+
+        // find a path that starts from the finish border
+        paths.find_shortest_paths(finish_hex, PLAYER1_X, candidates);
+        for (int start_hex : start_border[PLAYER1_X]) {
+            if (paths.path_sequence_exists(start_hex)) { // to the starting border
+                winner = PLAYER1_X;
+                return winner;
+            }
+        }
+    }
+
+    // test for side two victory
+    // for each hex in finish border of side 2, find a path that ends in start border of side 2
+    for (int finish_hex : finish_border[PLAYER2_O]) {
+        if (get_hex_marker(finish_hex) != PLAYER2_O)
+            continue;
+        Dijkstra paths(hex_graph);
+
+        copy_move_seq(move_seq[PLAYER2_O], candidates);
+
+        paths.find_shortest_paths(finish_hex, PLAYER2_O, candidates);
+        for (int start_hex : start_border[PLAYER2_O]) {
+            if (paths.path_sequence_exists(start_hex)) {
+                winner = PLAYER2_O;
+                return winner;
+            }
+        }
+    }
+
+    return winner; // will always be 0
+}
+
+int HexBoard::who_won()
+{
+    int winner = 0;
+    vector<int> candidates;
+    vector<int> sides{PLAYER1_X, PLAYER2_O};
+
+    for (auto s : sides) {
+        copy_move_seq(move_seq[s], candidates);
+        winner = follow_path(candidates, s);
+        if (winner == s)
+            return winner;
+    }
 
     return winner; // will always be 0
 }
@@ -1377,14 +1376,14 @@ void HexBoard::play_game(bool simulate = false)
 
             move_count++;
 
-            //          clear_screen();
+            clear_screen();
 
             // test for a winner
             if (move_count >= edge_len) {
-              
-                cout << "Got to testing for winner... (enter any char and press enter)\n";
-                cin >> pause;
-              
+
+                //              cout << "Got to testing for winner... (enter any char and press enter)\n";
+                //              cin >> pause;
+
                 winning_side = who_won(); // result is 0, 1, or 2
                 if (winning_side) {
                     cout << "We have a winner. "
