@@ -19,9 +19,23 @@
 
 using namespace std;
 
-const int PLAYER1_X = 1;
-const int PLAYER2_O = 2;
-const int EMPTY_HEX = 0;
+
+enum class marker { empty = 0, player1 = 1, player2 = 2 };
+
+#define idx(x) static_cast<std::underlying_type_t<decltype(x)>>(x) // shortcut to calc indices for arrays
+
+ostream &operator<<(ostream &os, marker m)
+{
+    if (m == marker::player1)
+        os << " player1 ";
+    else if (m == marker::player2)
+        os << " player2 ";
+    else
+        os << " empty ";
+
+    return os;
+}
+
 
 char pause;
 
@@ -156,7 +170,8 @@ bool is_in(int val, deque<int> deq)
 }
 
 // compare to a single value not wrapped in a container
-bool is_in(int val, int one) { return val == one; }
+template<typename T>
+bool is_in(int val, T one) { return val == one; }
 
 // simple way to time segments of code
 // ex:
@@ -179,7 +194,6 @@ struct Timing {
 
 Timing game_play_time;  // global to measure cumulative time for assessing the game
 
-class HexBoard; // forward declaration for need for class Graph
 
 // ##########################################################################
 // #                            class Graph
@@ -188,37 +202,35 @@ class HexBoard; // forward declaration for need for class Graph
 // #  load_graph_from_file: methods to define graph representation
 // #
 // ##########################################################################
+template <typename d_type>   // use for int, float, enum class
 class Graph {
   public:
-    Graph() = default;
-    ~Graph() = default;
+    Graph<d_type>() = default;
+    ~Graph<d_type>() = default;
 
     // friends
+    template <typename U>
     friend class HexBoard;
+    template <typename Z>
     friend class Dijkstra;
 
     // fields
   private:
     unordered_map<int, vector<Edge>> graph;
-    vector<int> node_data; // holds Data values of all nodes
+    vector<d_type> node_data; // holds Data values of all nodes
     int made_size = 0; // size from loading a graph from file or creating random graph
 
   public:
     vector<int> all_nodes;
 
     // methods
-  private:
+  
   public:
-    // externally defined public methods
-    void display_graph(ostream &, string);
-    void load_graph_from_file(string);
-    void add_edge(int, int, int, bool);
-
     int count_nodes() const { return made_size; }
 
-    void set_node_data(int val, int idx) { node_data[idx] = val; }
+    void set_node_data(d_type val, int idx) { node_data[idx] = val; }
 
-    int get_node_data(int idx) const { return node_data[idx]; }
+    d_type get_node_data(int idx) const { return node_data[idx]; }
 
     // get the neighbors of a node as a vector of edges
     const vector<Edge> get_neighbors(int current_node) const
@@ -229,7 +241,7 @@ class Graph {
 
     // get the neighbors that match the select data--the player whose marker is
     // there
-    vector<Edge> get_neighbors(int current_node, int data_filter) const
+    vector<Edge> get_neighbors(int current_node, d_type data_filter) const
     {
         vector<Edge> ve;
         for (auto e : graph.at(current_node)) {
@@ -243,7 +255,7 @@ class Graph {
     // get the neighbors that match the select data and are not in the exclude
     // set, deque or vector
     template <typename Container>
-    vector<Edge> get_neighbors(int current_node, int data_filter, const Container &exclude_set) const
+    vector<Edge> get_neighbors(int current_node, d_type data_filter, const Container &exclude_set) const
     {
         vector<Edge> vr;
         for (auto e : graph.at(current_node)) {
@@ -255,7 +267,7 @@ class Graph {
     }
 
     // get the neighbor_nodes as a vector of nodes instead of the edges
-    vector<int> get_neighbor_nodes(int current_node, int data_filter) const
+    vector<int> get_neighbor_nodes(int current_node, d_type data_filter) const
     {
         vector<int> neighbor_nodes;
         for (auto e : graph.at(current_node)) {
@@ -267,7 +279,7 @@ class Graph {
 
     // get the neighbor_nodes that match the filter while excluding a set or vector of nodes
     template <typename Container>
-    vector<int> get_neighbor_nodes(int current_node, int data_filter, const Container &exclude_set) const
+    vector<int> get_neighbor_nodes(int current_node, d_type data_filter, const Container &exclude_set) const
     {
         vector<int> neighbor_nodes;
         for (auto e : graph.at(current_node)) {
@@ -277,129 +289,134 @@ class Graph {
         return neighbor_nodes;
     }
 
+    // add an edge to the graph
+    void add_edge(int x, int y, int cost = 1, bool bidirectional = false)
+    {
+        if (graph.find(x) != graph.end()) {
+            if (graph.find(y) != graph.end()) {
+                for (auto edge : graph[x]) { // iterate over edges of x
+                    if (y == edge.to_node) {
+                        return; // to_node y already exists as an edge of x
+                    }
+                }
+                graph[x].push_back(Edge(y, cost));
+                if (bidirectional)
+                    graph[y].push_back(Edge(x, cost));
+            }
+            else {
+                cout << "node " << y << " not found in graph.";
+            }
+        }
+        else {
+            cout << "node " << x << " not found in graph.";
+        }
+    }
+
+    // print graph to an output stream ot
+    //    this is the table of nodes and edges in the graph, not a picture of the
+    //    game board you can pass an fstream as the output stream cout is the
+    //    default value of ot--to screen/console
+    void display_graph(ostream &ot = cout, string filename = "")
+    {
+        int node_id;
+        vector<Edge> *edges;
+
+        // print the graph in order
+        ot << "\nsize " << graph.size() << "\n";
+        for (const int node_id : all_nodes) {
+            edges = &(graph.at(node_id));
+            ot << "node " << node_id << endl;
+            ot << "    data " << node_data[node_id] << "\n";
+            for (int j = 0; j < (*edges).size(); j++) {
+                ot << "    "
+                   << "edge " << edges->at(j).to_node << " " << edges->at(j).cost << endl;
+            }
+        }
+    }
+
+    //
+    //     Read a graph file to initialize board graph and positions using the
+    //     format of the example: size 4 node 0       // node must be positive
+    //     integer; don't need to be consecutive
+    //         data 0   // marker at this position
+    //         edge 2 3  // edge is to_node, cost. No error checking so to_node must
+    //         exist
+    //     node 1
+    //         data 1
+    //         edge 1 4
+    //         edge 3 5
+    //     node 2
+    //         data 1
+    //         edge 1 4
+    //         edge 3 5
+    //     node 3
+    //         data 1
+    //         edge 1 4
+    //         edge 3 5
+    //
+    //     Note: in this format, edges are assumed to be directional. If you want
+    //     bidirectional
+    //           (or non-directional that go both ways) then you have to add 2
+    //           reciprocal edges.
+    //
+   void load_graph_from_file(string filename)
+    {
+        // prepare input file
+        ifstream infile;
+        infile.open(filename); // open a file to perform read operation using file object
+        if (!(infile.is_open())) {
+            cout << "Error opening file: " << filename << " Terminating.\n";
+            exit(-1);
+        }
+
+        // read the file line by line and create graph
+        string linestr, leader;
+        int node_id, to_node;
+        int cost;
+        d_type data;
+
+        // loads data into graph and positions
+        while (getline(infile, linestr)) {
+            stringstream ss{linestr};
+            ss >> leader; // first word or text up to first white space
+
+            if (leader == "size") { // define size constants and reserve memory
+                ss >> made_size;
+
+                // reserve storage
+                graph.reserve(made_size);
+                graph.max_load_factor(0.8);
+                node_data.reserve(made_size);
+
+                // initialize node_data
+                node_data.insert(node_data.begin(), made_size, 0);
+            }
+            else if (leader == "node") {
+                ss >> node_id;
+                graph[node_id] = vector<Edge>(); // create node with empty vector of Edges
+                all_nodes.push_back(node_id);
+            }
+            else if (leader == "edge") {
+                ss >> to_node >> cost;
+                graph[node_id].push_back(Edge(to_node, cost)); // push Edge to current node_id
+            }
+            else if (leader == "data") {
+                ss >> data;
+                set_node_data(data, node_id);
+            }
+        }
+    }
 }; // end class Graph
 
 // ##########################################################################
 //     externally defined class Graph methods
 // ##########################################################################
 
-// add an edge to the graph
-void Graph::add_edge(int x, int y, int cost = 1, bool bidirectional = false)
-{
-    if (graph.find(x) != graph.end()) {
-        if (graph.find(y) != graph.end()) {
-            for (auto edge : graph[x]) { // iterate over edges of x
-                if (y == edge.to_node) {
-                    return; // to_node y already exists as an edge of x
-                }
-            }
-            graph[x].push_back(Edge(y, cost));
-            if (bidirectional)
-                graph[y].push_back(Edge(x, cost));
-        }
-        else {
-            cout << "node " << y << " not found in graph.";
-        }
-    }
-    else {
-        cout << "node " << x << " not found in graph.";
-    }
-}
+template<typename J>
+class Dijkstra;
 
-//
-//     Read a graph file to initialize board graph and positions using the
-//     format of the example: size 4 node 0       // node must be positive
-//     integer; don't need to be consecutive
-//         data 0   // marker at this position
-//         edge 2 3  // edge is to_node, cost. No error checking so to_node must
-//         exist
-//     node 1
-//         data 1
-//         edge 1 4
-//         edge 3 5
-//     node 2
-//         data 1
-//         edge 1 4
-//         edge 3 5
-//     node 3
-//         data 1
-//         edge 1 4
-//         edge 3 5
-//
-//     Note: in this format, edges are assumed to be directional. If you want
-//     bidirectional
-//           (or non-directional that go both ways) then you have to add 2
-//           reciprocal edges.
-//
-void Graph::load_graph_from_file(string filename)
-{
-    // prepare input file
-    ifstream infile;
-    infile.open(filename); // open a file to perform read operation using file object
-    if (!(infile.is_open())) {
-        cout << "Error opening file: " << filename << " Terminating.\n";
-        exit(-1);
-    }
 
-    // read the file line by line and create graph
-    string linestr, leader;
-    int node_id, to_node;
-    int cost;
-    int data;
 
-    // loads data into graph and positions
-    while (getline(infile, linestr)) {
-        stringstream ss{linestr};
-        ss >> leader; // first word or text up to first white space
-
-        if (leader == "size") { // define size constants and reserve memory
-            ss >> made_size;
-
-            // reserve storage
-            graph.reserve(made_size);
-            graph.max_load_factor(0.8);
-            node_data.reserve(made_size);
-
-            // initialize node_data
-            node_data.insert(node_data.begin(), made_size, 0);
-        }
-        else if (leader == "node") {
-            ss >> node_id;
-            graph[node_id] = vector<Edge>(); // create node with empty vector of Edges
-            all_nodes.push_back(node_id);
-        }
-        else if (leader == "edge") {
-            ss >> to_node >> cost;
-            graph[node_id].push_back(Edge(to_node, cost)); // push Edge to current node_id
-        }
-        else if (leader == "data") {
-            ss >> data;
-            set_node_data(data, node_id);
-        }
-    }
-}
-
-// print graph to an output stream ot
-//    this is the table of nodes and edges in the graph, not a picture of the
-//    game board you can pass an fstream as the output stream cout is the
-//    default value of ot--to screen/console
-void Graph::display_graph(ostream &ot = cout, string filename = "")
-{
-    int node_id;
-    vector<Edge> *edges;
-
-    // print the graph in order
-    ot << "\nsize " << graph.size() << "\n";
-    for (const int node_id : all_nodes) {
-        edges = &(graph.at(node_id));
-        ot << "node " << node_id << endl;
-        ot << "    data " << node_data[node_id] << "\n";
-        for (int j = 0; j < (*edges).size(); j++) {
-            ot << "    "
-               << "edge " << edges->at(j).to_node << " " << edges->at(j).cost << endl;
-        }
-    }
-}
 
 // ##########################################################################
 // #                            class HexBoard
@@ -409,15 +426,21 @@ void Graph::display_graph(ostream &ot = cout, string filename = "")
 // #  methods for a person to play against this program
 // #
 // ##########################################################################
-
+template<typename d_type>   // use for the type of data stored at a node: typically int, float, enum classes
 class HexBoard {
   public:
-    HexBoard() = default;
-    ~HexBoard() = default;
+    HexBoard<d_type>() = default;
+    ~HexBoard<d_type>() = default;
+
+    // classes used to define graph and find longest paths on the board
+    template <typename K>
+    friend class Graph;
+    template <typename L>
+    friend class Dijkstra;
 
     // fields
   private:
-    vector<int> &positions = hex_graph.node_data; // a reference to the graph's node_data
+    vector<d_type> &positions = hex_graph.node_data; // a reference to the graph's node_data
 
     vector<vector<int>> start_border; // holds indices at the top and left edges of the board
     vector<vector<int>> finish_border; // holds indices at the bottom and right edges of the board
@@ -428,7 +451,7 @@ class HexBoard {
     // a member of HexBoard that is a Graph object, using "composition" instead
     // of inheritance the actual graph is created by either method: make_board
     // or load_board_from_file
-    Graph hex_graph;
+    Graph<marker> hex_graph;
     int edge_len = 0;
     int max_rank = 0; // and equals max_col -> so, only need one
     int max_idx = 0; // maximum linear index
@@ -442,7 +465,7 @@ class HexBoard {
     // METHODS FOR DRAWING THE BOARD
     // return hexboard marker based on value
     //     and add the spacer lines ___ needed to draw the board
-    string symdash(int val, bool last = false)
+    string symdash(d_type val, bool last = false)
     {
         string symunit;
         string dot = "."; // for markers encoded as 0 == empty
@@ -453,11 +476,11 @@ class HexBoard {
         if (last)
             spacer = "";
 
-        if (val == EMPTY_HEX)
+        if (val == marker::empty)
             symunit = dot + spacer;
-        else if (val == PLAYER1_X)
+        else if (val == marker::player1)
             symunit = x + spacer;
-        else if (val == PLAYER2_O)
+        else if (val == marker::player2)
             symunit = o + spacer;
         else {
             cout << "Error: invalid hexboard value: " << val << endl;
@@ -490,18 +513,18 @@ class HexBoard {
         }
 
         for (int rank = 1, col = 1; col < edge_len + 1; col++) {
-            start_border[PLAYER1_X].push_back(linear_index(rank, col));
+            start_border[idx(marker::player1)].push_back(linear_index(rank, col));
         }
         for (int rank = edge_len, col = 1; col < edge_len + 1; col++) {
-            finish_border[PLAYER1_X].push_back(linear_index(rank, col));
+            finish_border[idx(marker::player1)].push_back(linear_index(rank, col));
         }
 
         for (int rank = 1, col = 1; rank < edge_len + 1; rank++) {
-            start_border[PLAYER2_O].push_back(linear_index(rank, col));
+            start_border[idx(marker::player2)].push_back(linear_index(rank, col));
         }
 
         for (int rank = 1, col = edge_len; rank < edge_len + 1; rank++) {
-            finish_border[PLAYER2_O].push_back(linear_index(rank, col));
+            finish_border[idx(marker::player2)].push_back(linear_index(rank, col));
         }
     }
 
@@ -509,24 +532,127 @@ class HexBoard {
     // externally defined methods to create a valid Hex game board and graph
     // representation initialize members create graph structure of board by
     // adding all edges
-    void make_board(int border_len);
-    void load_board_from_file(string);
+
+    void make_board(int border_len) // initialize board positions
+    {
+        // initialize all members
+        edge_len = border_len;
+        max_rank = edge_len - 1;
+        max_idx = edge_len * edge_len; // same as size
+
+        // REMINDER!!!: rank and col indices are treated as 1-based!
+
+        // reserve storage
+        positions.reserve(max_idx);
+
+        // define the board regions and move sequences
+        board_regions();
+        initialize_move_seq();
+
+        // initialize positions: and also node_data because positions is a reference
+        // to it
+        positions.insert(positions.begin(), max_idx, marker::empty);
+
+        // reserve memory and initialize int for Graph member hex_graph
+        hex_graph.graph.reserve(max_idx);
+        hex_graph.graph.max_load_factor(0.8);
+        hex_graph.made_size = max_idx;
+
+        // add nodes:  the required hexagonal "tiles" on the board
+        // initial values:  all tiles are empty = 0
+        for (int i = 0; i < max_idx; i++) {
+            all_nodes.push_back(i); // set of nodes used to find paths for both HexBoard and Graph
+            hex_graph.graph[i] = vector<Edge>(); // create empty edge list for each tile (aka, node)
+            rand_nodes.push_back(i); // vector of nodes
+        }
+
+        // add graph edges for adjacent hexes based on the layout of a Hex game
+        // board 4 corners                                tested OK upper left
+        hex_graph.add_edge(linear_index(1, 1), linear_index(2, 1));
+        hex_graph.add_edge(linear_index(1, 1), linear_index(1, 2));
+        // lower right
+        hex_graph.add_edge(linear_index(edge_len, edge_len), linear_index(edge_len, max_rank));
+        hex_graph.add_edge(linear_index(edge_len, edge_len), linear_index(max_rank, edge_len));
+        // upper right
+        hex_graph.add_edge(linear_index(1, edge_len), linear_index(1, max_rank));
+        hex_graph.add_edge(linear_index(1, edge_len), linear_index(2, edge_len));
+        hex_graph.add_edge(linear_index(1, edge_len), linear_index(2, max_rank));
+        // lower left
+        hex_graph.add_edge(linear_index(edge_len, 1), linear_index(max_rank, 1));
+        hex_graph.add_edge(linear_index(edge_len, 1), linear_index(edge_len, 2));
+        hex_graph.add_edge(linear_index(edge_len, 1), linear_index(max_rank, 2));
+
+        // 4 borders (excluding corners)  4 edges per node.
+        // north-south edges: constant rank, vary col
+        for (int c = 2; c < edge_len; c++) {
+            int r = 1;
+            hex_graph.add_edge(linear_index(r, c), linear_index(r, c - 1));
+            hex_graph.add_edge(linear_index(r, c), linear_index(r, c + 1));
+            hex_graph.add_edge(linear_index(r, c), linear_index(r + 1, c - 1));
+            hex_graph.add_edge(linear_index(r, c), linear_index(r + 1, c));
+
+            r = edge_len;
+            hex_graph.add_edge(linear_index(r, c), linear_index(r, c - 1));
+            hex_graph.add_edge(linear_index(r, c), linear_index(r, c + 1));
+            hex_graph.add_edge(linear_index(r, c), linear_index(r - 1, c));
+            hex_graph.add_edge(linear_index(r, c), linear_index(r - 1, c + 1));
+        }
+        // east-west edges: constant col, vary rank
+        for (int r = 2; r < edge_len; r++) {
+            int c = 1;
+            hex_graph.add_edge(linear_index(r, c), linear_index(r - 1, c));
+            hex_graph.add_edge(linear_index(r, c), linear_index(r - 1, c + 1));
+            hex_graph.add_edge(linear_index(r, c), linear_index(r, c + 1));
+            hex_graph.add_edge(linear_index(r, c), linear_index(r + 1, c));
+
+            c = edge_len;
+            hex_graph.add_edge(linear_index(r, c), linear_index(r - 1, c));
+            hex_graph.add_edge(linear_index(r, c), linear_index(r, c - 1));
+            hex_graph.add_edge(linear_index(r, c), linear_index(r + 1, c - 1));
+            hex_graph.add_edge(linear_index(r, c), linear_index(r + 1, c));
+        }
+
+        // interior tiles: 6 edges per hex
+        for (int r = 2; r < edge_len; r++) {
+            for (int c = 2; c < edge_len; c++) {
+                hex_graph.add_edge(linear_index(r, c), linear_index(r - 1, c + 1));
+                hex_graph.add_edge(linear_index(r, c), linear_index(r, c + 1));
+                hex_graph.add_edge(linear_index(r, c), linear_index(r + 1, c));
+                hex_graph.add_edge(linear_index(r, c), linear_index(r + 1, c - 1));
+                hex_graph.add_edge(linear_index(r, c), linear_index(r, c - 1));
+                hex_graph.add_edge(linear_index(r, c), linear_index(r - 1, c));
+            }
+        }
+
+        // hex_graph.display_graph();
+        // cin >> pause;
+    } // end of make_board
+
+    void load_board_from_file(string filename)
+    {
+        hex_graph.load_graph_from_file(filename);
+
+        // initialize HexBoard class members
+        max_idx = hex_graph.count_nodes();
+        edge_len = sqrt(max_idx);
+        max_rank = edge_len - 1;
+
+        if (edge_len * edge_len != max_idx) {
+            cout << "Error: incorrect size for hexboard. Got size = " << max_idx << endl;
+            cout << "Size must have an integer square root for number of tiles in "
+                    "edge "
+                    "of board.\n";
+            exit(-1);
+        }
+
+        // define the board regions and move sequences
+        board_regions();
+        initialize_move_seq();
+    }
 
     // methods for playing game externally defined
-    void play_game(bool);
-    RankCol prompt_for_person_move(int);
-    RankCol computer_move(int side);
-    RankCol random_move();
-    RankCol naive_move();
-    RankCol prompt_for_computer_move(int); // used during debugging
-    bool is_valid_move(RankCol);
-    int who_won();
-    int who_won_dijkstra();
-    int follow_paths(vector<int> candidates, int side, bool full_board);
 
-    // classes used to define graph and find longest paths on the board
-    friend class Graph;
-    friend class Dijkstra;
+
 
     void initialize_move_seq()
     {
@@ -571,13 +697,475 @@ class HexBoard {
     void simulate_hexboard_positions() // utility function creates random board
         // positions
     {
-        int val = 0;
+        d_type val;
         for (int i = 0; i < hex_graph.node_data.size(); i++) {
-            while (val == EMPTY_HEX) {
-                val = rand() % 3;
+            while (val == marker::empty) {
+                val = static_cast<d_type>(rand() % 3);
             }
             hex_graph.node_data[i] = val;
-            val = 0;
+            val = static_cast<d_type>(0);
+        }
+    }
+    // ##########################################################################
+    // #             Class HexBoard game playing methods
+    // ##########################################################################
+
+    // the program makes a random move
+    RankCol random_move()
+    {
+        RankCol rc;
+        int maybe; // candidate node to place a marker on
+
+        shuffle(rand_nodes.begin(), rand_nodes.end(), randgen);
+
+        for (int i = 0; i < max_idx; i++) {
+            maybe = rand_nodes[i];
+            if (is_empty(maybe)) {
+                rc = rank_col_index(maybe);
+                break;
+            }
+        }
+        if (rc.rank == 0 && rc.col == 0) { // never found an empty position->no possible move
+            rc.rank = -1;
+            rc.col = -1; // no move
+        }
+
+        return rc;
+    }
+
+    // use for testing only
+    RankCol prompt_for_computer_move(marker side)
+    {
+
+        RankCol rc;
+        int rank;
+        int col;
+        int val;
+        bool valid_move = false;
+        char pause;
+
+        while (!valid_move) {
+            cout << "Enter a move for the computer.\n";
+            cout << "Enter the rank (the row, using Chess terminology)... ";
+
+            cin >> rank;
+
+            cout << "Enter the column... ";
+
+            cin >> col;
+
+            rc.rank = rank;
+            rc.col = col;
+            valid_move = is_valid_move(rc);
+        }
+        set_hex_marker(side, rc);
+
+        return rc;
+    }
+
+    // the program makes a naive move to extend its longest path
+    RankCol naive_move()
+    {
+        RankCol rc;
+        RankCol prev_move;
+        int prev_move_linear;
+        vector<int> neighbor_nodes;
+        char pause;
+
+        if (move_seq[idx(marker::player2)].empty()) {
+            shuffle(start_border[static_cast<int>(marker::player2)].begin(),
+                    start_border[static_cast<int>(marker::player2)].end(), randgen);
+            for (int maybe : start_border[static_cast<int>(marker::player2)]) {
+                if (is_empty(maybe)) {
+                    rc = rank_col_index(maybe);
+                    return rc;
+                }
+            }
+        }
+        else {
+            prev_move = move_seq[idx(marker::player2)].back();
+            prev_move_linear = linear_index(prev_move);
+
+            neighbor_nodes = hex_graph.get_neighbor_nodes(prev_move_linear, marker::empty);
+
+            if (neighbor_nodes.empty())
+                return random_move();
+
+            shuffle(neighbor_nodes.begin(), neighbor_nodes.end(), randgen);
+            shuffle(neighbor_nodes.begin(), neighbor_nodes.end(), randgen);
+
+            for (int node : neighbor_nodes) {
+                rc = rank_col_index(node);
+                if (rc.col > prev_move.col)
+                    return rc;
+            }
+            rc = rank_col_index(neighbor_nodes.back());
+        }
+
+        return rc;
+    }
+
+    RankCol computer_move(marker side)
+    {
+        RankCol rc;
+        //  rc = random_move();   // this is WORSE than naive...
+
+        rc = naive_move();
+
+        return rc;
+    }
+
+    RankCol prompt_for_person_move(marker side)
+    {
+        RankCol rc;
+        int rank;
+        int col;
+        int val;
+        bool valid_move = false;
+
+        while (!valid_move) {
+            cout << "You go first playing X markers. The computer goes second "
+                    "playing "
+                    "O markers.\n";
+            cout << "Enter a move in an empty position that contains '.'" << endl;
+            cout << "(A Note for c++ programmers: end-users use 1-indexing, so "
+                    "that's "
+                    "what we use...)\n";
+            cout << "Enter -1 to quit..." << endl;
+            cout << "Enter the rank (the row, using Chess terminology)... ";
+
+            cin >> rank;
+
+            if (rank == -1) {
+                rc.rank = -1;
+                rc.col = -1;
+                return rc;
+            }
+
+            if (rank == -5) { // hidden command to write the current board positions
+                // to a file
+                // prepare output file
+                string filename = "Board Graph.txt";
+                fstream outfile;
+                outfile.open(filename,
+                             ios::out); // open a file to perform write operation
+                // using file object
+                if (!(outfile.is_open())) {
+                    cout << "Error opening file: " << filename << " Terminating.\n";
+                    exit(-1);
+                }
+                hex_graph.display_graph(outfile);
+            }
+
+            cout << "Enter the column... ";
+
+            cin >> col;
+
+            if (col == -1) {
+                rc.rank = -1;
+                rc.col = -1;
+                return rc;
+            }
+
+            rc.rank = rank;
+            rc.col = col;
+            valid_move = is_valid_move(rc);
+        }
+
+        return rc;
+    }
+
+    bool is_valid_move(RankCol rc)
+    {
+        int rank = rc.rank;
+        int col = rc.col;
+
+        string bad_position = "Your move used an invalid rank or column.\n\n";
+        string not_empty = "Your move didn't choose an empty position.\n\n";
+        string msg = "";
+
+        bool valid_move = true;
+
+        if (rank > edge_len || rank < 1) {
+            valid_move = false;
+            msg = bad_position;
+        }
+        else if (col > edge_len || col < 1) {
+            valid_move = false;
+            msg = bad_position;
+        }
+        else if (get_hex_marker(rc) != static_cast<d_type>(0)) {
+            valid_move = false;
+            msg = not_empty;
+        }
+
+        cout << msg;
+
+        return valid_move;
+    }
+
+    // follows path through the board for one side
+    d_type follow_paths(vector<int> linear_moves, d_type side, bool full_board = false)
+    {
+        marker winner = marker::empty;
+        int current_node = 0;
+        int this_neighbor = 0;
+        char pause;
+        deque<vector<int>> working; // MUST BE A DEQUE! hold candidate sequences across the board
+        vector<int> neighbors;
+        neighbors.reserve(6);
+        vector<int> captured; // nodes that have been put into a candidate path
+        captured.reserve(max_idx / 2 + 1);
+
+        //  cout << "linear moves " << linear_moves << endl;
+
+        // test for finish borders, though start border would also work: assumption fewer markers at the finish
+        if (side == marker::player1) {
+            for (auto move : linear_moves) {
+                if (is_in_start(move, side)) // (i < edge_len)
+                {
+                    working.emplace_front(vector<int>{move});
+                    working.front().reserve(4 * edge_len);
+                    captured.push_back(move);
+                }
+            }
+
+            // cout << "size of working " << working.size() << endl;
+            // cout << working.front() << endl;
+        }
+        else if (side == marker::player2) {
+            for (auto move : linear_moves) {
+                if (is_in_finish(move, side)) {
+                    working.emplace_front(vector<int>{move});
+                    captured.push_back(move);
+                }
+            }
+        }
+        else {
+            exit(-1);
+        }
+
+        // cout << "size of working " << working.size() << endl;
+        // cin >> pause;
+
+        // shortcut: if full_board and no paths start in starting border then the other side has one
+        if (full_board && working.empty())
+            return side == marker::player1 ? marker::player2 : marker::player1;
+
+        // extend sequences that begin in the start border to see if any reach the finish border
+        // grab a sequence  (sequences have no branches:  a branch defines a new sequence)
+        // get the neighbors of the last node
+        // if more than one neighbors, we add another working sequence for neighbors 2 through n
+        // if no more neighbors we look at the end:
+        // if we get to the finish border, we have a winner
+        // otherwise, we can discard the current sequence and grab another
+        // if we exhaust the sequences without finding a winner, the other side wins
+
+        //  cout << "got to top of loop";
+        //  cin >> pause;
+
+        while (!working.empty()) {
+            auto &this_seq = working.back(); // grab a sequence
+
+            // cout << "beginning of seq " << this_seq << endl;
+
+            while (true) // extend, branch, reject, find winner for this sequence
+            {
+                current_node = this_seq.back();
+
+                neighbors = hex_graph.get_neighbor_nodes(current_node, side, captured);
+
+                //   cout << "neighbors are: " << neighbors << endl;
+                //   cout << "pause... (any char and enter to continue)";
+                //   cin >> pause;
+
+                if (neighbors.empty()) {
+
+                    //   cout << "Got to neighbors empty\n" ;
+                    //   cout << this_seq << endl;
+                    //   cin >> pause;
+
+                    if (is_in_start(current_node, side)) { // if node in start border we have a winner
+                        // cout << "Side " << side << " won at finish border with no neighbors\n";
+                        return winner = side;
+                    }
+                    else {
+                        if (!working.empty())
+                            working.pop_back(); // discard the current sequence
+                        break; // break loop for this sequence: get another sequence
+                    }
+                }
+                else if (neighbors.size() == 1) {
+                    // add new node to this_seq and continue to extend
+
+                    //   cout << "current node " << current_node << " number of neighbors " << neighbors.size() << endl;
+                    //   cout << neighbors << endl;
+                    //   cin >> pause;
+
+                    this_seq.push_back(neighbors.front());
+                    captured.push_back(neighbors.front());
+                }
+                else {
+                    for (int i = 0; i < neighbors.size(); i++) {
+                        this_neighbor = neighbors[i];
+
+                        //   cout << "got to branching path ";
+                        //   cin >> pause;
+
+                        if (i == 0) { // extend the current seq
+                            this_seq.push_back(this_neighbor);
+                            captured.push_back(this_neighbor);
+                        }
+                        else { // make a new seq
+                            working.emplace_back(this_seq.begin(), this_seq.end() - 1); // copy up to next-to-last node
+                            // working.back().reserve(4*edge_len);
+                            working.back().push_back(
+                                this_neighbor); // add the current neighbor going in a new direction
+                            captured.push_back(this_neighbor);
+                        }
+
+                        //   cout << "size of working " << working.size() << endl;
+                        // cin >> pause;
+                    }
+                }
+            } // while(true)
+        } // while (!working.empty())
+        return static_cast<d_type>(0); // we did not find a winner
+    }
+
+    d_type who_won_dijkstra()
+    {
+        marker side = marker::empty;
+        marker winner = marker::empty;
+        int finish_hex;
+        int start_hex;
+        set<int> candidates;
+
+        // use Dijkstra shortest path algorithm to find winner
+        // test for side one victory
+        // for each hex in the finish_border for side 1, find a path that ends in
+        // start_border for player 1
+
+        // for (int col = 1, fin = linear_index(1, col); col < edge_len+1; col++)
+        for (int finish_hex : finish_border[marker::player1]) {
+            if (get_hex_marker(finish_hex) != marker::player1)
+                continue;
+            Dijkstra<d_type> paths(hex_graph);
+
+            copy_move_seq(move_seq[marker::player1], candidates);
+            // must be a copy because we remove items from candidates AND we need to keep move_seq
+
+            // find a path that starts from the finish border
+            paths.find_shortest_paths(finish_hex, marker::player1, candidates);
+            for (int start_hex : start_border[static_cast<int>(marker::player1)]) {
+                if (paths.path_sequence_exists(start_hex)) { // to the starting border
+                    winner = marker::player1;
+                    return winner;
+                }
+            }
+        }
+
+        // test for side two victory
+        // for each hex in finish border of side 2, find a path that ends in start border of side 2
+        for (int finish_hex : finish_border[marker::player2]) {
+            if (get_hex_marker(finish_hex) != marker::player2)
+                continue;
+            Dijkstra<d_type> paths(hex_graph);
+
+            copy_move_seq(move_seq[marker::player2], candidates);
+
+            paths.find_shortest_paths(finish_hex, marker::player2, candidates);
+            for (int start_hex : start_border[marker::player2]) {
+                if (paths.path_sequence_exists(start_hex)) {
+                    winner = marker::player2;
+                    return winner;
+                }
+            }
+        }
+
+        return winner; // will always be 0
+    }
+
+    d_type who_won()
+    {
+
+        game_play_time.reset();
+
+        d_type winner = static_cast<d_type>(0);
+        vector<int> candidates;
+        vector<marker> sides{marker::player1, marker::player2};
+
+        for (auto s : sides) {
+            copy_move_seq(move_seq[idx(s)], candidates);
+            winner = follow_paths(candidates, s);
+            if (winner == s) {
+                break;
+            }
+        }
+
+        game_play_time.stop();
+        game_play_time.duration += game_play_time.ticks();
+
+        return winner; // will always be 0
+    }
+
+    void play_game(bool simulate = false)
+    {
+        RankCol rc; // person's move
+        RankCol computer_rc; // computer's move
+        char pause;
+        bool valid_move;
+        bool end_game = false;
+        marker winning_side;
+
+        if (simulate) {
+            simulate_hexboard_positions();
+        }
+        else {
+            while (true) // move loop
+            {
+                clear_screen();
+                cout << "\n\n";
+                display_board();
+
+                rc = prompt_for_person_move(marker::player1);
+                if (rc.rank == -1) {
+                    cout << "Game over! Come back again...\n";
+                    break;
+                }
+
+                set_hex_marker(marker::player1, rc);
+                move_seq[idx(marker::player1)].push_back(rc);
+
+                display_board();
+                computer_rc = computer_move(marker::player2);
+                set_hex_marker(marker::player2, computer_rc);
+                move_seq[idx(marker::player2)].push_back(computer_rc);
+
+                move_count++;
+
+                clear_screen();
+
+                // test for a winner
+                if (move_count >= edge_len) {
+
+                    //              cout << "Got to testing for winner... (enter any char and press enter)\n";
+                    //              cin >> pause;
+
+                    winning_side = who_won(); // result is marker::empty, marker::player1, or marker::player2
+                    if (idx(winning_side)) {
+                        cout << "We have a winner. "
+                             << (winning_side == marker::player1 ? "You won. Congratulations!"
+                                                                 : " The computer beat you )-:")
+                             << "\nGame over. Come back and play again\n\n";
+                        display_board();
+                        break;
+                    }
+                }
+
+                cout << "Your move at " << rc << " is valid.\n";
+                cout << "The computer moved at " << computer_rc << ". Move count = " << move_count << endl;
+            }
         }
     }
 
@@ -606,17 +1194,17 @@ class HexBoard {
 
     // game play methods use rank and col for board positions
     // rank and col indices are 1-based for end users playing the game
-    void set_hex_marker(int val, RankCol rc) { positions[linear_index(rc)] = val; }
+    void set_hex_marker(d_type val, RankCol rc) { positions[linear_index(rc)] = val; }
 
-    void set_hex_marker(int val, int rank, int col) { positions[linear_index(rank, col)] = val; }
+    void set_hex_marker(d_type val, int rank, int col) { positions[linear_index(rank, col)] = val; }
 
-    void set_hex_marker(int val, int linear) { positions[linear] = val; }
+    void set_hex_marker(d_type val, int linear) { positions[linear] = val; }
 
-    int get_hex_marker(RankCol rc) { return positions[linear_index(rc)]; }
+    d_type get_hex_marker(RankCol rc) { return positions[linear_index(rc)]; }
 
-    int get_hex_marker(int rank, int col) { return positions[linear_index(rank, col)]; }
+    d_type get_hex_marker(int rank, int col) { return positions[linear_index(rank, col)]; }
 
-    int get_hex_marker(int linear) { return positions[linear]; }
+    d_type get_hex_marker(int linear) { return positions[linear]; }
 
     // convert rank, col position to a linear index to an array or map
     // graph and minimum cost path use linear indices
@@ -663,9 +1251,36 @@ class HexBoard {
         }
     }
 
+    bool is_in_start(int idx, marker side)
+    {
+
+        if (side == marker::player1) {
+            return idx < edge_len;
+        }
+        else if (side == marker::player2) {
+            return idx % edge_len == 0;
+        }
+        else
+            exit(-1);
+    }
+
+    bool is_in_finish(int idx, marker side)
+    {
+
+        if (side == marker::player1) {
+            return idx > max_idx - edge_len - 1;
+        }
+        else if (side == marker::player2) {
+            return idx % edge_len == edge_len - 1;
+        }
+        else {
+            exit(-1);
+        }
+    }
+
     inline bool is_empty(RankCol rc) { return is_empty(linear_index(rc)); }
 
-    inline bool is_empty(int linear) { return positions[linear] == EMPTY_HEX; }
+    inline bool is_empty(int linear) { return positions[linear] == marker::empty; }
 
     inline int count_nodes() const { return positions.size(); }
 
@@ -675,122 +1290,9 @@ class HexBoard {
 // end class hexboard
 // ######################################################
 
-void HexBoard::make_board(int border_len) // initialize board positions
-{
-    // initialize all members
-    edge_len = border_len;
-    max_rank = edge_len - 1;
-    max_idx = edge_len * edge_len; // same as size
 
-    // REMINDER!!!: rank and col indices are treated as 1-based!
 
-    // reserve storage
-    positions.reserve(max_idx);
 
-    // define the board regions and move sequences
-    board_regions();
-    initialize_move_seq();
-
-    // initialize positions: and also node_data because positions is a reference
-    // to it
-    positions.insert(positions.begin(), max_idx, EMPTY_HEX);
-
-    // reserve memory and initialize int for Graph member hex_graph
-    hex_graph.graph.reserve(max_idx);
-    hex_graph.graph.max_load_factor(0.8);
-    hex_graph.made_size = max_idx;
-
-    // add nodes:  the required hexagonal "tiles" on the board
-    // initial values:  all tiles are empty = 0
-    for (int i = 0; i < max_idx; i++) {
-        all_nodes.push_back(i); // set of nodes used to find paths for both HexBoard and Graph
-        hex_graph.graph[i] = vector<Edge>(); // create empty edge list for each tile (aka, node)
-        rand_nodes.push_back(i); // vector of nodes
-    }
-
-    // add graph edges for adjacent hexes based on the layout of a Hex game
-    // board 4 corners                                tested OK upper left
-    hex_graph.add_edge(linear_index(1, 1), linear_index(2, 1));
-    hex_graph.add_edge(linear_index(1, 1), linear_index(1, 2));
-    // lower right
-    hex_graph.add_edge(linear_index(edge_len, edge_len), linear_index(edge_len, max_rank));
-    hex_graph.add_edge(linear_index(edge_len, edge_len), linear_index(max_rank, edge_len));
-    // upper right
-    hex_graph.add_edge(linear_index(1, edge_len), linear_index(1, max_rank));
-    hex_graph.add_edge(linear_index(1, edge_len), linear_index(2, edge_len));
-    hex_graph.add_edge(linear_index(1, edge_len), linear_index(2, max_rank));
-    // lower left
-    hex_graph.add_edge(linear_index(edge_len, 1), linear_index(max_rank, 1));
-    hex_graph.add_edge(linear_index(edge_len, 1), linear_index(edge_len, 2));
-    hex_graph.add_edge(linear_index(edge_len, 1), linear_index(max_rank, 2));
-
-    // 4 borders (excluding corners)  4 edges per node.
-    // north-south edges: constant rank, vary col
-    for (int c = 2; c < edge_len; c++) {
-        int r = 1;
-        hex_graph.add_edge(linear_index(r, c), linear_index(r, c - 1));
-        hex_graph.add_edge(linear_index(r, c), linear_index(r, c + 1));
-        hex_graph.add_edge(linear_index(r, c), linear_index(r + 1, c - 1));
-        hex_graph.add_edge(linear_index(r, c), linear_index(r + 1, c));
-
-        r = edge_len;
-        hex_graph.add_edge(linear_index(r, c), linear_index(r, c - 1));
-        hex_graph.add_edge(linear_index(r, c), linear_index(r, c + 1));
-        hex_graph.add_edge(linear_index(r, c), linear_index(r - 1, c));
-        hex_graph.add_edge(linear_index(r, c), linear_index(r - 1, c + 1));
-    }
-    // east-west edges: constant col, vary rank
-    for (int r = 2; r < edge_len; r++) {
-        int c = 1;
-        hex_graph.add_edge(linear_index(r, c), linear_index(r - 1, c));
-        hex_graph.add_edge(linear_index(r, c), linear_index(r - 1, c + 1));
-        hex_graph.add_edge(linear_index(r, c), linear_index(r, c + 1));
-        hex_graph.add_edge(linear_index(r, c), linear_index(r + 1, c));
-
-        c = edge_len;
-        hex_graph.add_edge(linear_index(r, c), linear_index(r - 1, c));
-        hex_graph.add_edge(linear_index(r, c), linear_index(r, c - 1));
-        hex_graph.add_edge(linear_index(r, c), linear_index(r + 1, c - 1));
-        hex_graph.add_edge(linear_index(r, c), linear_index(r + 1, c));
-    }
-
-    // interior tiles: 6 edges per hex
-    for (int r = 2; r < edge_len; r++) {
-        for (int c = 2; c < edge_len; c++) {
-            hex_graph.add_edge(linear_index(r, c), linear_index(r - 1, c + 1));
-            hex_graph.add_edge(linear_index(r, c), linear_index(r, c + 1));
-            hex_graph.add_edge(linear_index(r, c), linear_index(r + 1, c));
-            hex_graph.add_edge(linear_index(r, c), linear_index(r + 1, c - 1));
-            hex_graph.add_edge(linear_index(r, c), linear_index(r, c - 1));
-            hex_graph.add_edge(linear_index(r, c), linear_index(r - 1, c));
-        }
-    }
-
-    // hex_graph.display_graph();
-    // cin >> pause;
-} // end of make_board
-
-void HexBoard::load_board_from_file(string filename)
-{
-    hex_graph.load_graph_from_file(filename);
-
-    // initialize HexBoard class members
-    max_idx = hex_graph.count_nodes();
-    edge_len = sqrt(max_idx);
-    max_rank = edge_len - 1;
-
-    if (edge_len * edge_len != max_idx) {
-        cout << "Error: incorrect size for hexboard. Got size = " << max_idx << endl;
-        cout << "Size must have an integer square root for number of tiles in "
-                "edge "
-                "of board.\n";
-        exit(-1);
-    }
-
-    // define the board regions and move sequences
-    board_regions();
-    initialize_move_seq();
-}
 
 // ##########################################################################
 // #             end of class HexBoard methods
@@ -803,9 +1305,10 @@ void HexBoard::load_board_from_file(string filename)
 // # inputs from class HexBoard make it possible to find a path of markers
 // #    on the board from one player's starting edge to the finish edge
 // ##########################################################################
+template<typename d_type>  // for data held in graph nodes like int, float, enum classes, string
 class Dijkstra {
   public:
-    Dijkstra(const Graph &dijk_graph) : dijk_graph(dijk_graph) {} // initialize the graph to be analyzed.
+    Dijkstra(const Graph<d_type> &dijk_graph) : dijk_graph(dijk_graph) {} // initialize the graph to be analyzed.
     ~Dijkstra() = default;
 
     // fields
@@ -816,7 +1319,7 @@ class Dijkstra {
 
   public:
     int start_node;
-    const Graph &dijk_graph; // need to have a graph to analyze. use reference
+    const Graph<d_type> &dijk_graph; // need to have a graph to analyze. use reference
         // to avoid copying and we never change it.
 
     // methods
@@ -843,596 +1346,159 @@ class Dijkstra {
 
     // methods to navigate resulting path_sequences
     bool path_sequence_exists(int node) { return path_sequences.find(node) != path_sequences.end() ? true : false; }
+
+    // method for caller that doesn't prebuild candidate_nodes
+    void find_shortest_paths(int start_here, d_type data_filter, bool verbose = false)
+    {
+        set<int> candidate_nodes;
+        marker node_val = marker::empty;
+        // candidates for the shortest paths must match the value in 'data_filter'
+        for (auto node : dijk_graph.all_nodes) {
+            node_val = dijk_graph.get_node_data(node);
+            if (node_val == data_filter) {
+                candidate_nodes.insert(node);
+            }
+        }
+
+        find_shortest_paths(start_here, data_filter, candidate_nodes, false);
+    }
+
+    // method for caller that prebuilds appropriate candidate nodes
+    void find_shortest_paths(int start_here, d_type data_filter, set<int> candidate_nodes,
+                                       bool verbose = false)
+    {
+
+        int num_nodes = dijk_graph.count_nodes();
+
+        // reserve memory for members and influence number of buckets
+        // this improves performance and increases memory consumption, so good for n
+        // < 1000
+        path_costs.reserve(num_nodes);
+        path_costs.max_load_factor(0.8);
+        path_sequences.reserve(num_nodes);
+        path_sequences.max_load_factor(0.8);
+
+        start_node = start_here;
+
+        // local variables
+        const int inf = INT_MAX;
+        int neighbor_node = 0;
+        int current_node = start_node;
+        int prev_node = 0;
+        int min = inf;
+        int tmp_cost = 0;
+        marker node_val;
+        deque<int> tmpsequence;
+        // set<int> candidate_nodes;   // initialized below with only valid nodes
+        vector<Edge> neighbors; // end_node and cost for each neighbor node
+
+        unordered_map<int, int> previous;
+        previous.reserve(num_nodes);
+        previous.max_load_factor(0.8);
+
+        // candidates for the shortest paths must match the current player in
+        // 'data_filter'
+        for (auto node : candidate_nodes) {
+            node_val = dijk_graph.get_node_data(node);
+            if (node_val == data_filter) {
+                // candidate_nodes.insert(node);
+                path_costs[node] = inf; // initialize costs to inf for Dijkstra alg.
+            }
+        }
+
+        path_costs[start_node] = 0;
+        previous[start_node] = -1;
+
+        // algorithm loop
+        while (!(candidate_nodes.empty())) {
+            // current_node begins as start_node
+
+            if (verbose)
+                cout << "\ncurrent_node at top of loop " << current_node << endl;
+
+            if (dijk_graph.get_node_data(current_node) != data_filter)
+                break;
+
+            neighbors = dijk_graph.get_neighbors(current_node, data_filter,
+                                                 path_nodes); //, path_nodes);  // vector<Edge>
+            for (auto &neighbor : neighbors) { // neighbor is an Edge
+                neighbor_node = neighbor.to_node;
+                tmp_cost = path_costs[current_node] + neighbor.cost; // update path_costs for neighbors of current_node
+                if (tmp_cost < path_costs[neighbor_node]) {
+                    path_costs[neighbor_node] = tmp_cost;
+                    previous[neighbor_node] = current_node;
+                }
+            }
+
+            if (current_node == start_node && neighbors.empty())
+                break; // start_node is detached from all others
+
+            if (verbose) {
+                //  for debugging shortest path algorithm
+                cout << "**** STATUS ****\n";
+                cout << "  current_node " << current_node << endl;
+                cout << "  neighbors\n";
+                cout << neighbors << endl;
+                cout << "  path_nodes\n";
+                cout << "    " << path_nodes << endl;
+                cout << "  candidate_nodes\n";
+                cout << "    " << candidate_nodes << endl;
+                cout << "  previous\n";
+                cout << previous << endl;
+                cout << "  path cost\n";
+                cout << path_costs << endl;
+            }
+
+            path_nodes.insert(current_node);
+            candidate_nodes.erase(current_node); // we won't look at this node again
+
+            // pick next current_node based on minimum distance, which will be a
+            // neighbor whose cost has been updated from infinity to the network
+            // edge cost
+            min = inf;
+            for (const int tmp_node : candidate_nodes) { // always O(n)
+                if (path_costs[tmp_node] < min) {
+                    min = path_costs[tmp_node];
+                    current_node = tmp_node;
+                }
+            }
+
+            if (min == inf) { // none of the remaining nodes are reachable
+                break;
+            }
+
+            if (verbose)
+                cout << "  current node at bottom: " << current_node << endl;
+        }
+
+        // build sequences by walking backwards from each dest. node to start_node
+        for (const auto walk_node : path_nodes) {
+            prev_node = walk_node;
+            while (prev_node != start_node) {
+                tmpsequence.push_front(prev_node); // it's a deque
+                prev_node = previous[prev_node];
+            };
+            tmpsequence.push_front(prev_node);
+            path_sequences[walk_node] = tmpsequence;
+
+            tmpsequence.clear(); // IMPORTANT: clear before reusing to build a new
+                // sequence!
+        }
+
+        if (verbose)
+            cout << *this << endl; // prints the nodes and shortest path_sequences
+                // to each node
+    }
 };
 // end of class Dijkstra
 
-// method for caller that doesn't prebuild candidate_nodes
-void Dijkstra::find_shortest_paths(int start_here, int data_filter, bool verbose = false)
-{
-    set<int> candidate_nodes;
-    int node_val = 0;
-    // candidates for the shortest paths must match the value in 'data_filter'
-    for (auto node : dijk_graph.all_nodes) {
-        node_val = dijk_graph.get_node_data(node);
-        if (node_val == data_filter) {
-            candidate_nodes.insert(node);
-        }
-    }
 
-    find_shortest_paths(start_here, data_filter, candidate_nodes, false);
-}
-
-// method for caller that prebuilds appropriate candidate nodes
-void Dijkstra::find_shortest_paths(int start_here, int data_filter, set<int> candidate_nodes, bool verbose = false)
-{
-
-    int num_nodes = dijk_graph.count_nodes();
-
-    // reserve memory for members and influence number of buckets
-    // this improves performance and increases memory consumption, so good for n
-    // < 1000
-    path_costs.reserve(num_nodes);
-    path_costs.max_load_factor(0.8);
-    path_sequences.reserve(num_nodes);
-    path_sequences.max_load_factor(0.8);
-
-    start_node = start_here;
-
-    // local variables
-    const int inf = INT_MAX;
-    int neighbor_node = 0;
-    int current_node = start_node;
-    int prev_node = 0;
-    int min = inf;
-    int tmp_cost = 0;
-    int node_val = -1;
-    deque<int> tmpsequence;
-    // set<int> candidate_nodes;   // initialized below with only valid nodes
-    vector<Edge> neighbors; // end_node and cost for each neighbor node
-
-    unordered_map<int, int> previous;
-    previous.reserve(num_nodes);
-    previous.max_load_factor(0.8);
-
-    // candidates for the shortest paths must match the current player in
-    // 'data_filter'
-    for (auto node : candidate_nodes) {
-        node_val = dijk_graph.get_node_data(node);
-        if (node_val == data_filter) {
-            // candidate_nodes.insert(node);
-            path_costs[node] = inf; // initialize costs to inf for Dijkstra alg.
-        }
-    }
-
-    path_costs[start_node] = 0;
-    previous[start_node] = -1;
-
-    // algorithm loop
-    while (!(candidate_nodes.empty())) {
-        // current_node begins as start_node
-
-        if (verbose)
-            cout << "\ncurrent_node at top of loop " << current_node << endl;
-
-        if (dijk_graph.get_node_data(current_node) != data_filter)
-            break;
-
-        neighbors = dijk_graph.get_neighbors(current_node, data_filter,
-                                             path_nodes); //, path_nodes);  // vector<Edge>
-        for (auto &neighbor : neighbors) { // neighbor is an Edge
-            neighbor_node = neighbor.to_node;
-            tmp_cost = path_costs[current_node] + neighbor.cost; // update path_costs for neighbors of current_node
-            if (tmp_cost < path_costs[neighbor_node]) {
-                path_costs[neighbor_node] = tmp_cost;
-                previous[neighbor_node] = current_node;
-            }
-        }
-
-        if (current_node == start_node && neighbors.empty())
-            break; // start_node is detached from all others
-
-        if (verbose) {
-            //  for debugging shortest path algorithm
-            cout << "**** STATUS ****\n";
-            cout << "  current_node " << current_node << endl;
-            cout << "  neighbors\n";
-            cout << neighbors << endl;
-            cout << "  path_nodes\n";
-            cout << "    " << path_nodes << endl;
-            cout << "  candidate_nodes\n";
-            cout << "    " << candidate_nodes << endl;
-            cout << "  previous\n";
-            cout << previous << endl;
-            cout << "  path cost\n";
-            cout << path_costs << endl;
-        }
-
-        path_nodes.insert(current_node);
-        candidate_nodes.erase(current_node); // we won't look at this node again
-
-        // pick next current_node based on minimum distance, which will be a
-        // neighbor whose cost has been updated from infinity to the network
-        // edge cost
-        min = inf;
-        for (const int tmp_node : candidate_nodes) { // always O(n)
-            if (path_costs[tmp_node] < min) {
-                min = path_costs[tmp_node];
-                current_node = tmp_node;
-            }
-        }
-
-        if (min == inf) { // none of the remaining nodes are reachable
-            break;
-        }
-
-        if (verbose)
-            cout << "  current node at bottom: " << current_node << endl;
-    }
-
-    // build sequences by walking backwards from each dest. node to start_node
-    for (const auto walk_node : path_nodes) {
-        prev_node = walk_node;
-        while (prev_node != start_node) {
-            tmpsequence.push_front(prev_node); // it's a deque
-            prev_node = previous[prev_node];
-        };
-        tmpsequence.push_front(prev_node);
-        path_sequences[walk_node] = tmpsequence;
-
-        tmpsequence.clear(); // IMPORTANT: clear before reusing to build a new
-            // sequence!
-    }
-
-    if (verbose)
-        cout << *this << endl; // prints the nodes and shortest path_sequences
-            // to each node
-}
 
 // ##########################################################################
 // #             end of class Dijkstra methods
 // ##########################################################################
 
-// ##########################################################################
-// #             Class HexBoard game playing methods
-// ##########################################################################
 
-// the program makes a random move
-RankCol HexBoard::random_move()
-{
-    RankCol rc;
-    int maybe; // candidate node to place a marker on
-
-    shuffle(rand_nodes.begin(), rand_nodes.end(), randgen);
-
-    for (int i = 0; i < max_idx; i++) {
-        maybe = rand_nodes[i];
-        if (is_empty(maybe)) {
-            rc = rank_col_index(maybe);
-            break;
-        }
-    }
-    if (rc.rank == 0 && rc.col == 0) { // never found an empty position->no possible move
-        rc.rank = -1;
-        rc.col = -1; // no move
-    }
-
-    return rc;
-}
-
-// use for testing only
-RankCol HexBoard::prompt_for_computer_move(int side)
-{
-    RankCol rc;
-    int rank;
-    int col;
-    int val;
-    bool valid_move = false;
-    char pause;
-
-    while (!valid_move) {
-        cout << "Enter a move for the computer.\n";
-        cout << "Enter the rank (the row, using Chess terminology)... ";
-
-        cin >> rank;
-
-        cout << "Enter the column... ";
-
-        cin >> col;
-
-        rc.rank = rank;
-        rc.col = col;
-        valid_move = is_valid_move(rc);
-    }
-    set_hex_marker(side, rc);
-
-    return rc;
-}
-
-// the program makes a naive move to extend its longest path
-RankCol HexBoard::naive_move()
-{
-    RankCol rc;
-    RankCol prev_move;
-    int prev_move_linear;
-    vector<int> neighbor_nodes;
-    char pause;
-
-    if (move_seq[PLAYER2_O].empty()) {
-        shuffle(start_border[PLAYER2_O].begin(), start_border[PLAYER2_O].end(), randgen);
-        for (int maybe : start_border[PLAYER2_O]) {
-            if (is_empty(maybe)) {
-                rc = rank_col_index(maybe);
-                return rc;
-            }
-        }
-    }
-    else {
-        prev_move = move_seq[PLAYER2_O].back();
-        prev_move_linear = linear_index(prev_move);
-
-        neighbor_nodes = hex_graph.get_neighbor_nodes(prev_move_linear, EMPTY_HEX);
-
-        if (neighbor_nodes.empty())
-            return random_move();
-
-        shuffle(neighbor_nodes.begin(), neighbor_nodes.end(), randgen);
-        shuffle(neighbor_nodes.begin(), neighbor_nodes.end(), randgen);
-
-        for (int node : neighbor_nodes) {
-            rc = rank_col_index(node);
-            if (rc.col > prev_move.col)
-                return rc;
-        }
-        rc = rank_col_index(neighbor_nodes.back());
-    }
-
-    return rc;
-}
-
-RankCol HexBoard::computer_move(int side)
-{
-    RankCol rc;
-    //  rc = random_move();   // this is WORSE than naive...
-
-    rc = naive_move();
-
-    return rc;
-}
-
-RankCol HexBoard::prompt_for_person_move(int side)
-{
-    RankCol rc;
-    int rank;
-    int col;
-    int val;
-    bool valid_move = false;
-
-    while (!valid_move) {
-        cout << "You go first playing X markers. The computer goes second "
-                "playing "
-                "O markers.\n";
-        cout << "Enter a move in an empty position that contains '.'" << endl;
-        cout << "(A Note for c++ programmers: end-users use 1-indexing, so "
-                "that's "
-                "what we use...)\n";
-        cout << "Enter -1 to quit..." << endl;
-        cout << "Enter the rank (the row, using Chess terminology)... ";
-
-        cin >> rank;
-
-        if (rank == -1) {
-            rc.rank = -1;
-            rc.col = -1;
-            return rc;
-        }
-
-        if (rank == -5) { // hidden command to write the current board positions
-            // to a file
-            // prepare output file
-            string filename = "Board Graph.txt";
-            fstream outfile;
-            outfile.open(filename,
-                         ios::out); // open a file to perform write operation
-            // using file object
-            if (!(outfile.is_open())) {
-                cout << "Error opening file: " << filename << " Terminating.\n";
-                exit(-1);
-            }
-            hex_graph.display_graph(outfile);
-        }
-
-        cout << "Enter the column... ";
-
-        cin >> col;
-
-        if (col == -1) {
-            rc.rank = -1;
-            rc.col = -1;
-            return rc;
-        }
-
-        rc.rank = rank;
-        rc.col = col;
-        valid_move = is_valid_move(rc);
-    }
-
-    return rc;
-}
-
-bool HexBoard::is_valid_move(RankCol rc)
-{
-    int rank = rc.rank;
-    int col = rc.col;
-
-    string bad_position = "Your move used an invalid rank or column.\n\n";
-    string not_empty = "Your move didn't choose an empty position.\n\n";
-    string msg = "";
-
-    bool valid_move = true;
-
-    if (rank > edge_len || rank < 1) {
-        valid_move = false;
-        msg = bad_position;
-    }
-    else if (col > edge_len || col < 1) {
-        valid_move = false;
-        msg = bad_position;
-    }
-    else if (get_hex_marker(rc) != 0) {
-        valid_move = false;
-        msg = not_empty;
-    }
-
-    cout << msg;
-
-    return valid_move;
-}
-
-// follows path through the board for one side
-int HexBoard::follow_paths(vector<int> linear_moves, int side, bool full_board = false)
-{
-    int winner = 0;
-    int current_node = 0;
-    int this_neighbor = 0;
-    char pause;
-    deque<vector<int>> working;  // MUST BE A DEQUE! hold candidate sequences across the board
-    vector<int> neighbors;
-        neighbors.reserve(6);
-    vector<int> captured; // nodes that have been put into a candidate path
-        captured.reserve(max_idx / 2 + 1);
-
-    if (side == PLAYER1_X) {
-        for (auto i : linear_moves) {
-            if (i < edge_len) {
-                working.push_back(vector<int>{i});
-                captured.push_back(i);
-            }
-        }
-    }
-    else if (side == PLAYER2_O) {
-        for (auto i : linear_moves) {
-            if (i % edge_len == 0) {
-                working.push_back(vector<int>{i});
-                captured.push_back(i);
-            }
-        }
-    }
-    else {
-        cout << "Error: side must be 1 or 2. Got: " << side << endl;
-    }
-
-    // shortcut: if full_board and no paths start in starting border then the other side has one
-    if (full_board && working.empty())
-        return side == PLAYER1_X ? PLAYER2_O : PLAYER1_X;
-
-    // extend sequences that begin in the start border to see if any reach the finish border
-    // grab a sequence  (sequences have no branches:  a branch defines a new sequence)
-    // get the neighbors of the last node
-    // if more than one neighbors, we add another working sequence for neighbors 2 through n
-    // if no more neighbors we look at the end:
-    // if we get to the finish border, we have a winner
-    // otherwise, we can discard the current sequence and grab another
-    // if we exhaust the sequences without finding a winner, the other side wins
-
-    //  cout << "got to top of loop";
-    //  cin >> pause;
-
-    while (!working.empty()) {
-        auto &this_seq = working.back(); // grab a sequence
-
-        // cout << "beginning of seq " << this_seq << endl;
-
-        while (true) // extend, branch, reject, find winner for this sequence
-        {
-            current_node = this_seq.back();
-
-            neighbors = hex_graph.get_neighbor_nodes(current_node, side, captured);
-
-            // cout << "neighbors are: " << neighbors << endl;
-            // cout << "pause... (any char and enter to continue)";
-            // cin >> pause;
-
-            if (neighbors.empty()) {
-
-                //              cout << "Got to neighbors empty\n" ;
-                //              cout << this_seq << endl;
-                //              cin >> pause;
-
-                if (is_in(current_node, finish_border[side])) { // if node in finish border we have a winner
-                    //                  cout << "Side " << side << " won at finish border with no neighbors\n";
-                    return winner = side;
-                }
-                else {
-                    working.pop_back(); // discard the current sequence
-                    break; // break loop for this sequence: get another sequence
-                }
-            }
-            else if (neighbors.size() == 1) {
-                // add new node to this_seq and continue to extend
-
-                // cout << "current node " << current_node << " number of neighbors " << neighbors.size() << endl;
-                // cout << neighbors << endl;
-                // cin >> pause;
-
-                this_seq.push_back(neighbors.front());
-                captured.push_back(neighbors.front());
-            }
-            else {
-                for (int i = 0; i < neighbors.size(); i++) {
-                    //                  cout << "got to branching path ";
-                    // cin >> pause;
-                    if (i == 0) {
-                        this_seq.push_back(neighbors[0]); // extend the current seq
-                        captured.push_back(neighbors[0]);
-                    }
-                    else {
-                        working.push_back(vector<int>(this_seq.begin(), this_seq.end() - 1)); // copy to next-to-last node
-                        working.back().push_back(neighbors[i]); // add the current neighbor
-                        captured.push_back(neighbors[i]);
-                    }
-                }
-            }
-        }  // while(true)
-    } // while (!working.empty())
-    return 0; // we did not find a winner
-}
-
-
-int HexBoard::who_won_dijkstra()
-{
-    int side = 0;
-    int winner = 0;
-    int finish_hex;
-    int start_hex;
-    set<int> candidates;
-
-    // use Dijkstra shortest path algorithm to find winner
-    // test for side one victory
-    // for each hex in the finish_border for side 1, find a path that ends in
-    // start_border for player 1
-
-    for (int finish_hex : finish_border[PLAYER1_X]) {
-        if (get_hex_marker(finish_hex) != PLAYER1_X)
-            continue;
-        Dijkstra paths(hex_graph);
-
-        copy_move_seq(move_seq[PLAYER1_X], candidates);
-        // must be a copy because we remove items from candidates AND we need to keep move_seq
-
-        // find a path that starts from the finish border
-        paths.find_shortest_paths(finish_hex, PLAYER1_X, candidates);
-        for (int start_hex : start_border[PLAYER1_X]) {
-            if (paths.path_sequence_exists(start_hex)) { // to the starting border
-                winner = PLAYER1_X;
-                return winner;
-            }
-        }
-    }
-
-    // test for side two victory
-    // for each hex in finish border of side 2, find a path that ends in start border of side 2
-    for (int finish_hex : finish_border[PLAYER2_O]) {
-        if (get_hex_marker(finish_hex) != PLAYER2_O)
-            continue;
-        Dijkstra paths(hex_graph);
-
-        copy_move_seq(move_seq[PLAYER2_O], candidates);
-
-        paths.find_shortest_paths(finish_hex, PLAYER2_O, candidates);
-        for (int start_hex : start_border[PLAYER2_O]) {
-            if (paths.path_sequence_exists(start_hex)) {
-                winner = PLAYER2_O;
-                return winner;
-            }
-        }
-    }
-
-    return winner; // will always be 0
-}
-
-int HexBoard::who_won()
-{
-
-    game_play_time.reset();
-
-
-    int winner = 0;
-    vector<int> candidates;
-    vector<int> sides{PLAYER1_X, PLAYER2_O};
-
-    for (auto s : sides) {
-        copy_move_seq(move_seq[s], candidates);
-        winner = follow_paths(candidates, s);
-        if (winner == s) {
-            break;
-        }
-    }
-  
-  cout << "winner = " << winner << endl;
-
-    game_play_time.stop();  game_play_time.duration += game_play_time.ticks();
-
-    return winner; // will always be 0
-}
-
-void HexBoard::play_game(bool simulate = false)
-{
-    RankCol rc; // person's move
-    RankCol computer_rc; // computer's move
-    char pause;
-    bool valid_move;
-    bool end_game = false;
-    int winning_side;
-
-    if (simulate) {
-        simulate_hexboard_positions();
-    }
-    else {
-        while (true) // move loop
-        {
-            clear_screen();
-            cout << "\n\n";
-            display_board();
-
-            rc = prompt_for_person_move(PLAYER1_X);
-            if (rc.rank == -1) {
-                cout << "Game over! Come back again...\n";
-                break;
-            }
-
-            set_hex_marker(PLAYER1_X, rc);
-            move_seq[PLAYER1_X].push_back(rc);
-
-            display_board();
-            computer_rc = computer_move(PLAYER2_O);
-            set_hex_marker(PLAYER2_O, computer_rc);
-            move_seq[PLAYER2_O].push_back(computer_rc);
-
-            move_count++;
-
-            clear_screen();
-
-            // test for a winner
-            if (move_count >= edge_len) {
-
-                //              cout << "Got to testing for winner... (enter any char and press enter)\n";
-                //              cin >> pause;
-
-                winning_side = who_won(); // result is 0, 1, or 2
-                if (winning_side) {
-                    cout << "We have a winner. "
-                         << (winning_side == 1 ? "You won. Congratulations!" : " The computer beat you )-:")
-                         << "\nGame over. Come back and play again\n\n";
-                    display_board();
-                    break;
-                }
-            }
-
-            cout << "Your move at " << rc << " is valid.\n";
-            cout << "The computer moved at " << computer_rc << ". Move count = " << move_count << endl;
-        }
-    }
-}
 
 int main(int argc, char *argv[])
 {
@@ -1459,7 +1525,7 @@ int main(int argc, char *argv[])
 
     this_timer.reset();
 
-    HexBoard hb;
+    HexBoard<marker> hb;
     hb.make_board(size);
 
     this_timer.stop();
