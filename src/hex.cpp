@@ -5,7 +5,6 @@
 // I've used. Programmer: Lewis Levin Date: April 2023
 
 #include <algorithm>
-#include <cstdio>
 #include <deque> // sequence of nodes in a path between start and destination
 #include <fstream> // to write graph to file and read graph from file
 #include <iostream>
@@ -19,7 +18,7 @@
 
 using namespace std;
 
-
+// used by class HexBoard for the data held at each board position
 enum class marker { empty = 0, player1 = 1, player2 = 2 };
 
 #define idx(x) static_cast<std::underlying_type_t<decltype(x)>>(x) // shortcut to calc indices for arrays
@@ -41,12 +40,13 @@ char pause;
 
 // for random shuffling of board moves
 random_device rd;
-mt19937 randgen(rd());
+mt19937 randgen(rd());  //this is Mersenne twister consider one of the random-est and fastest
 
 // send control codes to console to clear the screen
 // not guaranteed to work on all OS'es.  Works on MacOs.
 void clear_screen() { cout << u8"\033[2J"; }
 
+// print all elements of a set of various types, assuming the element type has default support in ostream
 template <typename T> ostream &operator<<(ostream &os, const set<T> &s)
 {
     int count = 0;
@@ -59,6 +59,7 @@ template <typename T> ostream &operator<<(ostream &os, const set<T> &s)
     return os;
 }
 
+// print key and values of an unordered_map
 template <class T> ostream &operator<<(ostream &os, unordered_map<int, int, T> &um)
 {
     int count = 0;
@@ -71,7 +72,9 @@ template <class T> ostream &operator<<(ostream &os, unordered_map<int, int, T> &
     return os;
 }
 
-ostream &operator<<(ostream &os, deque<int> &dq)
+// print elements of a deque for various element types
+template <class T>
+ostream &operator<<(ostream &os, deque<T> &dq)
 {
     int count = 0;
     for (const auto &p : dq) {
@@ -83,6 +86,7 @@ ostream &operator<<(ostream &os, deque<int> &dq)
     return os;
 }
 
+// print elements of a vector for various element types
 template <class T> ostream &operator<<(ostream &os, vector<T> &dq)
 {
     int count = 0;
@@ -97,7 +101,7 @@ template <class T> ostream &operator<<(ostream &os, vector<T> &dq)
 
 // rank and col on the hexboard to address a hexagon
 // rank and col are seen by the human player so we use 1-based indexing
-// the linear_index conversion function handles this
+// the linear_index conversion method in class HexBoard handles this
 struct RankCol {
     int rank;
     int col;
@@ -123,7 +127,7 @@ string string_by_n(string s, int n)
     return ret;
 }
 
-// EDGE IS USED WITH THE GRAPH DEFINTION OF A HEXBOARD
+// EDGE IS IN CLASS GRAPH DEFINTION
 // holds an edge for a starting node (aka "edge"): neighbor node, cost to it
 // doesn't include source node because that is part of the outer data structure,
 // class Graph
@@ -152,18 +156,21 @@ ostream &operator<<(ostream &os, const vector<Edge> &ve)
 
 // other non-class functions
 
-// test if value is in set
-bool is_in(int val, set<int> v_set) { return v_set.find(val) != v_set.end() ? true : false; }
+// test if value is in set for various element types
+template <typename T>
+bool is_in(T val, set<T> v_set) { return v_set.find(val) != v_set.end() ? true : false; }
 
-// test if value is in vector with trivial linear search
-bool is_in(int val, vector<int> vec)
+// test if value is in vector with trivial linear search for various primitive element types
+template <typename T>
+bool is_in(T val, vector<T> vec)
 {
     auto it = find(vec.begin(), vec.end(), val);
     return it != vec.end();
 }
 
 // test if value is in deque with trivial linear search
-bool is_in(int val, deque<int> deq)
+template <typename T>
+bool is_in(T val, deque<T> deq)
 {
     auto it = find(deq.begin(), deq.end(), val);
     return it != deq.end();
@@ -171,7 +178,7 @@ bool is_in(int val, deque<int> deq)
 
 // compare to a single value not wrapped in a container
 template<typename T>
-bool is_in(int val, T one) { return val == one; }
+bool is_in(T val, T one) { return val == one; }
 
 // simple way to time segments of code
 // ex:
@@ -179,7 +186,7 @@ bool is_in(int val, T one) { return val == one; }
 //      this_timer.reset();    // re-uses this_timer and starts it at a new time
 //      < bunch-o-code >
 //      this_timer.stop();
-//      cout << "This code took " << this_timer.ticks() << " seconds\n";  // can be saved in a double, but not in the struct
+//      cout << "This code took " << this_timer.ticks() << " seconds\n";  
 struct Timing {
     std::chrono::time_point<std::chrono::steady_clock> start;
     std::chrono::time_point<std::chrono::steady_clock> end;
@@ -202,14 +209,12 @@ Timing game_play_time;  // global to measure cumulative time for assessing the g
 // #  load_graph_from_file: methods to define graph representation
 // #
 // ##########################################################################
-template <typename T_data>   // use for int, float, enum class
+template <typename T_data>   // node_data can be various primitive data types
 class Graph {
   public:
     Graph<T_data>() = default;
     ~Graph<T_data>() = default;
 
-    // friends
-    friend class HexBoard;
     template <typename Z>
     friend class Dijkstra;
 
@@ -223,9 +228,18 @@ class Graph {
     vector<int> all_nodes;
 
     // methods
-  
+
   public:
+    void set_storage(int size)
+    {
+        graph.reserve(size);
+        graph.max_load_factor(0.8);
+        node_data.reserve(size);
+    }
+
     int count_nodes() const { return made_size; }
+
+    void initialize_data(T_data val, int size) { node_data.insert(node_data.begin(), size, val); };
 
     void set_node_data(T_data val, int idx) { node_data[idx] = val; }
 
@@ -289,25 +303,33 @@ class Graph {
     }
 
     // add an edge to the graph
-    void add_edge(int x, int y, int cost = 1, bool bidirectional = false)
+
+    // empty Edge container
+    void add_edge(int node)
     {
-        if (graph.find(x) != graph.end()) {
+        graph.emplace(node, vector<Edge>{});
+    }
+
+    // with to_node and cost
+    void add_edge(int node, int y, int cost = 1, bool bidirectional = false)
+    {
+        if (graph.find(node) != graph.end()) {
             if (graph.find(y) != graph.end()) {
-                for (auto edge : graph[x]) { // iterate over edges of x
+                for (auto edge : graph[node]) { // iterate over edges of node
                     if (y == edge.to_node) {
-                        return; // to_node y already exists as an edge of x
+                        return; // to_node y already exists as an edge of node
                     }
                 }
-                graph[x].push_back(Edge(y, cost));
+                graph[node].push_back(Edge(y, cost));
                 if (bidirectional)
-                    graph[y].push_back(Edge(x, cost));
+                    graph[y].push_back(Edge(node, cost));
             }
             else {
                 cout << "node " << y << " not found in graph.";
             }
         }
         else {
-            cout << "node " << x << " not found in graph.";
+            cout << "node " << node << " not found in graph.";
         }
     }
 
@@ -643,8 +665,6 @@ class HexBoard {
         // of game moves
 
   private:
-    vector<marker> &positions = hex_graph.node_data; // a reference to the graph's node_data
-
     vector<vector<int>> start_border; // holds indices at the top and left edges of the board
     vector<vector<int>> finish_border; // holds indices at the bottom and right edges of the board
 
@@ -733,7 +753,7 @@ class HexBoard {
         // REMINDER!!!: rank and col indices are treated as 1-based!
 
         // reserve storage
-        positions.reserve(max_idx);
+        hex_graph.set_storage(max_idx);
 
         // define the board regions and move sequences
         board_regions();
@@ -741,18 +761,14 @@ class HexBoard {
 
         // initialize positions: and also node_data because positions is a reference
         // to it
-        positions.insert(positions.begin(), max_idx, marker::empty);
-
-        // reserve memory and initialize int for Graph member hex_graph
-        hex_graph.graph.reserve(max_idx);
-        hex_graph.graph.max_load_factor(0.8);
-        hex_graph.made_size = max_idx;
+        hex_graph.initialize_data(marker::empty, max_idx);
 
         // add nodes:  the required hexagonal "tiles" on the board
         // initial values:  all tiles are empty = 0
         for (int i = 0; i < max_idx; i++) {
             all_nodes.push_back(i); // set of nodes used to find paths for both HexBoard and Graph
-            hex_graph.graph[i] = vector<Edge>(); // create empty edge list for each tile (aka, node)
+            // hex_graph.graph[i] = vector<Edge>(); // create empty edge list for each tile (aka, node)
+            hex_graph.add_edge(i);
             rand_nodes.push_back(i); // vector of nodes
         }
 
@@ -888,11 +904,11 @@ class HexBoard {
         // positions
     {
         marker val;
-        for (int i = 0; i < hex_graph.node_data.size(); i++) {
+        for (int i = 0; i < hex_graph.count_nodes(); i++) {
             while (val == marker::empty) {
                 val = static_cast<marker>(rand() % 3);
             }
-            hex_graph.node_data[i] = val;
+            set_hex_marker(val, i);
             val = marker::empty;
         }
     }
@@ -1384,17 +1400,18 @@ class HexBoard {
 
     // game play methods use rank and col for board positions
     // rank and col indices are 1-based for end users playing the game
-    void set_hex_marker(marker val, RankCol rc) { positions[linear_index(rc)] = val; }
+    
+    void set_hex_marker(marker val, RankCol rc) { hex_graph.set_node_data(val, linear_index(rc));}
 
-    void set_hex_marker(marker val, int rank, int col) { positions[linear_index(rank, col)] = val; }
+    void set_hex_marker(marker val, int rank, int col) { hex_graph.set_node_data(val, linear_index(rank, col)); }
 
-    void set_hex_marker(marker val, int linear) { positions[linear] = val; }
+    void set_hex_marker(marker val, int linear) { hex_graph.set_node_data(val, linear); }
 
-    marker get_hex_marker(RankCol rc) { return positions[linear_index(rc)]; }
+    marker get_hex_marker(RankCol rc) {return hex_graph.get_node_data(linear_index(rc)); }
 
-    marker get_hex_marker(int rank, int col) { return positions[linear_index(rank, col)]; }
+    marker get_hex_marker(int rank, int col) { return hex_graph.get_node_data(linear_index(rank, col)); }
 
-    marker get_hex_marker(int linear) { return positions[linear]; }
+    marker get_hex_marker(int linear) { return hex_graph.get_node_data(linear); }
 
     // convert rank, col position to a linear index to an array or map
     // graph and minimum cost path use linear indices
@@ -1470,11 +1487,8 @@ class HexBoard {
 
     inline bool is_empty(RankCol rc) { return is_empty(linear_index(rc)); }
 
-    inline bool is_empty(int linear) { return positions[linear] == marker::empty; }
+    inline bool is_empty(int linear) { return get_hex_marker(linear) == marker::empty; }
 
-    inline int count_nodes() const { return positions.size(); }
-
-    inline marker get_node_data(int node) const { return positions[node]; }
 };
 // ######################################################
 // end class hexboard
