@@ -15,6 +15,7 @@
 #include <stdlib.h> // for atoi()
 #include <unordered_map> // container for definition of Graph, costs, previous nodes for Dijkstra
 #include <vector>
+#include <chrono>      // for performance tuning
 
 using namespace std;
 
@@ -156,6 +157,27 @@ bool is_in(int val, deque<int> deq)
 
 // compare to a single value not wrapped in a container
 bool is_in(int val, int one) { return val == one; }
+
+// simple way to time segments of code
+// ex:
+//      Timing this_timer;
+//      this_timer.reset();    // re-uses this_timer and starts it at a new time
+//      < bunch-o-code >
+//      this_timer.stop();
+//      cout << "This code took " << this_timer.ticks() << " seconds\n";  // can be saved in a double, but not in the struct
+struct Timing {
+    std::chrono::time_point<std::chrono::steady_clock> start;
+    std::chrono::time_point<std::chrono::steady_clock> end;
+    double duration = 0.0;
+
+    void reset() { start = std::chrono::steady_clock::now(); }
+
+    void stop() { end = std::chrono::steady_clock::now(); }
+
+    double ticks() { return std::chrono::duration_cast<std::chrono::duration<double>>(end - start).count(); }
+};
+
+Timing game_play_time;  // global to measure cumulative time for assessing the game
 
 class HexBoard; // forward declaration for need for class Graph
 
@@ -500,7 +522,7 @@ class HexBoard {
     bool is_valid_move(RankCol);
     int who_won();
     int who_won_dijkstra();
-    int follow_path(vector<int> candidates, int side, bool full_board);
+    int follow_paths(vector<int> candidates, int side, bool full_board);
 
     // classes used to define graph and find longest paths on the board
     friend class Graph;
@@ -743,6 +765,9 @@ void HexBoard::make_board(int border_len) // initialize board positions
             hex_graph.add_edge(linear_index(r, c), linear_index(r - 1, c));
         }
     }
+
+    // hex_graph.display_graph();
+    // cin >> pause;
 } // end of make_board
 
 void HexBoard::load_board_from_file(string filename)
@@ -1164,20 +1189,17 @@ bool HexBoard::is_valid_move(RankCol rc)
 }
 
 // follows path through the board for one side
-int HexBoard::follow_path(vector<int> linear_moves, int side, bool full_board = false)
+int HexBoard::follow_paths(vector<int> linear_moves, int side, bool full_board = false)
 {
     int winner = 0;
     int current_node = 0;
     int this_neighbor = 0;
     char pause;
-    deque<vector<int>> working;
+    deque<vector<int>> working;  // MUST BE A DEQUE! hold candidate sequences across the board
     vector<int> neighbors;
         neighbors.reserve(6);
     vector<int> captured; // nodes that have been put into a candidate path
         captured.reserve(max_idx / 2 + 1);
-
-    //  cout << "got to follow_path (enter any key and press enter to continue ";
-    //  cin >> pause;
 
     if (side == PLAYER1_X) {
         for (auto i : linear_moves) {
@@ -1247,31 +1269,34 @@ int HexBoard::follow_path(vector<int> linear_moves, int side, bool full_board = 
             }
             else if (neighbors.size() == 1) {
                 // add new node to this_seq and continue to extend
+
+                // cout << "current node " << current_node << " number of neighbors " << neighbors.size() << endl;
+                // cout << neighbors << endl;
+                // cin >> pause;
+
                 this_seq.push_back(neighbors.front());
                 captured.push_back(neighbors.front());
             }
             else {
                 for (int i = 0; i < neighbors.size(); i++) {
                     //                  cout << "got to branching path ";
-                    cin >> pause;
+                    // cin >> pause;
                     if (i == 0) {
                         this_seq.push_back(neighbors[0]); // extend the current seq
                         captured.push_back(neighbors[0]);
                     }
                     else {
-                        // copy this_seq up to next-to-last as a new seq in working
-                        working.emplace_back(this_seq.begin(), this_seq.end() - 1);
-                        //  cout << "size of working " << working.size() << endl;
-                        cin >> pause;
+                        working.push_back(vector<int>(this_seq.begin(), this_seq.end() - 1)); // copy to next-to-last node
                         working.back().push_back(neighbors[i]); // add the current neighbor
                         captured.push_back(neighbors[i]);
                     }
                 }
             }
-        }
-    }
+        }  // while(true)
+    } // while (!working.empty())
     return 0; // we did not find a winner
 }
+
 
 int HexBoard::who_won_dijkstra()
 {
@@ -1327,16 +1352,25 @@ int HexBoard::who_won_dijkstra()
 
 int HexBoard::who_won()
 {
+
+    game_play_time.reset();
+
+
     int winner = 0;
     vector<int> candidates;
     vector<int> sides{PLAYER1_X, PLAYER2_O};
 
     for (auto s : sides) {
         copy_move_seq(move_seq[s], candidates);
-        winner = follow_path(candidates, s);
-        if (winner == s)
-            return winner;
+        winner = follow_paths(candidates, s);
+        if (winner == s) {
+            break;
+        }
     }
+  
+  cout << "winner = " << winner << endl;
+
+    game_play_time.stop();  game_play_time.duration += game_play_time.ticks();
 
     return winner; // will always be 0
 }
@@ -1421,9 +1455,22 @@ int main(int argc, char *argv[])
         size = 5;
     }
 
+    Timing this_timer;
+
+    this_timer.reset();
+
     HexBoard hb;
     hb.make_board(size);
+
+    this_timer.stop();
+    cout << "Setup took " << this_timer.ticks() << " seconds.\n";
+    cout << "Paused... (enter any key and press enter to continue) ";
+    cin >> pause;
+
     hb.play_game();
+
+    cout << "Assessing who won took " << game_play_time.duration << " seconds.\n";
+
 
     return 0;
 }
