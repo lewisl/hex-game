@@ -5,10 +5,14 @@
 // Programmer: Lewis Levin Date: April 2023
 
 #include <algorithm>
+
+#include <cstddef>
+#include <ctime>
 #include <deque>    // sequence of nodes in a path between start and destination
 #include <fstream>  // to write graph to file and read graph from file
 #include <iostream>
 #include <random>
+#include <numeric>  // easy way to fill vector with a range
 #include <set>      // hold nodes for shortest path algorithm
 #include <sstream>  // to use stringstream to parse inputs from file
 #include <stdlib.h> // for atoi()
@@ -21,25 +25,41 @@ using namespace std;
 // used by class HexBoard for the data held at each board position
 enum class marker { empty = 0, player1 = 1, player2 = 2 };
 
-#define idx(x) static_cast<std::underlying_type_t<decltype(x)>>(x) // shortcut to calc indices for arrays
+// #define idx(x) static_cast<std::underlying_type_t<decltype(x)>>(x) // shortcut to calc indices for arrays
+
+// template <typename T> std::underlying_type_t<T> idx(T val) { return static_cast<std::underlying_type_t<T>>(val); }
+
+template <typename T>
+ int idx(T t) 
+    {
+        return static_cast<int>(t);
+    }
 
 ostream &operator<<(ostream &os, marker m)
 {
     if (m == marker::player1)
-        os << " player1 ";
+        os << "player1";
     else if (m == marker::player2)
-        os << " player2 ";
+        os << "player2";
     else
-        os << " empty ";
+        os << "empty";
+
+    return os;
+}
+
+ostream &operator<<(fstream &os, marker m)
+{
+    if (m == marker::player1)
+        os << 1;
+    else if (m == marker::player2)
+        os << 2;
+    else
+        os << 0;
 
     return os;
 }
 
 char pause;    // for pauses to read messages before they disappear...
-
-// for random shuffling of board moves
-random_device rd;
-mt19937 randgen(rd());  //this is Mersenne twister consider one of the random-est and fastest
 
 // send control codes to console to clear the screen
 // not guaranteed to work on all OS'es.  Works on MacOs.
@@ -198,7 +218,8 @@ struct Timing {
     double ticks() { return std::chrono::duration_cast<std::chrono::duration<double>>(end - start).count(); }
 };
 
-Timing game_play_time;  // global to measure cumulative time for assessing the game
+Timing game_play_time; // global to measure cumulative time for assessing the game
+Timing randomize;      // global to measure cumulative time for randomizing the board
 
 
 // ##########################################################################
@@ -217,11 +238,11 @@ class Graph {
 // fields
   private:
     unordered_map<int, vector<Edge>> graph;
-    vector<T_data> node_data; // holds Data values of all nodes
     int made_size = 0; // size from loading a graph from file or creating random graph
 
   public:
     vector<int> all_nodes;
+    vector<T_data> node_data; // holds Data values of all nodes
 
     // methods
 
@@ -330,7 +351,7 @@ class Graph {
     //    this is the table of nodes and edges in the graph, not a picture of the
     //    game board you can pass an fstream as the output stream cout is the
     //    default value of ot--to screen/console
-    void display_graph(ostream &ot = cout, string filename = "")
+    void display_graph(ostream &ot = cout, bool to_file=false)
     {
         int node_id;
         vector<Edge> *edges;
@@ -340,7 +361,13 @@ class Graph {
         for (const int node_id : all_nodes) {
             edges = &(graph.at(node_id));
             ot << "node " << node_id << endl;
-            ot << "    data " << node_data[node_id] << "\n";
+            ot << "    data ";
+
+            if (to_file)
+                ot << idx(node_data[node_id]) << "\n";
+            else
+                ot << node_data[node_id] << "\n";
+            
             for (int j = 0; j < (*edges).size(); j++) {
                 ot << "    "
                    << "edge " << edges->at(j).to_node << " " << edges->at(j).cost << endl;
@@ -717,12 +744,18 @@ class HexBoard {
         }
     }
 
+   
+
   public:
     // externally defined methods to create a valid Hex game board and graph
     // representation initialize members create graph structure of board by
     // adding all edges
 
-    void make_board(int border_len) // initialize board positions
+    // for random shuffling of board moves
+
+    unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+
+        void make_board(int border_len) // initialize board positions
     {
         // initialize all members
         edge_len = border_len;
@@ -872,22 +905,33 @@ class HexBoard {
         }
     }
 
-    // GAME PLAY METHODS
-    void simulate_hexboard_positions() // utility function creates random board
-        // positions
-    {
-        marker val;
-        for (int i = 0; i < hex_graph.count_nodes(); i++) {
-            while (val == marker::empty) {
-                val = static_cast<marker>(rand() % 3);
-            }
-            set_hex_marker(val, i);
-            val = marker::empty;
-        }
-    }
     // ##########################################################################
     // #             Class HexBoard game playing methods
     // ##########################################################################
+    
+    // fill empty positions with random markers for side 1 and 2
+    void simulate_hexboard_positions()
+    {
+        randomize.reset();
+        
+        vector<int> allidx(hex_graph.count_nodes());
+
+        iota(allidx.begin(), allidx.end(), 0);
+        shuffle(allidx.begin(), allidx.end(), mt19937(seed));
+
+        for (int i : allidx) {
+            if (is_empty(i)) {
+                if (i % 2 == 0)
+                    set_hex_marker(marker::player1, i);
+                else
+                    set_hex_marker(marker::player2, i);
+            }
+        }
+
+        randomize.stop();
+        randomize.duration += randomize.ticks();
+    }
+
 
     // the program makes a random move
     RankCol random_move()
@@ -895,7 +939,7 @@ class HexBoard {
         RankCol rc;
         int maybe; // candidate node to place a marker on
 
-        shuffle(rand_nodes.begin(), rand_nodes.end(), randgen);
+        shuffle(rand_nodes.begin(), rand_nodes.end(), mt19937(seed));
 
         for (int i = 0; i < max_idx; i++) {
             maybe = rand_nodes[i];
@@ -923,7 +967,7 @@ class HexBoard {
 
         if (move_seq[idx(marker::player2)].empty()) {
             shuffle(start_border[static_cast<int>(marker::player2)].begin(),
-                    start_border[static_cast<int>(marker::player2)].end(), randgen);
+                    start_border[static_cast<int>(marker::player2)].end(), mt19937(seed));
             for (int maybe : start_border[static_cast<int>(marker::player2)]) {
                 if (is_empty(maybe)) {
                     rc = rank_col_index(maybe);
@@ -940,8 +984,8 @@ class HexBoard {
             if (neighbor_nodes.empty())
                 return random_move();
 
-            shuffle(neighbor_nodes.begin(), neighbor_nodes.end(), randgen);
-            shuffle(neighbor_nodes.begin(), neighbor_nodes.end(), randgen);
+            shuffle(neighbor_nodes.begin(), neighbor_nodes.end(), mt19937(seed));
+            shuffle(neighbor_nodes.begin(), neighbor_nodes.end(), mt19937(seed));
 
             for (int node : neighbor_nodes) {
                 rc = rank_col_index(node);
@@ -1053,6 +1097,93 @@ class HexBoard {
     }
 
     // follows path through the board for one side
+    marker find_ends(vector<int> linear_moves, marker side, bool full_board = false)
+    {
+        marker winner = marker::empty;
+        int current_node = 0;
+        int this_neighbor = 0;
+        char pause;
+        deque<int> possibles; // MUST BE A DEQUE! hold candidate sequences across the board
+        vector<int> neighbors;
+        neighbors.reserve(6);
+        vector<int> captured; // nodes are in a candidate path:  cannot be neighbors again
+        captured.reserve(max_idx / 2 + 1);
+
+        //  cout << "linear moves " << linear_moves << endl;
+
+        // test for finish borders, though start border would also work: assumption fewer markers at the finish
+
+        for (auto move : linear_moves) {
+            if (is_in_finish(move, side)) // (i < edge_len)
+            {
+                possibles.push_back(move);
+                captured.push_back(move);
+            }
+        }
+
+        // cout << "at start possibles.size() " << possibles.size() << endl;
+        // cout << possibles << endl;
+
+        // shortcut: if full_board and no paths start in starting border then the other side has one
+        if (full_board && possibles.empty())
+            return side == marker::player1 ? marker::player2 : marker::player1;
+
+        // extend sequences that end in the finish border to see if any began in the start border
+        // grab a sequence  (sequences have no branches:  a branch defines a new sequence)
+        // get the neighbors of the last node
+        // if more than one neighbors, we add another working sequence for neighbors 2 through n
+        // if no more neighbors we look at the end:
+        // if we got to the finish border, we have a winner
+        // otherwise, we can discard the current sequence and grab another
+        // if we exhaust the sequences without finding a winner, the other side wins
+
+        while (!possibles.empty()) {
+            // int this_idx = possibles.size() - 1;
+            int this_idx = 0;
+            // current_node = possibles[this_idx]; // grab a node
+
+            // cout << "possibles" << endl;
+            // cout << possibles << endl;
+
+            while (true) // extend, branch, reject, find winner for this sequence
+            {
+                neighbors = hex_graph.get_neighbor_nodes(possibles[this_idx], side, captured); // current_node
+
+                // cout << "neighbors " << neighbors << endl;
+
+                if (neighbors.empty()) {
+
+                    // cout << "at empty end point " << possibles[this_idx] << endl;
+                    
+                    if (is_in_start(possibles[this_idx], side)) { // if node in start border we have a winner  current_node
+                        return winner = side;
+                    }
+                    else {
+                        if (!possibles.empty())
+                            possibles.pop_front(); // discard the current node
+                        break; // break loop for this node: get another node
+                    }
+                }
+                else {
+                    possibles[this_idx] = neighbors[0];  // update the current end
+                    captured.push_back(neighbors[0]);
+                    // cout << "extending by 1 neighbor" << endl;
+                    // cout << possibles << endl;
+
+                    for (int i = 1; i < neighbors.size(); ++i) {
+                        // make new possibles for the additional neighbors
+                        possibles.push_back(neighbors[i]); // a new possible finishing end point
+                        captured.push_back(neighbors[i]);
+                    }
+                    // cout << " after adding neighbors, possibles size " << possibles.size() << ends;
+                    // cout << possibles << endl;
+                }
+            } // while(true)
+        } // while (!working.empty())
+        return marker::empty; // we did not find a winner
+    }
+
+    // follows path through the board for one side
     marker follow_paths(vector<int> linear_moves, marker side, bool full_board = false)
     {
         marker winner = marker::empty;
@@ -1068,33 +1199,16 @@ class HexBoard {
         //  cout << "linear moves " << linear_moves << endl;
 
         // test for finish borders, though start border would also work: assumption fewer markers at the finish
-        if (side == marker::player1) {
-            for (auto move : linear_moves) {
-                if (is_in_finish(move, side)) // (i < edge_len)
-                {
-                    working.emplace_front(vector<int>{move});
-                    working.front().reserve(4 * edge_len);
-                    captured.push_back(move);
-                }
-            }
 
-            // cout << "size of working " << working.size() << endl;
-            // cout << working.front() << endl;
-        }
-        else if (side == marker::player2) {
-            for (auto move : linear_moves) {
-                if (is_in_finish(move, side)) {
-                    working.emplace_front(vector<int>{move});
-                    captured.push_back(move);
-                }
+        for (auto move : linear_moves) {
+            if (is_in_finish(move, side)) // (i < edge_len)
+            {
+                working.emplace_front(vector<int>{move});
+                working.front().reserve(4 * edge_len);
+                captured.push_back(move);
             }
         }
-        else {
-            exit(-1);
-        }
 
-        // cout << "size of working " << working.size() << endl;
-        // cin >> pause;
 
         // shortcut: if full_board and no paths start in starting border then the other side has one
         if (full_board && working.empty())
@@ -1212,7 +1326,6 @@ class HexBoard {
 
     marker who_won()  // uses method follow_paths
     {
-
         game_play_time.reset();
 
         marker winner = marker::empty;
@@ -1221,7 +1334,8 @@ class HexBoard {
 
         for (auto s : sides) {
             copy_move_seq(move_seq[idx(s)], candidates);
-            winner = follow_paths(candidates, s);
+            // winner = follow_paths(candidates, s);
+            winner = find_ends(candidates, s);
             if (winner == s) {
                 break;
             }
@@ -1246,10 +1360,11 @@ class HexBoard {
             simulate_hexboard_positions();
         }
         else {
+            clear_screen();
+            cout << "\n\n";
             while (true) // move loop
             {
-                clear_screen();
-                cout << "\n\n";
+
                 display_board();
 
                 rc = prompt_for_person_move(marker::player1);
@@ -1271,7 +1386,10 @@ class HexBoard {
                 clear_screen();
 
                 // test for a winner
-                if (move_count >= edge_len) {
+                if (move_count > 5) {
+
+                }
+                else if (move_count >= edge_len) {
                     winning_side = who_won(); // result is marker::empty, marker::player1, or marker::player2
                     if (idx(winning_side)) {
                         cout << "We have a winner. "
@@ -1284,7 +1402,7 @@ class HexBoard {
                 }
 
                 cout << "Your move at " << rc << " is valid.\n";
-                cout << "The computer moved at " << computer_rc << ". Move count = " << move_count << endl;
+                cout << "The computer moved at " << computer_rc << ". Move count = " << move_count << "\n\n";
             }
         }
     }
@@ -1401,6 +1519,11 @@ class HexBoard {
 
     inline bool is_empty(int linear) { return get_hex_marker(linear) == marker::empty; }
 
+
+    // ##################################################################
+    //     monte carlo implementation
+    // ##################################################################
+
 };
 // ######################################################
 // end class hexboard
@@ -1428,20 +1551,13 @@ int main(int argc, char *argv[])
         size = 5;
     }
 
-    Timing this_timer;
-
-    this_timer.reset();
 
     HexBoard hb;
     hb.make_board(size);
 
-    this_timer.stop();
-    cout << "Setup took " << this_timer.ticks() << " seconds.\n";
-    cout << "Paused... (enter any key and press enter to continue) ";
-    cin >> pause;
 
     hb.play_game();
-
+  
     cout << "Assessing who won took " << game_play_time.duration << " seconds.\n";
 
     return 0;
