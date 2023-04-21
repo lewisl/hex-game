@@ -5,7 +5,6 @@
 // Programmer: Lewis Levin Date: April 2023
 
 #include <algorithm>
-
 #include <cstddef>
 #include <ctime>
 #include <deque>    // sequence of nodes in a path between start and destination
@@ -25,15 +24,9 @@ using namespace std;
 // used by class HexBoard for the data held at each board position
 enum class marker { empty = 0, player1 = 1, player2 = 2 };
 
-// #define idx(x) static_cast<std::underlying_type_t<decltype(x)>>(x) // shortcut to calc indices for arrays
+// forward declarations
+class HexBoard;
 
-// template <typename T> std::underlying_type_t<T> idx(T val) { return static_cast<std::underlying_type_t<T>>(val); }
-
-template <typename T>
- int idx(T t) 
-    {
-        return static_cast<int>(t);
-    }
 
 ostream &operator<<(ostream &os, marker m)
 {
@@ -364,7 +357,7 @@ class Graph {
             ot << "    data ";
 
             if (to_file)
-                ot << idx(node_data[node_id]) << "\n";
+                ot << static_cast<int>(node_data[node_id]) << "\n";
             else
                 ot << node_data[node_id] << "\n";
             
@@ -659,6 +652,7 @@ class HexBoard {
   public:
     HexBoard() = default;
     ~HexBoard() = default;
+    friend class Graph<marker>;
 
   public:
     // a member of HexBoard that is a Graph object, using "composition" instead
@@ -675,10 +669,15 @@ class HexBoard {
   private:
     vector<vector<int>> start_border;  // holds indices at the top and left edges of the board
     vector<vector<int>> finish_border; // holds indices at the bottom and right edges of the board
-    vector<vector<RankCol>> move_seq;  // history of moves: use ONLY indices 1 and 2 for outer vector
+    vector<vector<RankCol>> move_seq; // history of moves: use ONLY indices 1 and 2 for outer vector
+    vector<marker> &positions = hex_graph.node_data;  // positions of all markers on the board
+    
 
   // methods
   private:
+    
+    static mt19937 rng(random_device());
+
     // METHODS FOR DRAWING THE BOARD
     // return hexboard marker based on value and add the spacer lines ___ needed to draw the board
     string symdash(marker val, bool last = false)
@@ -755,7 +754,10 @@ class HexBoard {
 
     unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
 
-        void make_board(int border_len) // initialize board positions
+    template <typename T>
+    int idx(T t) { return static_cast<int>(t); }
+
+    void make_board(int border_len) // initialize board positions
     {
         // initialize all members
         edge_len = border_len;
@@ -1524,6 +1526,41 @@ class HexBoard {
     //     monte carlo implementation
     // ##################################################################
 
+    void fill_alternating(vector<int> &vec, int start_idx, int end_idx)
+    {
+        int place = 2;
+        int changer = 1;
+
+        for (int i = start_idx; i < end_idx + 1; ++i) {
+            changer *= -1;
+            place += changer;
+            vec[i] = place;
+        }
+    }
+
+    // stuff to_vec with values in from_vec, optionally randomizing from_vec
+    void stuff(vector<int> &to_vec, vector<int> from_vec, int start_idx, int end_idx, bool randomize = false)
+    {
+        int fills = end_idx - start_idx;
+        int from_length = from_vec.size();
+        if (randomize)
+            shuffle(from_vec.begin() + start_idx, from_vec.begin() + end_idx, rng);
+        for (int i = start_idx, j = 0; i < end_idx + 1; ++i, ++j) {
+            if (j >= from_length) {
+                to_vec[i] = from_vec.back();
+            }
+            else
+                to_vec[i] = from_vec[j];
+        }
+    }
+
+    // stuff to_vec with a single value from start_idx to end_idx
+    void stuff(vector<int> &to_vec, int val, int start_idx, int end_idx)
+    {
+        for (int i = start_idx; i < end_idx + 1; ++i) {
+            to_vec[i] = val;
+        }
+    }
 };
 // ######################################################
 // end class hexboard
