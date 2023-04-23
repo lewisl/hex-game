@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <cmath>
 #include <ctime>
 #include <deque>    // sequence of nodes in a path between start and destination
 #include <fstream>  // to write graph to file and read graph from file
@@ -940,6 +941,18 @@ class HexBoard {
     }
 
 
+    void simulate_hexboard_positions(vector<int> empty_idx)
+    {
+        shuffle(empty_idx.begin(), empty_idx.end(), rng);
+        for (int i = 0; i < empty_idx.size(); i++) {
+            if (i % 2 == 0)
+                set_hex_marker(marker::player1, empty_idx[i]);
+            else
+                set_hex_marker(marker::player2, empty_idx[i]);
+        }
+    }
+
+    
     // the program makes a random move
     RankCol random_move()
     {
@@ -1006,7 +1019,7 @@ class HexBoard {
     }
 
 
-    RankCol monte_carlo_move(marker side, int n_trials=10)  // move trials into the class to initialize the vector
+    RankCol monte_carlo_move(marker side, int n_trials=10, bool verbose=false)  // move trials into the class to initialize the vector
     {
 
         move_simulation_time.reset();
@@ -1014,11 +1027,14 @@ class HexBoard {
         // make a copy of the current board so we can reset it
         copy(positions.begin(), positions.end(), tmp_positions.begin());
         
-        
-        cout << "at move number " << move_count << " start monte carlo move with " <<
-              n_trials << " trials."<< endl;
+        if (verbose)
+        {cout << "at move number " << move_count << " start monte carlo move with " <<
+              n_trials << " trials."<< endl;}
 
-        vector<int> moves; // size will be number of possible moves
+        vector<int> empty_pos; // empty positions that are available for candidate move and for simulated moves
+        vector<int> random_pos; // copy of empty_pos that can be modified within loop
+        int this_move=0; // vector index for current position in array of random_pos
+        int rand_idx=0;
         vector<float> win_pct_per_move; // ditto
         int wins = 0;
         marker winning_side;
@@ -1028,62 +1044,82 @@ class HexBoard {
         // loop over positions on the board to find available moves = empty positions
         for (int i = 0; i < max_idx; ++i) {
             if (is_empty(i)) {
-                moves.push_back(i); // pick a candidate move and save it in the vector of moves
-                set_hex_marker(side, i);
+                empty_pos.push_back(i); // pick a candidate move and save it in the vector of moves
             }
         }
+        random_pos.reserve(empty_pos.size());
+        random_pos.resize(empty_pos.size() - 1);
 
-      // loop over the available move positions: make move, evaluate move
-      for (auto move : moves) {
-                  
-          cout << "    evaluating move at " << rank_col_index(move) << endl;
-          
-          
-          // perform n_trials random games
-          wins = 0;
-          for (int trial = 0; trial < n_trials; ++trial) {
-            // make the computer's trial move
-            set_hex_marker(side, move);
+        copy(empty_pos.begin(), empty_pos.end(), random_pos.begin());
+
+
+        // loop over the available move positions: make trial move, setup positions to randomize
+        for (auto i = 0; i < empty_pos.size(); i++) {
+            this_move = i;
+
+            if (verbose)
+            {cout << "    evaluating move at " << rank_col_index(i) << endl;}
             
-            simulate_hexboard_positions();
-            winning_side = find_ends(side);
-            cout << "    simulated trial " << trial << " winner was " << winning_side << endl;
-            wins += winning_side == side ? 1 : 0;
-            // purge the trial
-            for (auto move : moves) {
-              set_hex_marker(marker::empty, move);
-            }
-          }
-          // calculate and save computer win percentage for this move
-          win_pct_per_move.push_back(static_cast<float>(wins) / n_trials);
-          
-          // undo the trial  move
-          copy(tmp_positions.begin(), tmp_positions.end(), positions.begin());
-        }
-      
-        cout << "for move_count " << move_count << " available moves was " << moves.size() << endl;
+            // setup trials
+            wins = 0;
+            set_hex_marker(side, move); // make the computer's trial moves
 
-        cout << "we got matching number of available moves: " << (moves.size() == win_pct_per_move.size()) << endl;
+            // build random_pos
+            for (auto j = 0; j < empty_pos.size(); j++) {
+                if (j == this_move) {
+                    continue;
+                }
+                rand_idx = (j > this_move) ? j - 1 : j;
+                random_pos[rand_idx] = empty_pos[j];  
+            }
+
+            for (int trial = 0; trial < n_trials; ++trial) {
+                simulate_hexboard_positions(random_pos);
+
+                // cout << "*********** for trial " << trial << endl;
+                // display_board();
+                // cout << "pause... "; cin.get(pause);
+
+                winning_side = find_ends(side, true);
+
+                if (verbose)
+                {cout << "    simulated trial " << trial << " winner was " << winning_side << endl;}
+
+                wins += winning_side == side ? 1 : 0;
+            }
+            // calculate and save computer win percentage for this move
+            win_pct_per_move.push_back(static_cast<float>(wins) / n_trials);
+
+            set_hex_marker(marker::empty, this_move); // reverse the trial move
+        }
+
 
         // find the maximum computer win percentage across all the candidate moves
         float maxpct = 0.0;
-        std::size_t move_cnt = 0;
+        std::size_t cnt = 0;
         for (auto winpct : win_pct_per_move) {
             if (winpct > maxpct) {
                 maxpct = winpct;
-                best_move = moves[move_cnt];
+                best_move = empty_pos[cnt];
             }
-            move_cnt++;
+            cnt++;
         }
 
-        cout << "for move_count = " << move_count << " the best move is "
-             << best_move << " with a simulation win percentage of " << maxpct << endl;
+        if (verbose)
+        {
+            cout << "for move_count = " << move_count << " the best move is " << best_move
+                 << " with a simulation win percentage of " << maxpct << endl;
+            cout << "pause... ";
+            cin >> pause;
+        }
 
         move_simulation_time.stop();
         move_simulation_time.duration += move_simulation_time.ticks();
         
-        cout << "pause... "; cin >> pause;
-        
+   
+
+        // undo the simulation effects
+        copy(tmp_positions.begin(), tmp_positions.end(), positions.begin());
 
         return rank_col_index(best_move);
     }
@@ -1095,7 +1131,7 @@ class HexBoard {
         RankCol rc;
         //  rc = random_move();   // this is WORSE than naive...
 
-        rc = monte_carlo_move(side, 10);
+        rc = monte_carlo_move(side, 30000);
 
         return rc;
     }
@@ -1189,7 +1225,7 @@ class HexBoard {
     }
 
     // finds the ends of a path through the board for one side
-    marker find_ends(marker side, bool verbose = false)
+    marker find_ends(marker side, bool whole_board=false, bool verbose = false)
     {
         marker winner = marker::empty;
         int front = 0;
@@ -1201,10 +1237,9 @@ class HexBoard {
         vector<int> captured; // nodes already included in a candidate path:  cannot be neighbors again
         captured.reserve(max_idx / 2 + 1);
 
-        //  cout << "linear moves " << linear_moves << endl;
 
         // test for finish borders, though start border would also work: assumption fewer markers at the finish
-
+        
         for (auto hex : finish_border[idx(side)]) {
             if (get_hex_marker(hex) == side) // 
             {
@@ -1212,10 +1247,6 @@ class HexBoard {
                 captured.push_back(hex);
             }
         }
-        if (verbose) {
-            cout << side << " at start possibles.size() " << possibles.size() << endl;
-            cout << possibles << endl;
-            }
 
         // // shortcut: if full_board and no paths start in starting border then the other side has one
         // if (full_board && possibles.empty())
@@ -1234,7 +1265,7 @@ class HexBoard {
             front = 0;
 
             if (verbose)
-                cout << side << " possibles" << "\n" << possibles << endl;
+                cout << side << " possibles"  << possibles << endl;
 
             while (true) // extend, branch, reject, find winner for this sequence
             {
@@ -1281,8 +1312,12 @@ class HexBoard {
 
             } // while(true)
         } // while (!working.empty())
-        
-        return marker::empty; // we did not find a winner
+
+        if (whole_board) {
+            return side == marker::player2 ? marker::player1 : side;
+        }
+        else
+            return marker::empty; // we did not find a winner
     }
 
     // follows path through the board for one side
