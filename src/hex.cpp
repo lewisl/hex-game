@@ -1,27 +1,35 @@
 // Draw a hexboard and play the game of hex
-// Run as ./hex 5 where the single argument is the number of hex's on each border.
-// For now, the computer plays a naive strategy and a human usually wins easily.
-// Compile with -std=c++14 or -std=c++11, given featuresI've used.
+// Run as ./hex 7 or ./hex 5 1000
+// The single argument is the number of hex's on each border.
+// Two arguments: first is board edge length;
+//                second is number of trials for each position assessed by
+//                simulation.
+// The computer uses simulation to choose its moves,  but a human often wins.
+// Please compile with -std=c++14 given features I've used.
+// Note that there are 2 classes defined in one big file.  In multi-file compile and build,
+// the file would be split to include the 2 class definitions each in their own file,
+// with a small file containing int main(argc, *char[argv]) to run the game.
 // Programmer: Lewis Levin Date: April 2023
 
 #include <algorithm>
-#include <cmath>
-#include <string>
-#include <deque>    // sequence of nodes in a path between start and destination
-#include <fstream>  // to write graph to file and read graph from file
+#include <chrono> // for performance timing
+#include <cstddef>
+#include <deque> // sequence of nodes in a path between start and destination
+#include <fstream> // to write graph to file and read graph from file
 #include <iostream>
 #include <random>
-#include <set>      // hold nodes for shortest path algorithm
-#include <sstream>  // to use stringstream to parse inputs from file
+#include <set>     // hold nodes for shortest path algorithm
+#include <sstream> // to use stringstream to parse inputs from file
 #include <stdlib.h> // for atoi()
+#include <string>
+#include <thread>   // to delay output to human player
 #include <unordered_map> // container for definition of Graph, costs, previous nodes for Dijkstra
 #include <vector>
-#include <chrono>      // for performance timing
 
 using namespace std;
 
 // forward declarations
-class HexBoard;
+class Hex;
 
 char pause;    // for pauses to read messages before they disappear...
 
@@ -94,7 +102,12 @@ string string_by_n(string s, int n)
     return ret;
 }
 
-
+std::string tolower(const std::string &str)
+{
+    std::string result = str;
+    std::transform(result.begin(), result.end(), result.begin(), [](unsigned char c) { return tolower(c); });
+    return result;
+}
 
 // other non-class functions
 
@@ -108,6 +121,14 @@ bool is_in(T val, vector<T> vec)
 {
     auto it = find(vec.begin(), vec.end(), val);
     return it != vec.end();
+}
+
+// test if value of char or string is in a string
+template <typename T> // should be char or string
+bool is_in(T val, const string & test_string)
+{
+
+    return (test_string.find(val) != std::string::npos);
 }
 
 // test if value is in deque with trivial linear search
@@ -127,7 +148,7 @@ bool is_in(T val, T one) { return val == one; }
 a simple way to time the execution of segments of code
 ex:
       Timing this_timer;
-      this_timer.start();    // starts this_timer and saves the time
+      this_timer.start();  // starts this_timer and saves the time
       < bunch-o-code >
       this_timer.cum();    // stops this_timer and adds the time since start to cumulative duration of this_timer
       cout << "This code took " << this_timer.show() << " seconds\n";
@@ -149,7 +170,11 @@ class Timing {
 
     void stop() { endt = std::chrono::steady_clock::now(); }
 
-    double ticks() { return std::chrono::duration_cast<std::chrono::duration<double>>(endt - begint).count(); }
+    double ticks() { 
+        if (endt > begint) 
+            return chrono::duration_cast<std::chrono::duration<double>>(endt - begint).count();
+        else return 0.0; 
+    }
 
     void cum() { stop(); duration += ticks(); }
 
@@ -168,7 +193,7 @@ class Timing {
 // #                            class Graph
 // #  graph: data structure holding nodes and their edges
 // #  node_data: data structure for holding data value at each node
-// #  load_graph_from_file: methods to define graph representation
+// #  load_graph_from_file: method to define graph representation
 // #
 // ##########################################################################
 template <typename T_data>   // T_data can be various primitive data types
@@ -177,15 +202,12 @@ class Graph {
     Graph<T_data>() = default;
     ~Graph<T_data>() = default;
 
-
   public:
-    vector<int> all_nodes;
     vector<T_data> node_data; // holds Data values of all nodes
-
-    // EDGE IS IN CLASS GRAPH DEFINTION
-    // holds an edge for a starting node (aka "edge"): neighbor node, cost to it
-    // doesn't include source node because that is part of the outer data structure,
-    // class Graph
+        
+    // holds an edge for a starting node: to node, cost to the neighbor
+    // doesn't include starting node because that is part of the graph container
+    // all of the edges of a node are held in a vector of Edges
     struct Edge {
         int to_node; // use linear index to hexboard
         int cost; // default to cost=1 => should NOT change this when creating edges
@@ -195,7 +217,14 @@ class Graph {
 
   private:
     unordered_map<int, vector<Edge>> graph;
-    int made_size = 0; // size from loading a graph from file or creating random graph
+
+  public:
+    void set_storage(int size)
+    {
+        graph.reserve(size);
+        graph.max_load_factor(0.8);
+        node_data.reserve(size);
+    }
 
   public:
     // output an Edge in an output stream
@@ -214,23 +243,16 @@ class Graph {
         return os;
     }
 
-    void set_storage(int size)
-    {
-        graph.reserve(size);
-        graph.max_load_factor(0.8);
-        node_data.reserve(size);
-    }
-
     int count_nodes() const { return graph.size(); }
 
-    void initialize_data(T_data val, int size) { node_data.insert(node_data.begin(), size, val); };
+    void initialize_data(const T_data val, const int size) { node_data.insert(node_data.begin(), size, val); };
 
-    void set_node_data(T_data val, int idx) { node_data[idx] = val; }
+    void set_node_data(const T_data val, const int idx) { node_data[idx] = val; }
 
     T_data get_node_data(int idx) const { return node_data[idx]; }
 
     // get the neighbors of a node as a vector of edges
-    const vector<Edge> get_neighbors(int current_node) const
+    const vector<Edge> get_neighbors(const int current_node) const
     {
         return graph.at(current_node); // the value type of graph is
             // vector<Edge> and holds the neighbors
@@ -238,10 +260,10 @@ class Graph {
 
     // get the neighbors that match the select data--the player whose marker is
     // there
-    vector<Edge> get_neighbors(int current_node, T_data data_filter) const
+    vector<Edge> get_neighbors(const int current_node, const T_data data_filter) const
     {
         vector<Edge> ve;
-        for (auto e : graph.at(current_node)) {
+        for (const auto e : graph.at(current_node)) {
             if (node_data[e.to_node] == data_filter) {
                 ve.push_back(e);
             }
@@ -252,10 +274,10 @@ class Graph {
     // get the neighbors that match the select data and are not in the exclude
     // set, deque or vector
     template <typename Container>
-    vector<Edge> get_neighbors(int current_node, T_data data_filter, const Container &exclude_set) const
+    vector<Edge> get_neighbors(const int current_node, const T_data data_filter, const Container &exclude_set) const
     {
         vector<Edge> vr;
-        for (auto e : graph.at(current_node)) {
+        for (const auto e : graph.at(current_node)) {
             if (node_data[e.to_node] == data_filter && !is_in(e.to_node, exclude_set))
                 vr.push_back(e);
         }
@@ -264,10 +286,10 @@ class Graph {
     }
 
     // get the neighbor_nodes as a vector of nodes instead of the edges
-    vector<int> get_neighbor_nodes(int current_node, T_data data_filter) const
+    vector<int> get_neighbor_nodes(const int current_node, const T_data data_filter) const
     {
         vector<int> neighbor_nodes;
-        for (auto e : graph.at(current_node)) {
+        for (const auto e : graph.at(current_node)) {
             if (node_data[e.to_node] == data_filter)
                 neighbor_nodes.push_back(e.to_node);
         }
@@ -276,23 +298,23 @@ class Graph {
 
     // get the neighbor_nodes that match the filter while excluding a set or vector of nodes
     template <typename Container>
-    vector<int> get_neighbor_nodes(int current_node, T_data data_filter, const Container &exclude) const
+    vector<int> get_neighbor_nodes(const int current_node, const T_data data_filter, const Container &exclude) const
     {
         vector<int> neighbor_nodes;
-        for (auto e : graph.at(current_node)) {
+        for (const auto e : graph.at(current_node)) {
             if (node_data[e.to_node] == data_filter && !is_in(e.to_node, exclude))
                 neighbor_nodes.push_back(e.to_node);
         }
         return neighbor_nodes;
     }
 
-    void add_edge(int node) // empty Edge container
+    void add_edge(const int node) // empty Edge container
     {
         graph.emplace(node, vector<Edge>{});
     }
 
     // with to_node and cost
-    void add_edge(int node, int y, int cost = 1, bool bidirectional = false)
+    void add_edge(const int node, const int y, const int cost = 1, const bool bidirectional = false)
     {
         if (graph.find(node) != graph.end()) {
             if (graph.find(y) != graph.end()) {
@@ -321,33 +343,31 @@ class Graph {
         pass an fstream as the output stream to save the graph in a text file.
         cout is the default value of ot to print to console.
     */
-    void display_graph(ostream &ot = cout, bool to_file=false)
+    void display_graph(ostream &ot = cout, bool to_file=false) const
     {
-        int node_id;
-        vector<Edge> *edges;
+        vector<int> nodes_sorted(graph.size());
 
-        // print the graph in order
+        // copy and sort the keys in graph
+        std::transform(graph.begin(), graph.end(), nodes_sorted.begin(),
+                       [](const auto &pair) { return pair.first; });
+        std::sort(nodes_sorted.begin(), nodes_sorted.end());
+
         ot << "\nsize " << graph.size() << "\n";
-        for (const int node_id : all_nodes) {
-            edges = &(graph.at(node_id));
-            ot << "node " << node_id << endl;
-            ot << "    data ";
-
-            // if (to_file)
-                ot << static_cast<int>(node_data[node_id]) << "\n";
-            // else
-                // ot << node_data[node_id] << "\n";
-            
-            for (int j = 0; j < (*edges).size(); j++) {
+        for (const auto node : nodes_sorted) { // just an int node
+            ot << "node " << node << endl;
+            ot << "    data " << get_node_data(node) << endl;
+            auto & ve = graph.at(node);     // vector<Edge>
+            for (const auto & edge : ve) {  // Edge in vector<Edge>
                 ot << "    "
-                   << "edge " << edges->at(j).to_node << " " << edges->at(j).cost << endl;
+                   << "edge " << edge.to_node << " " << edge.cost << endl;
             }
         }
     }
-
+    
+    // note: we don't use this for the monte carlo simulation, but it's good for testing
     /*** load_graph_from_file
         Read a graph file to initialize a graph using the format of this example:
-        size 4
+        size 4        // optional: if used, will check if it matches actual number of input nodes
         node 0        // node must be positive integer; not required to be consecutive
             data 0    // data value at this position (can be used to represent hex markers)
             edge 2 3  // edge is to_node, cost. No error checking so to_node must exist
@@ -380,8 +400,9 @@ class Graph {
 
         // read the file line by line and create graph
         string linestr, leader;
-        int node_id, to_node;
+        size_t node_id, to_node;
         int cost;
+        int tmp_size = 0;   // only used locally here
         int input_data; // as read from text file
         T_data data;
 
@@ -391,20 +412,16 @@ class Graph {
             ss >> leader; // first word or text up to first white space
 
             if (leader == "size") { // define size constants and reserve memory
-                ss >> made_size;
+                ss >> tmp_size;
 
                 // reserve storage
-                graph.reserve(made_size);
+                graph.reserve(tmp_size);
                 graph.max_load_factor(0.8);
-                node_data.reserve(made_size);
-
-                // initialize node_data
-                node_data.insert(node_data.begin(), made_size, static_cast<T_data>(0));
+                node_data.reserve(tmp_size);
             }
             else if (leader == "node") {
                 ss >> node_id;
-                graph[node_id] = vector<Edge>(); // create node with empty vector of Edges
-                all_nodes.push_back(node_id);
+                graph[node_id] = vector<Edge>{}; // create node with empty vector of Edges
             }
             else if (leader == "edge") {
                 ss >> to_node >> cost;
@@ -414,6 +431,10 @@ class Graph {
                 ss >> input_data;
                 set_node_data(static_cast<T_data>(input_data), node_id);
             }
+        }
+        if (tmp_size != 0) {
+            if (tmp_size != graph.size())
+                cout << "Error: number of nodes in file " << graph.size() << " does not match size input " << tmp_size << endl; 
         }
     }
 }; // end class Graph
@@ -428,40 +449,37 @@ class Graph {
 // ##########################################################################
 
 
-
-
 // ##########################################################################
-// #                            class HexBoard
-// #  creates a Graph object as a member of HexBoard using one either
+// #                            class Hex
+// #  creates a Graph object as a member of Hex using :either
 // #      method load_board_from_file or make_board
 // #  methods for defining and drawing the pictorial representation of the board
 // #  methods for a person to play against this program
 // #
 // ##########################################################################
-class HexBoard {
+class Hex {
   public:
-    HexBoard() = default;
-    ~HexBoard() = default;
-    enum class marker { empty = 0, player1 = 1, player2 = 2 }; // for the data held at each board position
-    enum class Do_move { naive = 0, monte_carlo };
-    Timing game_assess_time; // global to measure cumulative time for assessing the game
-    Timing move_simulation_time; // global to measure cumulative time for randomizing the board
-    friend class Graph<marker>;
+    Hex() = default;
+    ~Hex() = default;
 
+    enum class marker { empty = 0, playerX = 1, playerO = 2 }; // for the data held at each board position
+    enum class Do_move { naive = 0, monte_carlo };
+
+    Timing winner_assess_time; // measure cumulative time for assessing the game
+    Timing move_simulation_time; // measure cumulative time for simulating moves
+
+    friend class Graph<marker>;
     Graph<marker> hex_graph;
-        // a member of HexBoard that is a Graph object, using "composition" instead
-        // of inheritance. The  graph is created by either make_board()
+        // a member of Hex that is a Graph object, using "composition" instead
+        // of inheritance. Thegraph content is created by either make_board()
         // or load_board_from_file()
     
     int edge_len = 0;
     int max_rank = 0; // and equals max_col -> so, only need one
     int max_idx = 0; // maximum linear index
     int move_count = 0; // number of moves played during the game
-    vector<int> &all_nodes = hex_graph.all_nodes; // maintains sorted list of nodes by linear index
     vector<marker> tmp_positions; // use to hold actual board positions so we can recover them after simulation
     vector<int> rand_nodes; // use in rand move method  TODO:  we can kill this I think...
-    friend ostream &operator<<(ostream &os, const HexBoard::marker &m);
-    friend fstream &operator<<(fstream &os, const HexBoard::marker &m);
 
 
     // rank and col on the hexboard to address a hexagon
@@ -474,10 +492,35 @@ class HexBoard {
         RankCol(int rank = 0, int col = 0) : rank(rank), col(col) {} // initialize to illegal position as sentinel
     };
 
+    // ostream overloads
     // output a RankCol in an output stream
-    friend ostream &operator<<(ostream &os, const RankCol &rc)
+    friend ostream &operator<<(ostream &os, const RankCol &rc) 
     {
         os << "Rank: " << rc.rank << " Col: " << rc.col;
+        return os;
+    }
+
+    friend ostream &operator<<(ostream &os, const Hex::marker &m)
+    {
+        if (m == Hex::marker::playerX)
+            os << "player1";
+        else if (m == Hex::marker::playerO)
+            os << "player2";
+        else
+            os << "empty";
+
+        return os;
+    }
+
+    friend fstream &operator<<(fstream &os, const Hex::marker &m)
+    {
+        if (m == Hex::marker::playerX)
+            os << 1;
+        else if (m == Hex::marker::playerO)
+            os << 2;
+        else
+            os << 0;
+
         return os;
     }
 
@@ -487,10 +530,9 @@ class HexBoard {
     vector<vector<RankCol>> move_seq; // history of moves: use ONLY indices 1 and 2 for outer vector
     vector<marker> &positions = hex_graph.node_data;  // positions of all markers on the board
     
-
     // METHODS FOR DRAWING THE BOARD
     // return hexboard marker based on value and add the spacer lines ___ needed to draw the board
-    string symdash(marker val, bool last = false)
+    string symdash(marker val, bool last = false) const
     {
         string symunit;
         string dot = "."; // for markers encoded as 0 == empty
@@ -503,9 +545,9 @@ class HexBoard {
 
         if (val == marker::empty)
             symunit = dot + spacer;
-        else if (val == marker::player1)
+        else if (val == marker::playerX)
             symunit = x + spacer;
-        else if (val == marker::player2)
+        else if (val == marker::playerO)
             symunit = o + spacer;
         else {
             cout << "Error: invalid hexboard value: " << val << endl;
@@ -516,7 +558,7 @@ class HexBoard {
     }
 
     // how many spaces to indent each line of the hexboard?
-    string lead_space(int rank) { return string_by_n(" ", rank * 2); }
+    string lead_space(int rank) const { return string_by_n(" ", rank * 2); }
 
     // some string constants used to draw the board
     const string connector = R"( \ /)";
@@ -538,26 +580,22 @@ class HexBoard {
         }
 
         for (int rank = 1, col = 1; col < edge_len + 1; col++) {
-            start_border[enum2int(marker::player1)].push_back(linear_index(rank, col));
+            start_border[enum2int(marker::playerX)].push_back(linear_index(rank, col));
         }
         for (int rank = edge_len, col = 1; col < edge_len + 1; col++) {
-            finish_border[enum2int(marker::player1)].push_back(linear_index(rank, col));
+            finish_border[enum2int(marker::playerX)].push_back(linear_index(rank, col));
         }
 
         for (int rank = 1, col = 1; rank < edge_len + 1; rank++) {
-            start_border[enum2int(marker::player2)].push_back(linear_index(rank, col));
+            start_border[enum2int(marker::playerO)].push_back(linear_index(rank, col));
         }
 
         for (int rank = 1, col = edge_len; rank < edge_len + 1; rank++) {
-            finish_border[enum2int(marker::player2)].push_back(linear_index(rank, col));
+            finish_border[enum2int(marker::playerO)].push_back(linear_index(rank, col));
         }
     }
 
   public:
-    // externally defined methods to create a valid Hex game board and graph
-    // representation initialize members create graph structure of board by
-    // adding all edges
-
     // for random shuffling of board moves
 
     unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
@@ -566,7 +604,7 @@ class HexBoard {
     template <typename T>  // cast enum class to int
     int enum2int(T t) { return static_cast<int>(t); }
 
-    void make_board(int border_len) // initialize board positions
+    void make_board(int border_len=7) // initialize board positions
     {
         // initialize all members
         edge_len = border_len;
@@ -591,8 +629,6 @@ class HexBoard {
         // add nodes:  the required hexagonal "tiles" on the board
         // initial values:  all tiles are empty = 0
         for (int i = 0; i < max_idx; i++) {
-            all_nodes.push_back(i); // set of nodes used to find paths for both HexBoard and Graph
-            // hex_graph.graph[i] = vector<Edge>(); // create empty edge list for each tile (aka, node)
             hex_graph.add_edge(i);
             rand_nodes.push_back(i); // vector of nodes
         }
@@ -657,11 +693,12 @@ class HexBoard {
         }
     } // end of make_board
 
+    // not used for the simulation but good for testing
     void load_board_from_file(string filename)
     {
         hex_graph.load_graph_from_file(filename);
 
-        // initialize HexBoard class members
+        // initialize Hex class members
         max_idx = hex_graph.count_nodes();
         edge_len = sqrt(max_idx);
         max_rank = edge_len - 1;
@@ -696,7 +733,7 @@ class HexBoard {
     }
 
     // print the ascii board on screen
-    void display_board()
+    void display_board() const
     {
         {
             bool last; // last board value in the rank: true or false?
@@ -724,10 +761,11 @@ class HexBoard {
     }
 
     // ##########################################################################
-    // #             Class HexBoard game playing methods
+    // #             Class Hex game playing methods
     // ##########################################################################
-    
-    // fill empty positions with random markers for side 1 and 2
+
+    // fill entire board with random markers for side 1 and 2
+    // Note: not used for the monte carlo simulation because we never randomize the entire board
     void simulate_hexboard_positions()
     {
         vector<int> allidx(hex_graph.count_nodes());
@@ -738,27 +776,28 @@ class HexBoard {
         for (int i : allidx) {
             if (is_empty(i)) {
                 if (i % 2 == 0)
-                    set_hex_marker(marker::player1, i);
+                    set_hex_marker(marker::playerX, i);
                 else
-                    set_hex_marker(marker::player2, i);
+                    set_hex_marker(marker::playerO, i);
             }
         }
     }
 
-
-    void simulate_hexboard_positions(vector<int> empty_idx)
+    void simulate_hexboard_positions(vector<int> empty_hex_positions)
     {
-        shuffle(empty_idx.begin(), empty_idx.end(), rng);
-        for (int i = 0; i < empty_idx.size(); i++) {
+        shuffle(empty_hex_positions.begin(), empty_hex_positions.end(), rng);
+        for (int i = 0; i < empty_hex_positions.size(); i++) {
             if (i % 2 == 0)
-                set_hex_marker(marker::player1, empty_idx[i]);
+                // CRUCIAL: we don't test the board position for even/odd
+                // we test the index to the currently empty positions on the board
+                set_hex_marker(marker::playerX, empty_hex_positions[i]);
             else
-                set_hex_marker(marker::player2, empty_idx[i]);
+                set_hex_marker(marker::playerO, empty_hex_positions[i]);
         }
     }
 
-    
     // the program makes a random move
+    // Not used for the monte carlo simulation: used for testing computer moves early on
     RankCol random_move()
     {
         RankCol rc;
@@ -782,6 +821,7 @@ class HexBoard {
     }
 
     // the program makes a naive move to extend its longest path
+    // Not used for the monte carlo simulation
     RankCol naive_move()
     {
         RankCol rc;
@@ -790,10 +830,10 @@ class HexBoard {
         vector<int> neighbor_nodes;
         char pause;
 
-        if (move_seq[enum2int(marker::player2)].empty()) {
-            shuffle(start_border[static_cast<int>(marker::player2)].begin(),
-                    start_border[static_cast<int>(marker::player2)].end(), rng);
-            for (int maybe : start_border[static_cast<int>(marker::player2)]) {
+        if (move_seq[enum2int(marker::playerO)].empty()) {
+            shuffle(start_border[static_cast<int>(marker::playerO)].begin(),
+                    start_border[static_cast<int>(marker::playerO)].end(), rng);
+            for (int maybe : start_border[static_cast<int>(marker::playerO)]) {
                 if (is_empty(maybe)) {
                     rc = rank_col_index(maybe);
                     return rc;
@@ -801,7 +841,7 @@ class HexBoard {
             }
         }
         else {
-            prev_move = move_seq[enum2int(marker::player2)].back();
+            prev_move = move_seq[enum2int(marker::playerO)].back();
             prev_move_linear = linear_index(prev_move);
 
             neighbor_nodes = hex_graph.get_neighbor_nodes(prev_move_linear, marker::empty);
@@ -823,10 +863,8 @@ class HexBoard {
         return rc;
     }
 
-
-    RankCol monte_carlo_move(marker side, int n_trials=10, bool verbose=false)  // move trials into the class to initialize the vector
+    RankCol monte_carlo_move(marker side, int n_trials, bool verbose=false)  // move trials into the class to initialize the vector
     {
-
         move_simulation_time.start();
         
         // make a copy of the current board so we can reset it
@@ -836,57 +874,51 @@ class HexBoard {
         {cout << "at move number " << move_count << " start monte carlo move with " <<
               n_trials << " trials."<< endl;}
 
-        vector<int> empty_pos; // empty positions that are available for candidate move and for simulated moves
-        vector<int> random_pos; // copy of empty_pos that can be modified within loop
-        int this_move=0; // vector index for current position in array of random_pos
-        int rand_idx=0;
+        vector<int> empty_hex_pos; // empty positions that are available for candidate move and for simulated moves
+        vector<int> random_pos; // copy of empty_hex_pos that can be modified within loop
+        int tmp_idx=0;
         vector<float> win_pct_per_move; // ditto
         int wins = 0;
         marker winning_side;
-        RankCol move {1,1};
         int best_move=0;
         
         // loop over positions on the board to find available moves = empty positions
         for (int i = 0; i < max_idx; ++i) {
             if (is_empty(i)) {
-                empty_pos.push_back(i); // pick a candidate move and save it in the vector of moves
+                empty_hex_pos.push_back(i); // indices of where the board is empty
             }
         }
-        random_pos.reserve(empty_pos.size());
-        random_pos.resize(empty_pos.size() - 1);
+        random_pos.reserve(empty_hex_pos.size());  // vector that will be shuffled for monte carlo trials
+        random_pos.resize(empty_hex_pos.size() - 1); // one of the empty positions is filled by the trial move
 
-        copy(empty_pos.begin(), empty_pos.end(), random_pos.begin());
-
-        // loop over the available move positions: make trial move, setup positions to randomize
-        for (auto i = 0; i < empty_pos.size(); i++) {
-            this_move = i;
+        int move_num = 0; // the index of empty hex positions that will be assigned the move to evaluate
+        
+        // loop over the available move positions: make eval move, setup positions to randomize
+        for (move_num = 0; move_num < empty_hex_pos.size(); move_num++) {
 
             if (verbose)
-            {cout << "    evaluating move at " << rank_col_index(i) << endl;}
-            
-            // setup trials
-            wins = 0;
-            set_hex_marker(side, move); // make the computer's trial moves
+            {cout << "    evaluating move at " << rank_col_index(empty_hex_pos[move_num]) << endl;}
 
-            // build random_pos
-            for (auto j = 0; j < empty_pos.size(); j++) {
-                if (j == this_move) {
-                    continue;
-                }
-                rand_idx = (j > this_move) ? j - 1 : j;
-                random_pos[rand_idx] = empty_pos[j];  
+            // make the computer's move to be evaluated
+            set_hex_marker(side, empty_hex_pos[move_num]);
+            wins = 0;  // reset the win counter across the trials
+
+            // only on the first move, copy all the empty_hex_pos except 0 to the vector to be shuffled
+            if (move_num == 0 ) {  
+                for (auto j = 0; j < move_num; j++)
+                    random_pos[j] = empty_hex_pos[j];
+                for (auto j = move_num; j < random_pos.size(); j++)
+                    random_pos[j] = empty_hex_pos[j + 1];
+            }
+            else {    // for the other moves, faster to simply change 2 values
+                random_pos[move_num - 1] = empty_hex_pos[move_num - 1];
+                random_pos[move_num]     = empty_hex_pos[move_num + 1];  // skip the position containing the assumed move
             }
 
             for (int trial = 0; trial < n_trials; ++trial) {
                 simulate_hexboard_positions(random_pos);
 
-                // cout << "*********** for trial " << trial << endl;
-                // display_board();
-                // cout << "pause... "; cin.get(pause);
-
-                move_simulation_time.cum();
                 winning_side = find_ends(side, true);
-                move_simulation_time.start();
 
                 if (verbose)
                 {cout << "    simulated trial " << trial << " winner was " << winning_side << endl;}
@@ -896,20 +928,22 @@ class HexBoard {
             // calculate and save computer win percentage for this move
             win_pct_per_move.push_back(static_cast<float>(wins) / n_trials);
 
-            set_hex_marker(marker::empty, this_move); // reverse the trial move
-            move_simulation_time.cum();
+            set_hex_marker(marker::empty, empty_hex_pos[move_num]); // reverse the trial move
         }
 
         // find the maximum computer win percentage across all the candidate moves
         float maxpct = 0.0;
-        std::size_t cnt = 0;
-        for (auto winpct : win_pct_per_move) {
-            if (winpct > maxpct) {
-                maxpct = winpct;
-                best_move = empty_pos[cnt];
+        best_move = empty_hex_pos[0];
+        for (int i = 0; i < win_pct_per_move.size(); ++i) {
+            if (win_pct_per_move[i] > maxpct) {
+                maxpct = win_pct_per_move[i]; //
+                best_move = empty_hex_pos[i];
             }
-            cnt++;
         }
+        // if the human player already won on this move, win_pct_per_move will be 0.0 for
+        // every move. best_move will never be reset, so the computer will make a
+        // throw-away move at the first hex index in empty_hex_pos.
+    
 
         if (verbose)
         {
@@ -926,8 +960,7 @@ class HexBoard {
         return rank_col_index(best_move);
     }
 
-
-    RankCol computer_move(marker side, Do_move how)
+    RankCol computer_move(marker side, Do_move how, int n_trials)
     {
         RankCol rc;
 
@@ -937,13 +970,31 @@ class HexBoard {
                 rc = naive_move();
                 break;
             case Do_move::monte_carlo:
-                rc = monte_carlo_move(side, 20000);
+                rc = monte_carlo_move(side, n_trials);
                 break;
         }
 
         return rc;
     }
 
+    template<typename T>   // should be int, float or string
+    T safe_input(const string & msg)
+    {
+        T input;
+        while (true) {
+            cin >> input;
+            if (cin.fail()) {
+                cin.clear();
+                cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+                cout << msg;
+                cin >> input;
+            }
+            if (!cin.fail())
+                break;
+        }
+        return input;
+    }
+    
     RankCol prompt_for_person_move(marker side)
     {
         RankCol rc;
@@ -953,17 +1004,13 @@ class HexBoard {
         bool valid_move = false;
 
         while (!valid_move) {
-            cout << "You go first playing X markers. The computer goes second "
-                    "playing "
-                    "O markers.\n";
             cout << "Enter a move in an empty position that contains '.'" << endl;
-            cout << "(A Note for c++ programmers: end-users use 1-indexing, so "
-                    "that's "
-                    "what we use...)\n";
+            cout << "(A Note for c++ programmers: end-users use 1-indexing,\n";
+            cout <<   "so, that's what we use...)\n";
             cout << "Enter -1 to quit..." << endl;
-            cout << "Enter the rank (the row, using Chess terminology)... ";
+            cout << "Enter the row... ";
 
-            cin >> rank;
+            rank = safe_input<int>("Please enter an integer: ");
 
             if (rank == -1) {
                 rc.rank = -1;
@@ -988,8 +1035,8 @@ class HexBoard {
             }
 
             cout << "Enter the column... ";
-            cin >> col;
-
+            col = safe_input<int>("Please enter an integer: ");
+            
             if (col == -1) {
                 rc.rank = -1;
                 rc.col = -1;
@@ -1004,7 +1051,7 @@ class HexBoard {
         return rc;
     }
 
-    bool is_valid_move(RankCol rc)
+    bool is_valid_move(RankCol rc) const
     {
         int rank = rc.rank;
         int col = rc.col;
@@ -1034,9 +1081,12 @@ class HexBoard {
     }
 
     // finds the ends of a path through the board for one side
-    marker find_ends(marker side, bool whole_board=false, bool verbose = false)
+    // Might not look it but this is a DFS, but it doesn't build a path. It only
+    // finds the end point given a start point in the start border.  If the end point is
+    // in the finish border, we have a winner.  We don't care about the middle of the path.
+    marker find_ends(marker side, bool whole_board=false, bool verbose = false) 
     {
-        game_assess_time.start();
+        winner_assess_time.start();
 
         marker winner = marker::empty;
         int front = 0;
@@ -1078,7 +1128,7 @@ class HexBoard {
             {
 
                 if (is_in_start(possibles[front], side)) { // if node in start border we have a winner
-                    game_assess_time.cum();
+                    winner_assess_time.cum();
                     return winner = side;
                 }
 
@@ -1088,19 +1138,10 @@ class HexBoard {
                 // cout << "neighbors " << neighbors << endl;
 
                 if (neighbors.empty()) {    // if there are no neighbors
-
-                    // cout << "at empty end point " << possibles[front] << endl;
-
-                    if (is_in_start(possibles[front],
-                                    side)) { // check if the first possible with no neighbors is in the winning position
-                        game_assess_time.cum();
-                        return winner = side;    // we made it to the other side
-                    }
-                    else {
-                        if (!possibles.empty())
-                            possibles.pop_front(); // pop this node because it has no neighbors
-                        break; // go back to the top whether empty or not:  top will test if empty
-                    }
+                    if (!possibles.empty())
+                        possibles.pop_front(); // pop this node because it has no neighbors
+                    break; // go back to the top whether empty or not:  top will test if empty
+                    // }
                 }
                 else {  // when we have one or more neighbors:
                     possibles[front] = neighbors[0];  // replace the previous endpoint with the first neighbor--advance the endpoint by one position, get rid of the previous possible
@@ -1124,10 +1165,10 @@ class HexBoard {
             } // while(true)
         } // while (!working.empty())
 
-        game_assess_time.cum();
+        winner_assess_time.cum();
         if (whole_board) {
             // cout << "do we ever end find_ends here? \n";
-            return side == marker::player2 ? marker::player1 : side;
+            return side == marker::playerO ? marker::playerX : side;
         }
         else
             return marker::empty; // we did not find a winner
@@ -1136,7 +1177,7 @@ class HexBoard {
     marker who_won()  // uses method find_ends
     {
         marker winner = marker::empty;
-        vector<marker> sides{marker::player1, marker::player2};
+        vector<marker> sides{marker::playerX, marker::playerO};
 
         for (auto side : sides) {
             winner = find_ends(side);
@@ -1148,48 +1189,108 @@ class HexBoard {
         return winner; // will always be 0
     }
 
-    void play_game(Do_move how)
+    void play_game(Do_move how, int n_trials=5000)
     {
         RankCol rc; // person's move
         RankCol computer_rc; // computer's move
         char pause;
         bool valid_move;
         bool end_game = false;
+        bool person_first = true;
+        string answer;
+        marker person_marker = marker::playerX;
+        marker computer_marker = marker::playerO;
         marker winning_side;
 
         clear_screen();
         cout << "\n\n";
 
-        move_count = 0;
-        while (true) // move loop
-        {
+        // who goes first?  break when we have a valid answer
+        while (true) {
+            cout << "*** Do you want to go first? (enter y or yes) ";
+            answer = safe_input<string>("Enter y or yes or n or no: ");
 
-            display_board();
+            if (is_in(tolower(answer), "yes")) {
+                person_first = true;
+                person_marker = marker::playerX;
+                computer_marker = marker::playerO;
 
-            rc = prompt_for_person_move(marker::player1);
-            if (rc.rank == -1) {
-                cout << "Game over! Come back again...\n";
+                cout << "You go first playing X markers.\n";
+                cout << "The computer goes second playing O markers.\n";
+                this_thread::sleep_for(std::chrono::milliseconds(3500));
+
                 break;
             }
+            else if (is_in(tolower(answer), "no")) {
+                person_first = false;
+                person_marker = marker::playerO;
+                computer_marker = marker::playerX;
 
-            set_hex_marker(marker::player1, rc);
-            move_seq[enum2int(marker::player1)].push_back(rc);
+                cout << "The computer goes first playing X markers.\n";
+                cout << "You go second playing O markers.\n";
+                this_thread::sleep_for(std::chrono::milliseconds(3500));
 
-            clear_screen();
+                break;
+            }
+            else
+                cout << "    Please enter [y]es or [n]o\n";
+        }
 
-            computer_rc = computer_move(marker::player2, how);
-            set_hex_marker(marker::player2, computer_rc);
-            move_seq[enum2int(marker::player2)].push_back(computer_rc);
+        clear_screen();
+        move_count = 0;
 
+        while (true) // move loop
+        {
+            switch (person_marker) {
+            case marker::playerX:
+                display_board();
+                rc = prompt_for_person_move(person_marker);
+                if (rc.rank == -1) {
+                    cout << "Game over! Come back again...\n";
+                    exit(0);
+                }
+                set_hex_marker(person_marker, rc);
+                move_seq[enum2int(person_marker)].push_back(rc);
+
+                clear_screen();
+
+                computer_rc = computer_move(computer_marker, how, n_trials);
+                set_hex_marker(computer_marker, computer_rc);
+                move_seq[enum2int(computer_marker)].push_back(computer_rc);
+                break;
+
+            case marker::playerO:
+                computer_rc = computer_move(computer_marker, how, n_trials);
+                set_hex_marker(computer_marker, computer_rc);
+                move_seq[enum2int(computer_marker)].push_back(computer_rc);
+
+
+                display_board();
+                rc = prompt_for_person_move(person_marker);
+                if (rc.rank == -1) {
+                    cout << "Game over! Come back again...\n";
+                    exit(0);
+                }
+                set_hex_marker(person_marker, rc);
+                move_seq[enum2int(person_marker)].push_back(rc);
+
+                clear_screen();
+
+                break;
+
+            case marker::empty:
+                cout << "Error: Player marker for human player cannot be empty.\n";
+                exit(-1);
+            }
 
             move_count++;
 
             // test for a winner
             if (move_count >= edge_len) {
-                winning_side = who_won(); // result is marker::empty, marker::player1, or marker::player2
+                winning_side = who_won(); // result is marker::empty, marker::playerX, or marker::playerO
                 if (enum2int(winning_side)) {
                     cout << "We have a winner. "
-                         << (winning_side == marker::player1 ? "You won. Congratulations!"
+                         << (winning_side == marker::playerX ? "You won. Congratulations!"
                                                              : " The computer beat you )-:")
                          << "\nGame over. Come back and play again!\n\n";
                     display_board();
@@ -1237,16 +1338,16 @@ class HexBoard {
 
     void set_hex_marker(marker val, int linear) { hex_graph.set_node_data(val, linear); }
 
-    marker get_hex_marker(RankCol rc) {return hex_graph.get_node_data(linear_index(rc)); }
+    marker get_hex_marker(RankCol rc) const {return hex_graph.get_node_data(linear_index(rc)); }
 
-    marker get_hex_marker(int rank, int col) { return hex_graph.get_node_data(linear_index(rank, col)); }
+    marker get_hex_marker(int rank, int col) const { return hex_graph.get_node_data(linear_index(rank, col)); }
 
-    marker get_hex_marker(int linear) { return hex_graph.get_node_data(linear); }
+    marker get_hex_marker(int linear) const { return hex_graph.get_node_data(linear); }
 
     // convert rank, col position to a linear index to an array or map
     // graph and minimum cost path use linear indices
     // linear indexes are 0-based to access c++ data structures
-    int linear_index(RankCol rc)
+    int linear_index(RankCol rc) const
     {
         int rank;
         int col;
@@ -1263,7 +1364,7 @@ class HexBoard {
     }
 
     // convert rank, col position to a linear index to an array or map
-    int linear_index(int rank, int col)
+    int linear_index(int rank, int col) const
     {
         rank -= 1; // convert from input 1-based indexing to zero-based indexing
         col -= 1;
@@ -1277,7 +1378,7 @@ class HexBoard {
     }
 
     // convert linear_index to RankCol index
-    RankCol rank_col_index(int linear)
+    RankCol rank_col_index(int linear) const
     {
         if (linear < max_idx) {
             return RankCol((linear / edge_len) + 1, (linear % edge_len) + 1);
@@ -1288,24 +1389,24 @@ class HexBoard {
         }
     }
 
-    bool is_in_start(int idx, marker side)
+    bool is_in_start(int idx, marker side) const
     {
-        if (side == marker::player1) {
+        if (side == marker::playerX) {
             return idx < edge_len;
         }
-        else if (side == marker::player2) {
+        else if (side == marker::playerO) {
             return idx % edge_len == 0;
         }
         else
             exit(-1);
     }
 
-    bool is_in_finish(int idx, marker side)
+    bool is_in_finish(int idx, marker side) const
     {
-        if (side == marker::player1) {
+        if (side == marker::playerX) {
             return idx > max_idx - edge_len - 1;
         }
-        else if (side == marker::player2) {
+        else if (side == marker::playerO) {
             return idx % edge_len == edge_len - 1;
         }
         else {
@@ -1313,10 +1414,9 @@ class HexBoard {
         }
     }
 
-    inline bool is_empty(RankCol rc) { return is_empty(linear_index(rc)); }
+    inline bool is_empty(RankCol rc) const { return is_empty(linear_index(rc)); }
 
-    inline bool is_empty(int linear) { return get_hex_marker(linear) == marker::empty; }
-
+    inline bool is_empty(int linear) const { return get_hex_marker(linear) == marker::empty; }
 };
 // ######################################################
 //
@@ -1329,65 +1429,25 @@ class HexBoard {
 // ######################################################
 
 
-ostream &operator<<(ostream &os, const HexBoard::marker & m)
-{
-    if (m == HexBoard::marker::player1)
-        os << "player1";
-    else if (m == HexBoard::marker::player2)
-        os << "player2";
-    else
-        os << "empty";
-
-    return os;
-}
-
-fstream &operator<<(fstream &os, const HexBoard::marker & m)
-{
-    if (m == HexBoard::marker::player1)
-        os << 1;
-    else if (m == HexBoard::marker::player2)
-        os << 2;
-    else
-        os << 0;
-
-    return os;
-}
-
 int main(int argc, char *argv[])
 {
-    srand(time(0));
-
     int size = 5;
-    string fname;
-
+    int n_trials = 10000;
     if (argc == 2)
         size = atoi(argv[1]);
-
-    if (argc == 3)
-        fname = (argv[2]);
-
-    cout << fname << endl;
-
-    if (size > 11) {
-        cout << "Your board size might be a little large: try between 5 and "
-                "11.\n";
-        cout << "Let's go ahead and play a tiny game with a 5 x 5 board.\n";
-        size = 5;
-    }
-    else if (size < 5) {
-        cout << "Size should be from 5 through 11.\n";
-        cout << "Let's go ahead and play a tiny game with a 5 x 5 board.\n";
-        size = 5;
+    else if (argc == 3) {
+        size = atoi(argv[1]);
+        n_trials = atoi(argv[2]);
     }
 
-    HexBoard hb;
+    Hex hb;
     hb.make_board(size);
-    // hb.load_board_from_file(fname);
+    
+    hb.play_game(Hex::Do_move::monte_carlo, n_trials);
 
-    hb.play_game(HexBoard::Do_move::monte_carlo);
-
-    cout << "Assessing who won took " << hb.game_assess_time.show() << " seconds.\n";
-    cout << "Simulating and evaluating moves took " << hb.move_simulation_time.show() << " seconds.\n";
+    cout << "Assessing who won took " << hb.winner_assess_time.show() << " seconds.\n";
+    cout << "Simulating and evaluating moves took "
+        << hb.move_simulation_time.show() - hb.winner_assess_time.show() << " seconds.\n";
 
     return 0;
 }
