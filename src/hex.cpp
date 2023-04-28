@@ -1,5 +1,6 @@
 // Draw a hexboard and play the game of hex
 // Run as ./hex 7 or ./hex 5 1000
+// Default size is 5; default trials = 1000 so running ./hex is a quick game.
 // The single argument is the number of hex's on each border.
 // Two arguments: first is board edge length;
 //                second is number of trials for each position assessed by
@@ -194,7 +195,8 @@ class Timing {
 // #  graph: data structure holding nodes and their edges
 // #  node_data: data structure for holding data value at each node
 // #  load_graph_from_file: method to define graph representation
-// #
+// #  this class is not really bound to hex in any way and can be used
+// #    for other graph applications.
 // ##########################################################################
 template <typename T_data>   // T_data can be various primitive data types
 class Graph {
@@ -477,7 +479,7 @@ class Hex {
     int edge_len = 0;
     int max_row = 0; // and equals max_col -> so, only need one
     int max_idx = 0; // maximum linear index
-    int move_count = 0; // number of moves played during the game
+    int move_count = 0; // number of moves played during the game: each player's move adds 1 (both moves = a ply)
     vector<marker> tmp_positions; // use to hold actual board positions so we can recover them after simulation
     vector<int> rand_nodes; // use in rand move method  TODO:  we can kill this I think...
 
@@ -888,22 +890,19 @@ class Hex {
     RowCol monte_carlo_move(marker side, int n_trials, bool verbose=false)  // move trials into the class to initialize the vector
     {
         move_simulation_time.start();
-        
-        // make a copy of the current board so we can reset it
-        copy(positions.begin(), positions.end(), tmp_positions.begin());
-        
+                
         if (verbose)
         {cout << "at move number " << move_count << " start monte carlo move with " <<
               n_trials << " trials."<< endl;}
 
         vector<int> empty_hex_pos; // empty positions that are available for candidate move and for simulated moves
-        vector<int> random_pos; // copy of empty_hex_pos that can be modified within loop
-        int tmp_idx=0;
-        vector<float> win_pct_per_move; // ditto
+        vector<int> random_pos;    // copy of empty_hex_pos (except the candidate move) that can be modified by the randomized simulation 
+        vector<float> win_pct_per_move; 
         int wins = 0;
         marker winning_side;
         int best_move=0;
-        
+
+        empty_hex_pos.reserve(max_idx); // performance improvement for push_back
         // loop over positions on the board to find available moves = empty positions
         for (int i = 0; i < max_idx; ++i) {
             if (is_empty(i)) {
@@ -966,7 +965,7 @@ class Hex {
         // find the maximum computer win percentage across all the candidate moves
         float maxpct = 0.0;
         best_move = empty_hex_pos[0];
-        for (int i = 0; i < win_pct_per_move.size(); ++i) {\
+        for (int i = 0; i < win_pct_per_move.size(); ++i) {
             if (win_pct_per_move[i] > maxpct)
             {
                 maxpct = win_pct_per_move[i]; //
@@ -976,7 +975,11 @@ class Hex {
         // if the human player already won on this move, win_pct_per_move will be 0.0 for
         // every move. best_move will never be reset, so the computer will make a
         // throw-away move at the first hex index in empty_hex_pos.
-    
+
+        if (verbose) {
+            cout << win_pct_per_move << endl;
+            cin >> pause;
+            }
 
         if (verbose)
         {
@@ -986,8 +989,9 @@ class Hex {
             cin >> pause;
         }
         
-        // undo the simulation effects
-        copy(tmp_positions.begin(), tmp_positions.end(), positions.begin());
+        // restore the board
+        fill_board(empty_hex_pos, marker::empty);
+
         move_simulation_time.cum();
 
         return row_col_index(best_move);
@@ -1010,6 +1014,7 @@ class Hex {
         set_hex_marker(side, rc);
         move_seq[enum2int(side)].push_back(rc);
 
+        move_count++;
         return rc;
     }
 
@@ -1095,6 +1100,7 @@ class Hex {
         set_hex_marker(side, rc);
         move_seq[enum2int(side)].push_back(rc);
 
+        move_count++;
         return rc;
     }
 
@@ -1212,7 +1218,7 @@ class Hex {
         winner_assess_time.cum();
         if (whole_board) {
             // cout << "do we ever end find_ends here? \n";
-            return (side == marker::playerO ? marker::playerX : side);
+            return (side == marker::playerO ? marker::playerX : marker::playerO);
         }
         else
             return marker::empty; // we did not find a winner
@@ -1233,13 +1239,11 @@ class Hex {
         return winner; 
     }
 
-    void play_game(Do_move how, int n_trials=5000)
+    void play_game(Do_move how, int n_trials=1000)
     {
-        RowCol person_rc; // person's move
+        RowCol person_rc;   // person's move
         RowCol computer_rc; // computer's move
-        char pause;
         bool valid_move;
-        bool end_game = false;
         bool person_first = true;
         string answer;
         marker person_marker;
@@ -1264,7 +1268,6 @@ class Hex {
                 cout << "Make a path from the top row to the bottom.\n";
                 cout << "The computer goes second playing O markers.\n";
                 cout << string_by_n("\n", 2);
-                // this_thread::sleep_for(std::chrono::milliseconds(4000));
 
                 break;
             }
@@ -1277,8 +1280,6 @@ class Hex {
                 cout << "You go second playing O markers.\n";
                 cout << "Make a path from the first column to the last column.\n";
                 cout << string_by_n("\n", 2);
-
-                // this_thread::sleep_for(std::chrono::milliseconds(4000));
 
                 break;
             }
@@ -1308,8 +1309,6 @@ class Hex {
                 cout << "The computer moved at " << computer_rc << "\n";
                 cout << "Your move at " << person_rc << " was valid.\n\n\n";
 
-                move_count++;
-
                 break;
 
             // computer goes first
@@ -1326,7 +1325,6 @@ class Hex {
                     exit(0);
                 }
 
-                move_count++;
                 clear_screen();
                 cout << "Your move at " << person_rc << " was valid.\n";
 
@@ -1337,7 +1335,7 @@ class Hex {
             }
 
             // test for a winner
-            if (move_count >= edge_len) {
+            if (move_count >= (edge_len+edge_len - 1)) {
                 winning_side = who_won(); // result is marker::empty, marker::playerX, or marker::playerO
 
                 if (enum2int(winning_side)) {
@@ -1391,6 +1389,13 @@ class Hex {
     marker get_hex_marker(int row, int col) const { return hex_graph.get_node_data(linear_index(row, col)); }
 
     marker get_hex_marker(int linear) const { return hex_graph.get_node_data(linear); }
+
+    void fill_board(vector<int> indices, marker value)
+    {
+        for (const auto idx : indices) {
+            positions[idx] = value;
+        }
+    }
 
     // convert row, col position to a linear index to an array or map
     // graph and minimum cost path use linear indices
@@ -1521,7 +1526,7 @@ int foo()
 int main(int argc, char *argv[])
 {
     int size = 5;
-    int n_trials = 10000;
+    int n_trials = 1000;
     if (argc == 2)
         size = atoi(argv[1]);
     else if (argc == 3) {
