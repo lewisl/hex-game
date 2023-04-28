@@ -1,16 +1,15 @@
-// Draw a hexboard and play the game of hex
-// Run as ./hex 7 or ./hex 5 1000
-// Default size is 5; default trials = 1000 so running ./hex is a quick game.
-// The single argument is the number of hex's on each border.
-// Two arguments: first is board edge length;
-//                second is number of trials for each position assessed by
-//                simulation.
-// The computer uses simulation to choose its moves,  but a human often wins.
-// Please compile with -std=c++14 given features I've used.
-// Note that there are 2 classes defined in one big file.  In multi-file compile and build,
-// the file would be split to include the 2 class definitions each in their own file,
-// with a small file containing int main(argc, *char[argv]) to run the game.
-// Programmer: Lewis Levin Date: April 2023
+/* Draw a hexboard and play the game of hex
+Run as ./hex 7 or ./hex 5 2500
+Default size is 5; default trials = 2500 so running ./hex is a quick game.
+Two arguments: first is board edge length;
+               second is number of trials for each position assessed by simulation.
+The computer uses simulation to choose its moves,  but a human often wins.
+Please compile with -std=c++14 given features I've used.
+Note that there are 2 classes defined in one big file.  In multi-file compile and build,
+the file would be split to include the 2 class definitions each in their own file,
+with a small file containing int main(argc, *char[argv]) to run the game.
+Programmer: Lewis Levin Date: April 2023
+*/
 
 #include <algorithm>
 #include <chrono> // for performance timing
@@ -24,15 +23,10 @@
 #include <stdlib.h> // for atoi()
 #include <string>
 #include <thread>   // to delay output to human player
-#include <unordered_map> // container for definition of Graph, costs, previous nodes for Dijkstra
+#include <unordered_map> // container for definition of Graph
 #include <vector>
 
 using namespace std;
-
-// forward declarations
-class Hex;
-
-char pause;    // for pauses to read messages before they disappear...
 
 // send control codes to console to clear the screen
 // not guaranteed to work on all OS'es.  Works on MacOs.
@@ -145,7 +139,6 @@ template<typename T>
 bool is_in(T val, T one) { return val == one; }
 
 /** class Timing
-
 a simple way to time the execution of segments of code
 ex:
       Timing this_timer;
@@ -190,21 +183,22 @@ class Timing {
 };
 
 
-// ##########################################################################
-// #                            class Graph
-// #  graph: data structure holding nodes and their edges
-// #  node_data: data structure for holding data value at each node
-// #  load_graph_from_file: method to define graph representation
-// #  this class is not really bound to hex in any way and can be used
-// #    for other graph applications.
-// ##########################################################################
+/* 
+##########################################################################
+#                            class Graph
+#  graph: data structure holding nodes and their edge
+#  node_data: data structure for holding data value at each node
+#  load_graph_from_file: method to define graph representation
+#  this class is not really bound to hex in any way and can be used
+#    for other graph applications.
+##########################################################################
+*/
 template <typename T_data>   // T_data can be various primitive data types
 class Graph {
   public:
     Graph<T_data>() = default;
     ~Graph<T_data>() = default;
 
-  public:
     vector<T_data> node_data; // holds Data values of all nodes
         
     // holds an edge for a starting node: to node, cost to the neighbor
@@ -228,7 +222,6 @@ class Graph {
         node_data.reserve(size);
     }
 
-  public:
     // output an Edge in an output stream
     friend ostream &operator<<(ostream &os, const Edge &e)
     {
@@ -338,12 +331,13 @@ class Graph {
         }
     }
 
-    /** display_graph
-        Print graph to an output stream ot.
-        This is the table of nodes and edges in the graph, not a picture of the
-        graph. It is identical to the format used by load_graph_from_file. You can 
-        pass an fstream as the output stream to save the graph in a text file.
-        cout is the default value of ot to print to console.
+    /** 
+    display_graph
+    Print graph to an output stream ot.
+    This is the table of nodes and edges in the graph, not a picture of the
+    graph. It is identical to the format used by load_graph_from_file. You can 
+    pass an fstream as the output stream to save the graph in a text file.
+    cout is the default value of ot to print to console.
     */
     void display_graph(ostream &ot = cout, bool to_file=false) const
     {
@@ -473,15 +467,13 @@ class Hex {
     friend class Graph<marker>;
     Graph<marker> hex_graph;
         // a member of Hex that is a Graph object, using "composition" instead
-        // of inheritance. Thegraph content is created by either make_board()
+        // of inheritance. The graph content is created by either make_board()
         // or load_board_from_file()
     
     int edge_len = 0;
-    int max_row = 0; // and equals max_col -> so, only need one
     int max_idx = 0; // maximum linear index
     int move_count = 0; // number of moves played during the game: each player's move adds 1 (both moves = a ply)
-    vector<marker> tmp_positions; // use to hold actual board positions so we can recover them after simulation
-    vector<int> rand_nodes; // use in rand move method  TODO:  we can kill this I think...
+    vector<int> rand_nodes; // use in rand move method  
 
 
     // row and col on the hexboard to address a hexagon
@@ -610,15 +602,12 @@ class Hex {
     {
         // initialize all members
         edge_len = border_len;
-        max_row = edge_len - 1;
         max_idx = edge_len * edge_len; // same as size
 
         // REMINDER!!!: row and col indices are treated as 1-based!
 
         // reserve storage
         hex_graph.set_storage(max_idx);
-        tmp_positions.reserve(max_idx);
-        tmp_positions.resize(max_idx);
 
         // define the board regions and move sequences
         define_borders();
@@ -641,16 +630,16 @@ class Hex {
         hex_graph.add_edge(linear_index(1, 1), linear_index(2, 1));
         hex_graph.add_edge(linear_index(1, 1), linear_index(1, 2));
         // lower right
-        hex_graph.add_edge(linear_index(edge_len, edge_len), linear_index(edge_len, max_row));
-        hex_graph.add_edge(linear_index(edge_len, edge_len), linear_index(max_row, edge_len));
+        hex_graph.add_edge(linear_index(edge_len, edge_len), linear_index(edge_len, (edge_len - 1)));
+        hex_graph.add_edge(linear_index(edge_len, edge_len), linear_index((edge_len - 1), edge_len));
         // upper right
-        hex_graph.add_edge(linear_index(1, edge_len), linear_index(1, max_row));
+        hex_graph.add_edge(linear_index(1, edge_len), linear_index(1, (edge_len - 1)));
         hex_graph.add_edge(linear_index(1, edge_len), linear_index(2, edge_len));
-        hex_graph.add_edge(linear_index(1, edge_len), linear_index(2, max_row));
+        hex_graph.add_edge(linear_index(1, edge_len), linear_index(2, (edge_len - 1)));
         // lower left
-        hex_graph.add_edge(linear_index(edge_len, 1), linear_index(max_row, 1));
+        hex_graph.add_edge(linear_index(edge_len, 1), linear_index((edge_len - 1), 1));
         hex_graph.add_edge(linear_index(edge_len, 1), linear_index(edge_len, 2));
-        hex_graph.add_edge(linear_index(edge_len, 1), linear_index(max_row, 2));
+        hex_graph.add_edge(linear_index(edge_len, 1), linear_index((edge_len - 1), 2));
 
         // 4 borders (excluding corners)  4 edges per node.
         // north-south edges: constant row, vary col
@@ -703,7 +692,6 @@ class Hex {
         // initialize Hex class members
         max_idx = hex_graph.count_nodes();
         edge_len = sqrt(max_idx);
-        max_row = edge_len - 1;
 
         if (edge_len * edge_len != max_idx) {
             cout << "Error: incorrect size for hexboard. Got size = " << max_idx << endl;
@@ -719,8 +707,6 @@ class Hex {
         
         // additional vectors pre-allocation
             // something for rand_nodes if we keep it TODO
-        tmp_positions.reserve(max_idx);
-        tmp_positions.resize(max_idx);
     }
 
     // methods for playing game externally defined
@@ -775,7 +761,7 @@ class Hex {
                 // connector lines to show edges between board positions
                 if (row != edge_len) {
                     cout << lead_space(row); // leading spaces for connector line
-                    cout << string_by_n(connector, max_row) << last_connector << endl;
+                    cout << string_by_n(connector, (edge_len - 1)) << last_connector << endl;
                 }
                 else {
                     cout << "\n\n"; // last row: no connector slashes
@@ -852,7 +838,6 @@ class Hex {
         RowCol prev_move;
         int prev_move_linear;
         vector<int> neighbor_nodes;
-        char pause;
 
         if (move_seq[enum2int(side)].empty()) {
             shuffle(start_border[static_cast<int>(side)].begin(),
@@ -887,13 +872,9 @@ class Hex {
         return rc;
     }
 
-    RowCol monte_carlo_move(marker side, int n_trials, bool verbose=false)  // move trials into the class to initialize the vector
+    RowCol monte_carlo_move(marker side, int n_trials)  // move trials into the class to initialize the vector
     {
         move_simulation_time.start();
-                
-        if (verbose)
-        {cout << "at move number " << move_count << " start monte carlo move with " <<
-              n_trials << " trials."<< endl;}
 
         vector<int> empty_hex_pos; // empty positions that are available for candidate move and for simulated moves
         vector<int> random_pos;    // copy of empty_hex_pos (except the candidate move) that can be modified by the randomized simulation 
@@ -911,14 +892,12 @@ class Hex {
         }
         random_pos.reserve(empty_hex_pos.size());  // vector that will be shuffled for monte carlo trials
         random_pos.resize(empty_hex_pos.size() - 1); // one of the empty positions is filled by the trial move
+        win_pct_per_move.resize(empty_hex_pos.size());
 
         int move_num = 0; // the index of empty hex positions that will be assigned the move to evaluate
         
         // loop over the available move positions: make eval move, setup positions to randomize
         for (move_num = 0; move_num < empty_hex_pos.size(); move_num++) {
-
-            if (verbose)
-            {cout << "    evaluating move at " << row_col_index(empty_hex_pos[move_num]) << endl;}
 
             // make the computer's move to be evaluated
             set_hex_marker(side, empty_hex_pos[move_num]);
@@ -939,27 +918,16 @@ class Hex {
             for (int trial = 0; trial < n_trials; ++trial) {
                 simulate_hexboard_positions(random_pos);
 
-                if (verbose) {
-                    cout << "Move " << empty_hex_pos[move_num] << " trial " << trial << endl;
-                    display_board();
-                }
-
                 winning_side = find_ends(side, true);
-
-                if (verbose)
-                {cout << "    simulated trial " << trial << " winner was " << winning_side << endl;}
 
                 wins += (winning_side == side ? 1 : 0);
             }
+
             // calculate and save computer win percentage for this move
+            win_pct_per_move[move_num] = (static_cast<float>(wins) / n_trials);
 
-            if (verbose) 
-                cout << "for move " << empty_hex_pos[move_num] << " = " << wins << endl;
-
-
-            win_pct_per_move.push_back(static_cast<float>(wins) / n_trials);
-
-            set_hex_marker(marker::empty, empty_hex_pos[move_num]); // reverse the trial move
+            // reverse the trial move
+            set_hex_marker(marker::empty, empty_hex_pos[move_num]); 
         }
 
         // find the maximum computer win percentage across all the candidate moves
@@ -968,25 +936,9 @@ class Hex {
         for (int i = 0; i < win_pct_per_move.size(); ++i) {
             if (win_pct_per_move[i] > maxpct)
             {
-                maxpct = win_pct_per_move[i]; //
+                maxpct = win_pct_per_move[i]; 
                 best_move = empty_hex_pos[i];
             }
-        }
-        // if the human player already won on this move, win_pct_per_move will be 0.0 for
-        // every move. best_move will never be reset, so the computer will make a
-        // throw-away move at the first hex index in empty_hex_pos.
-
-        if (verbose) {
-            cout << win_pct_per_move << endl;
-            cin >> pause;
-            }
-
-        if (verbose)
-        {
-            cout << "for move_count = " << move_count << " the best move is " << best_move
-                 << " with a simulation win percentage of " << maxpct << endl;
-            cout << "pause... ";
-            cin >> pause;
         }
         
         // restore the board
@@ -1065,7 +1017,7 @@ class Hex {
             cout << "Enter a move in an empty position that contains '.'" << endl;
             cout << "Enter your move as the row number and the column number, separated by a space.\n";
             cout << "The computer prompts row col:  and you enter 3 5, followed by the enter key.";
-            cout << "Enter -1 to quit..." << endl;
+            cout << "Enter -1 -1 to quit..." << endl;
             cout << "row col: ";
 
             rc = move_input("Please enter 2 integers: ");
@@ -1135,22 +1087,21 @@ class Hex {
 
     // finds the ends of a path through the board for one side
     // Might not look it but this is a DFS, but it doesn't build a path. It only
-    // finds the end point given a point in the start border.  If the end point is
-    // in the finish border, we have a winner.  We don't care about the middle steps of the path.
-    marker find_ends(marker side, bool whole_board=false, bool verbose = false) 
+    // finds the start point given a point in the finish border.  If the end point is
+    // in the start border, we have a winner.  We don't care about the middle steps of the path.
+    marker find_ends(marker side, bool whole_board=false) 
     {
         winner_assess_time.start();
 
         marker winner = marker::empty;
         int front = 0;
-        char pause;
         deque<int> possibles; // MUST BE A DEQUE! hold candidate sequences across the board
         vector<int> neighbors;
         neighbors.reserve(6);
         vector<int> captured; // nodes already included in a candidate path:  cannot be neighbors again
         captured.reserve(max_idx / 2 + 1);
         
-        // test for finish borders, though start border would also work: assumption fewer markers at the finish
+        // test for positions in the finish border, though start border would also work: assumption fewer markers at the finish
         
         for (auto hex : finish_border[enum2int(side)]) {  //look through the finish border
             if (get_hex_marker(hex) == side) // if there is a marker for this side, add it
@@ -1160,71 +1111,45 @@ class Hex {
             }
         }
 
-        if (verbose) {
-            cout<< "********************* starting find_ends" << endl;
-            cout << possibles << endl;
-        }
-
         while (!possibles.empty()) {
             front = 0;         // we will work off the front using index rather than iterator
 
-            if (verbose)
-                cout << side << " possibles"  << possibles << endl;
-
             while (true) // extend, branch, reject, find winner for this sequence
             {
-
-
                 if (is_in_start(possibles[front], side)) { // if node in start border we have a winner
-                    if (verbose)
-                        cout << "*** found a winner" << possibles << endl;
                     winner_assess_time.cum();
                     return side;
                 }
 
-                //                                       node         must == side   must exclude anything in captured
-                neighbors = hex_graph.get_neighbor_nodes(possibles[front], side, captured); // find neighbors of the first possible
+                // find neighbors of the first possible matching side excluding already captured nodes
+                neighbors = hex_graph.get_neighbor_nodes(possibles[front], side, captured); 
                 
-                // cout << "neighbors " << neighbors << endl;
-
-                if (neighbors.empty()) {    // if there are no neighbors
-                    if (!possibles.empty())
+                if (neighbors.empty()) {    
+                    if (!possibles.empty())  // always have to do this before pop because c++ will terminate
                         possibles.pop_front(); // pop this node because it has no neighbors
                     break; // go back to the top whether empty or not:  top will test if empty
-                    // }
                 }
                 else {  // when we have one or more neighbors:
-                    possibles[front] = neighbors[0];  // replace the previous endpoint with the first neighbor--advance the endpoint by one position, get rid of the previous possible
+                    possibles[front] = neighbors[0];  // advance the endpoint by one position, get rid of the previous possible
                     captured.push_back(neighbors[0]);
-
-                    if (verbose) {
-                        cout <<  side << "advancing end point by 1 neighbor" << endl;
-                        cout << possibles << endl;
-                    }
 
                     for (int i = 1; i < neighbors.size(); ++i) {  // if there is more than one neighbor..
                         possibles.push_back(neighbors[i]); // a new possible finishing end point
                         captured.push_back(neighbors[i]);
                     }
-                    if (verbose) {
-                        cout << side << " after adding neighbors, possibles size " << possibles.size() << ends;
-                        cout << possibles << endl;
-                    }
                 }
-
             } // while(true)
         } // while (!working.empty())
 
         winner_assess_time.cum();
         if (whole_board) {
-            // cout << "do we ever end find_ends here? \n";
             return (side == marker::playerO ? marker::playerX : marker::playerO);
         }
         else
             return marker::empty; // we did not find a winner
     }
 
-    marker who_won()  
+    marker who_won()  // we use this when we may not have a full board, so do need to evaluate both sides
     {
         marker winner = marker::empty;
         vector<marker> sides{marker::playerX, marker::playerO};
@@ -1287,7 +1212,6 @@ class Hex {
                 cout << "    Please enter [y]es or [n]o\n";
         }
 
-        // clear_screen();
         move_count = 0;
 
         while (true) // move loop
@@ -1338,7 +1262,7 @@ class Hex {
             if (move_count >= (edge_len+edge_len - 1)) {
                 winning_side = who_won(); // result is marker::empty, marker::playerX, or marker::playerO
 
-                if (enum2int(winning_side)) {
+                if (enum2int(winning_side)) {   // e.g., wasn't marker::empty
                     cout << "We have a winner. "
                          << (winning_side == person_marker ? "You won. Congratulations!"
                                                              : " The computer beat you )-:")
@@ -1350,29 +1274,6 @@ class Hex {
 
         }
         
-    }
-
-    // copy RowCol positions to a set of ints.   caller provides destination
-    // container:  set or vector.
-    void copy_move_seq(vector<RowCol> moves, set<int> &cands)
-    {
-        int node;
-        cands.clear();
-        for (auto m : moves) {
-            node = linear_index(m);
-            cands.insert(node);
-        }
-    }
-
-    void copy_move_seq(vector<RowCol> moves, vector<int> &cands)
-    {
-        int node;
-
-        cands.clear();
-        for (auto m : moves) {
-            node = linear_index(m);
-            cands.push_back(node);
-        }
     }
 
     // game play methods use row and col for board positions
@@ -1402,18 +1303,7 @@ class Hex {
     // linear indexes are 0-based to access c++ data structures
     int linear_index(RowCol rc) const
     {
-        int row;
-        int col;
-
-        row = rc.row - 1; // convert from input 1-based indexing to zero-based indexing
-        col = rc.col - 1;
-        if (row < edge_len && col < edge_len) {
-            return (row * edge_len) + col;
-        }
-        else {
-            cout << "Error: row or col >= edge length\n";
-            return -1;
-        }
+        return linear_index(rc.row, rc.col);
     }
 
     // convert row, col position to a linear index to an array or map
@@ -1426,7 +1316,7 @@ class Hex {
         }
         else {
             cout << "Error: row or col >= edge length\n";
-            return -1;
+            exit(-1);
         }
     }
 
@@ -1483,50 +1373,10 @@ class Hex {
 // ######################################################
 
 
-// ######################################################
-// some tests
-void test_board_regions(int edge_len)
-{
-    Hex::marker vert{Hex::marker::playerX}, horiz{Hex::marker::playerO};
-
-    Hex hb;
-    hb.make_board(edge_len);
-
-
-    cout << "start_border for vertical player" << endl;
-    for (int i = 0; i < edge_len; i++)
-    {
-        cout << " start vert "<< i << " matches true? " << (hb.is_in_start(i, vert) == true) << endl;
-    }
-
-    cout << "finish_border for vertical player" << endl;
-    for (int i = (edge_len*edge_len - edge_len); i < (edge_len*edge_len); i++) {
-        cout << " finish vert " << i << " matches true? " << (hb.is_in_finish(i, vert) == true) << endl;
-    }
-
-    cout << "start_border for horizontal player" << endl;
-    for (int i = 0; i < (edge_len*edge_len - edge_len); i+=edge_len) {
-        cout << " start horiz " << i << " matches true? " << (hb.is_in_start(i, horiz) == true) << endl;
-    }
-
-    cout << "finish_border for horizontal player" << endl;
-    for (int i = edge_len - 1; i < (edge_len * edge_len); i+=edge_len) {
-        cout << " finish horiz " << i << " matches true? " << (hb.is_in_finish(i, horiz) == true) << endl;
-    }
-}
-
-int foo()
-{
-    int edge_len = 7;
-    test_board_regions(edge_len);
-
-    return 0;
-}
-
 int main(int argc, char *argv[])
 {
     int size = 5;
-    int n_trials = 1000;
+    int n_trials = 2500;
     if (argc == 2)
         size = atoi(argv[1]);
     else if (argc == 3) {
