@@ -172,13 +172,13 @@ void test_board_graph(int edge_len)
 
 void test_board_regions(int edge_len)
 {
-    HexBoard hb;
+    Hex hb;
     hb.make_board(edge_len);
     
 }
 
 
-void test_index_conversion(HexBoard & hb)
+void test_index_conversion(Hex & hb)
 {
     int edge_len = hb.edge_len;
     

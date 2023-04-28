@@ -475,28 +475,28 @@ class Hex {
         // or load_board_from_file()
     
     int edge_len = 0;
-    int max_rank = 0; // and equals max_col -> so, only need one
+    int max_row = 0; // and equals max_col -> so, only need one
     int max_idx = 0; // maximum linear index
     int move_count = 0; // number of moves played during the game
     vector<marker> tmp_positions; // use to hold actual board positions so we can recover them after simulation
     vector<int> rand_nodes; // use in rand move method  TODO:  we can kill this I think...
 
 
-    // rank and col on the hexboard to address a hexagon
-    // rank and col are seen by the human player so we use 1-based indexing
+    // row and col on the hexboard to address a hexagon
+    // row and col are seen by the human player so we use 1-based indexing
     // the linear_index conversion method handles this
-    struct RankCol {
-        int rank;
+    struct RowCol {
+        int row;
         int col;
 
-        RankCol(int rank = 0, int col = 0) : rank(rank), col(col) {} // initialize to illegal position as sentinel
+        RowCol(int row = 0, int col = 0) : row(row), col(col) {} // initialize to illegal position as sentinel
     };
 
     // ostream overloads
-    // output a RankCol in an output stream
-    friend ostream &operator<<(ostream &os, const RankCol &rc) 
+    // output a RowCol in an output stream
+    friend ostream &operator<<(ostream &os, const RowCol &rc) 
     {
-        os << "Rank: " << rc.rank << " Col: " << rc.col;
+        os << "Row: " << rc.row << " Col: " << rc.col;
         return os;
     }
 
@@ -527,7 +527,7 @@ class Hex {
   private:
     vector<vector<int>> start_border; // holds indices at the top and left edges of the board
     vector<vector<int>> finish_border; // holds indices at the bottom and right edges of the board
-    vector<vector<RankCol>> move_seq; // history of moves: use ONLY indices 1 and 2 for outer vector
+    vector<vector<RowCol>> move_seq; // history of moves: use ONLY indices 1 and 2 for outer vector
     vector<marker> &positions = hex_graph.node_data;  // positions of all markers on the board
     
     // METHODS FOR DRAWING THE BOARD
@@ -558,7 +558,7 @@ class Hex {
     }
 
     // how many spaces to indent each line of the hexboard?
-    string lead_space(int rank) const { return string_by_n(" ", rank * 2); }
+    string lead_space(int row) const { return string_by_n(" ", row * 2); }
 
     // some string constants used to draw the board
     const string connector = R"( \ /)";
@@ -567,7 +567,7 @@ class Hex {
     // create vectors containing start and finish borders for both sides
     void define_borders() // tested OK
     {
-        int rank;
+        int row;
         int col;
 
         // yes--we could this all in one loop but, this is much more obvious
@@ -579,19 +579,19 @@ class Hex {
             finish_border.push_back(vector<int>{});
         }
 
-        for (int rank = 1, col = 1; col < edge_len + 1; col++) {
-            start_border[enum2int(marker::playerX)].push_back(linear_index(rank, col));
+        for (int row = 1, col = 1; col < edge_len + 1; col++) {
+            start_border[enum2int(marker::playerX)].push_back(linear_index(row, col));
         }
-        for (int rank = edge_len, col = 1; col < edge_len + 1; col++) {
-            finish_border[enum2int(marker::playerX)].push_back(linear_index(rank, col));
-        }
-
-        for (int rank = 1, col = 1; rank < edge_len + 1; rank++) {
-            start_border[enum2int(marker::playerO)].push_back(linear_index(rank, col));
+        for (int row = edge_len, col = 1; col < edge_len + 1; col++) {
+            finish_border[enum2int(marker::playerX)].push_back(linear_index(row, col));
         }
 
-        for (int rank = 1, col = edge_len; rank < edge_len + 1; rank++) {
-            finish_border[enum2int(marker::playerO)].push_back(linear_index(rank, col));
+        for (int row = 1, col = 1; row < edge_len + 1; row++) {
+            start_border[enum2int(marker::playerO)].push_back(linear_index(row, col));
+        }
+
+        for (int row = 1, col = edge_len; row < edge_len + 1; row++) {
+            finish_border[enum2int(marker::playerO)].push_back(linear_index(row, col));
         }
     }
 
@@ -608,10 +608,10 @@ class Hex {
     {
         // initialize all members
         edge_len = border_len;
-        max_rank = edge_len - 1;
+        max_row = edge_len - 1;
         max_idx = edge_len * edge_len; // same as size
 
-        // REMINDER!!!: rank and col indices are treated as 1-based!
+        // REMINDER!!!: row and col indices are treated as 1-based!
 
         // reserve storage
         hex_graph.set_storage(max_idx);
@@ -639,19 +639,19 @@ class Hex {
         hex_graph.add_edge(linear_index(1, 1), linear_index(2, 1));
         hex_graph.add_edge(linear_index(1, 1), linear_index(1, 2));
         // lower right
-        hex_graph.add_edge(linear_index(edge_len, edge_len), linear_index(edge_len, max_rank));
-        hex_graph.add_edge(linear_index(edge_len, edge_len), linear_index(max_rank, edge_len));
+        hex_graph.add_edge(linear_index(edge_len, edge_len), linear_index(edge_len, max_row));
+        hex_graph.add_edge(linear_index(edge_len, edge_len), linear_index(max_row, edge_len));
         // upper right
-        hex_graph.add_edge(linear_index(1, edge_len), linear_index(1, max_rank));
+        hex_graph.add_edge(linear_index(1, edge_len), linear_index(1, max_row));
         hex_graph.add_edge(linear_index(1, edge_len), linear_index(2, edge_len));
-        hex_graph.add_edge(linear_index(1, edge_len), linear_index(2, max_rank));
+        hex_graph.add_edge(linear_index(1, edge_len), linear_index(2, max_row));
         // lower left
-        hex_graph.add_edge(linear_index(edge_len, 1), linear_index(max_rank, 1));
+        hex_graph.add_edge(linear_index(edge_len, 1), linear_index(max_row, 1));
         hex_graph.add_edge(linear_index(edge_len, 1), linear_index(edge_len, 2));
-        hex_graph.add_edge(linear_index(edge_len, 1), linear_index(max_rank, 2));
+        hex_graph.add_edge(linear_index(edge_len, 1), linear_index(max_row, 2));
 
         // 4 borders (excluding corners)  4 edges per node.
-        // north-south edges: constant rank, vary col
+        // north-south edges: constant row, vary col
         for (int c = 2; c < edge_len; c++) {
             int r = 1;
             hex_graph.add_edge(linear_index(r, c), linear_index(r, c - 1));
@@ -665,7 +665,7 @@ class Hex {
             hex_graph.add_edge(linear_index(r, c), linear_index(r - 1, c));
             hex_graph.add_edge(linear_index(r, c), linear_index(r - 1, c + 1));
         }
-        // east-west edges: constant col, vary rank
+        // east-west edges: constant col, vary row
         for (int r = 2; r < edge_len; r++) {
             int c = 1;
             hex_graph.add_edge(linear_index(r, c), linear_index(r - 1, c));
@@ -701,7 +701,7 @@ class Hex {
         // initialize Hex class members
         max_idx = hex_graph.count_nodes();
         edge_len = sqrt(max_idx);
-        max_rank = edge_len - 1;
+        max_row = edge_len - 1;
 
         if (edge_len * edge_len != max_idx) {
             cout << "Error: incorrect size for hexboard. Got size = " << max_idx << endl;
@@ -726,7 +726,7 @@ class Hex {
     {
         // for move_seq for players 1 and 2
         for (int i = 0; i < 3; i++) {
-            move_seq.push_back(vector<RankCol>{});
+            move_seq.push_back(vector<RowCol>{});
             if (i > 0)
                 move_seq[i].reserve(max_idx / 2 + 1);
         }
@@ -736,25 +736,47 @@ class Hex {
     void display_board() const
     {
         {
-            bool last; // last board value in the rank: true or false?
+            bool last; // last board value in the row: true or false?
 
-            // format two lines for each rank (except the last)
-            for (int rank = 1; rank < edge_len + 1; rank++) {
-                cout << lead_space(rank);
-                for (int col = 1; col < edge_len + 1; col++) {
-                    last = col < edge_len ? false : true;
-                    cout << symdash(get_hex_marker(rank, col), last); // add each column value
-                }
-
-                cout << endl; // line break for rank
-
-                // connector lines to show edges between board positions
-                if (rank != edge_len) {
-                    cout << lead_space(rank); // leading spaces for connector line
-                    cout << string_by_n(connector, max_rank) << last_connector << endl;
+            // number legend across the top of the board
+            cout << "  " << 1;
+            for (int col = 2; col < edge_len + 1; col++) {
+                if (col < 10) {
+                    cout << "   ";
+                    cout << col;
                 }
                 else {
-                    cout << "\n\n"; // last rank: no connector slashes
+                    cout << "  ";
+                    cout << col;
+                }
+            }
+            cout << endl;
+            // format two lines for each row (except the last)
+            for (int row = 1; row < edge_len + 1; row++) {
+                if (row < 10) {
+                    cout << lead_space(row-1);
+                    cout << row;
+                    cout << " ";
+                }
+                else {
+                    cout << lead_space(row - 2) << " ";
+                    cout << row;
+                    cout << " ";
+                }
+                for (int col = 1; col < edge_len + 1; col++) {
+                    last = col < edge_len ? false : true;
+                    cout << symdash(get_hex_marker(row, col), last); // add each column value
+                }
+
+                cout << endl; // line break for row
+
+                // connector lines to show edges between board positions
+                if (row != edge_len) {
+                    cout << lead_space(row); // leading spaces for connector line
+                    cout << string_by_n(connector, max_row) << last_connector << endl;
+                }
+                else {
+                    cout << "\n\n"; // last row: no connector slashes
                 }
             }
         }
@@ -798,9 +820,9 @@ class Hex {
 
     // the program makes a random move
     // Not used for the monte carlo simulation: used for testing computer moves early on
-    RankCol random_move()
+    RowCol random_move()
     {
-        RankCol rc;
+        RowCol rc;
         int maybe; // candidate node to place a marker on
 
         shuffle(rand_nodes.begin(), rand_nodes.end(), rng);
@@ -808,12 +830,12 @@ class Hex {
         for (int i = 0; i < max_idx; i++) {
             maybe = rand_nodes[i];
             if (is_empty(maybe)) {
-                rc = rank_col_index(maybe);
+                rc = row_col_index(maybe);
                 break;
             }
         }
-        if (rc.rank == 0 && rc.col == 0) { // never found an empty position->no possible move
-            rc.rank = -1;
+        if (rc.row == 0 && rc.col == 0) { // never found an empty position->no possible move
+            rc.row = -1;
             rc.col = -1; // no move
         }
 
@@ -822,26 +844,26 @@ class Hex {
 
     // the program makes a naive move to extend its longest path
     // Not used for the monte carlo simulation
-    RankCol naive_move()
+    RowCol naive_move(marker side)
     {
-        RankCol rc;
-        RankCol prev_move;
+        RowCol rc;
+        RowCol prev_move;
         int prev_move_linear;
         vector<int> neighbor_nodes;
         char pause;
 
-        if (move_seq[enum2int(marker::playerO)].empty()) {
-            shuffle(start_border[static_cast<int>(marker::playerO)].begin(),
-                    start_border[static_cast<int>(marker::playerO)].end(), rng);
-            for (int maybe : start_border[static_cast<int>(marker::playerO)]) {
+        if (move_seq[enum2int(side)].empty()) {
+            shuffle(start_border[static_cast<int>(side)].begin(),
+                    start_border[static_cast<int>(side)].end(), rng);
+            for (int maybe : start_border[static_cast<int>(side)]) {
                 if (is_empty(maybe)) {
-                    rc = rank_col_index(maybe);
+                    rc = row_col_index(maybe);
                     return rc;
                 }
             }
         }
         else {
-            prev_move = move_seq[enum2int(marker::playerO)].back();
+            prev_move = move_seq[enum2int(side)].back();
             prev_move_linear = linear_index(prev_move);
 
             neighbor_nodes = hex_graph.get_neighbor_nodes(prev_move_linear, marker::empty);
@@ -853,17 +875,17 @@ class Hex {
             shuffle(neighbor_nodes.begin(), neighbor_nodes.end(), rng);
 
             for (int node : neighbor_nodes) {
-                rc = rank_col_index(node);
+                rc = row_col_index(node);
                 if (rc.col > prev_move.col)
                     return rc;
             }
-            rc = rank_col_index(neighbor_nodes.back());
+            rc = row_col_index(neighbor_nodes.back());
         }
 
         return rc;
     }
 
-    RankCol monte_carlo_move(marker side, int n_trials, bool verbose=false)  // move trials into the class to initialize the vector
+    RowCol monte_carlo_move(marker side, int n_trials, bool verbose=false)  // move trials into the class to initialize the vector
     {
         move_simulation_time.start();
         
@@ -897,7 +919,7 @@ class Hex {
         for (move_num = 0; move_num < empty_hex_pos.size(); move_num++) {
 
             if (verbose)
-            {cout << "    evaluating move at " << rank_col_index(empty_hex_pos[move_num]) << endl;}
+            {cout << "    evaluating move at " << row_col_index(empty_hex_pos[move_num]) << endl;}
 
             // make the computer's move to be evaluated
             set_hex_marker(side, empty_hex_pos[move_num]);
@@ -918,14 +940,24 @@ class Hex {
             for (int trial = 0; trial < n_trials; ++trial) {
                 simulate_hexboard_positions(random_pos);
 
+                if (verbose) {
+                    cout << "Move " << empty_hex_pos[move_num] << " trial " << trial << endl;
+                    display_board();
+                }
+
                 winning_side = find_ends(side, true);
 
                 if (verbose)
                 {cout << "    simulated trial " << trial << " winner was " << winning_side << endl;}
 
-                wins += winning_side == side ? 1 : 0;
+                wins += (winning_side == side ? 1 : 0);
             }
             // calculate and save computer win percentage for this move
+
+            if (verbose) 
+                cout << "for move " << empty_hex_pos[move_num] << " = " << wins << endl;
+
+
             win_pct_per_move.push_back(static_cast<float>(wins) / n_trials);
 
             set_hex_marker(marker::empty, empty_hex_pos[move_num]); // reverse the trial move
@@ -934,8 +966,9 @@ class Hex {
         // find the maximum computer win percentage across all the candidate moves
         float maxpct = 0.0;
         best_move = empty_hex_pos[0];
-        for (int i = 0; i < win_pct_per_move.size(); ++i) {
-            if (win_pct_per_move[i] > maxpct) {
+        for (int i = 0; i < win_pct_per_move.size(); ++i) {\
+            if (win_pct_per_move[i] > maxpct)
+            {
                 maxpct = win_pct_per_move[i]; //
                 best_move = empty_hex_pos[i];
             }
@@ -957,22 +990,25 @@ class Hex {
         copy(tmp_positions.begin(), tmp_positions.end(), positions.begin());
         move_simulation_time.cum();
 
-        return rank_col_index(best_move);
+        return row_col_index(best_move);
     }
 
-    RankCol computer_move(marker side, Do_move how, int n_trials)
+    RowCol computer_move(marker side, Do_move how, int n_trials)
     {
-        RankCol rc;
+        RowCol rc;
 
         switch (how)
         {
             case Do_move::naive:
-                rc = naive_move();
+                rc = naive_move(side);
                 break;
             case Do_move::monte_carlo:
                 rc = monte_carlo_move(side, n_trials);
                 break;
-        }
+            }
+            
+        set_hex_marker(side, rc);
+        move_seq[enum2int(side)].push_back(rc);
 
         return rc;
     }
@@ -994,31 +1030,48 @@ class Hex {
         }
         return input;
     }
-    
-    RankCol prompt_for_person_move(marker side)
+
+    RowCol move_input(const string &msg)
     {
-        RankCol rc;
-        int rank;
+        int row, col;
+        while (true) {
+            cin >> row >> col;
+            if (cin.fail()) {
+                cin.clear();
+                cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+                cout << msg;
+                cin >> row >> col;
+            }
+            if (!cin.fail())
+                break;
+        }
+        return RowCol{row, col};
+    }
+
+    RowCol person_move(marker side)
+    {
+        RowCol rc;
+        int row;
         int col;
         int val;
         bool valid_move = false;
 
         while (!valid_move) {
             cout << "Enter a move in an empty position that contains '.'" << endl;
-            cout << "(A Note for c++ programmers: end-users use 1-indexing,\n";
-            cout <<   "so, that's what we use...)\n";
+            cout << "Enter your move as the row number and the column number, separated by a space.\n";
+            cout << "The computer prompts row col:  and you enter 3 5, followed by the enter key.";
             cout << "Enter -1 to quit..." << endl;
-            cout << "Enter the row... ";
+            cout << "row col: ";
 
-            rank = safe_input<int>("Please enter an integer: ");
+            rc = move_input("Please enter 2 integers: ");
 
-            if (rank == -1) {
-                rc.rank = -1;
+            if (rc.row == -1 || rc.col == -1) {
+                rc.row = -1;
                 rc.col = -1;
                 return rc;
             }
 
-            if (rank == -5) { // hidden command to write the current board positions
+            if (row == -5) { // hidden command to write the current board positions
                 // to a file
                 // prepare output file
                 string filename = "Board Graph.txt";
@@ -1034,35 +1087,29 @@ class Hex {
                 outfile.close();
             }
 
-            cout << "Enter the column... ";
-            col = safe_input<int>("Please enter an integer: ");
-            
-            if (col == -1) {
-                rc.rank = -1;
-                rc.col = -1;
-                return rc;
-            }
-
-            rc.rank = rank;
-            rc.col = col;
+            // rc.row = row;
+            // rc.col = col;
             valid_move = is_valid_move(rc);
         }
+
+        set_hex_marker(side, rc);
+        move_seq[enum2int(side)].push_back(rc);
 
         return rc;
     }
 
-    bool is_valid_move(RankCol rc) const
+    bool is_valid_move(RowCol rc) const
     {
-        int rank = rc.rank;
+        int row = rc.row;
         int col = rc.col;
 
-        string bad_position = "Your move used an invalid rank or column.\n\n";
+        string bad_position = "Your move used an invalid row or column.\n\n";
         string not_empty = "Your move didn't choose an empty position.\n\n";
         string msg = "";
 
         bool valid_move = true;
 
-        if (rank > edge_len || rank < 1) {
+        if (row > edge_len || row < 1) {
             valid_move = false;
             msg = bad_position;
         }
@@ -1082,23 +1129,21 @@ class Hex {
 
     // finds the ends of a path through the board for one side
     // Might not look it but this is a DFS, but it doesn't build a path. It only
-    // finds the end point given a start point in the start border.  If the end point is
-    // in the finish border, we have a winner.  We don't care about the middle of the path.
+    // finds the end point given a point in the start border.  If the end point is
+    // in the finish border, we have a winner.  We don't care about the middle steps of the path.
     marker find_ends(marker side, bool whole_board=false, bool verbose = false) 
     {
         winner_assess_time.start();
 
         marker winner = marker::empty;
         int front = 0;
-        int this_neighbor = 0;
         char pause;
         deque<int> possibles; // MUST BE A DEQUE! hold candidate sequences across the board
         vector<int> neighbors;
         neighbors.reserve(6);
         vector<int> captured; // nodes already included in a candidate path:  cannot be neighbors again
         captured.reserve(max_idx / 2 + 1);
-
-
+        
         // test for finish borders, though start border would also work: assumption fewer markers at the finish
         
         for (auto hex : finish_border[enum2int(side)]) {  //look through the finish border
@@ -1109,14 +1154,10 @@ class Hex {
             }
         }
 
-        // extend sequences that end in the finish border to see if any began in the start border
-        // grab a sequence  (sequences have no branches:  a branch defines a new sequence)
-        // get the neighbors of the last node
-        // if more than one neighbors, we add another working sequence for neighbors 2 through n
-        // if no more neighbors we look at the end:
-        // if we got to the finish border, we have a winner
-        // otherwise, we can discard the current sequence and grab another
-        // if we exhaust the sequences without finding a winner, the other side wins
+        if (verbose) {
+            cout<< "********************* starting find_ends" << endl;
+            cout << possibles << endl;
+        }
 
         while (!possibles.empty()) {
             front = 0;         // we will work off the front using index rather than iterator
@@ -1127,13 +1168,16 @@ class Hex {
             while (true) // extend, branch, reject, find winner for this sequence
             {
 
+
                 if (is_in_start(possibles[front], side)) { // if node in start border we have a winner
+                    if (verbose)
+                        cout << "*** found a winner" << possibles << endl;
                     winner_assess_time.cum();
-                    return winner = side;
+                    return side;
                 }
 
+                //                                       node         must == side   must exclude anything in captured
                 neighbors = hex_graph.get_neighbor_nodes(possibles[front], side, captured); // find neighbors of the first possible
-                //                                       node           must = side   must exclude anything in captured
                 
                 // cout << "neighbors " << neighbors << endl;
 
@@ -1168,38 +1212,38 @@ class Hex {
         winner_assess_time.cum();
         if (whole_board) {
             // cout << "do we ever end find_ends here? \n";
-            return side == marker::playerO ? marker::playerX : side;
+            return (side == marker::playerO ? marker::playerX : side);
         }
         else
             return marker::empty; // we did not find a winner
     }
 
-    marker who_won()  // uses method find_ends
+    marker who_won()  
     {
         marker winner = marker::empty;
         vector<marker> sides{marker::playerX, marker::playerO};
 
         for (auto side : sides) {
             winner = find_ends(side);
-            if (winner == side) {
+            if (winner != marker::empty) {
                 break;
             }
         }
 
-        return winner; // will always be 0
+        return winner; 
     }
 
     void play_game(Do_move how, int n_trials=5000)
     {
-        RankCol rc; // person's move
-        RankCol computer_rc; // computer's move
+        RowCol person_rc; // person's move
+        RowCol computer_rc; // computer's move
         char pause;
         bool valid_move;
         bool end_game = false;
         bool person_first = true;
         string answer;
-        marker person_marker = marker::playerX;
-        marker computer_marker = marker::playerO;
+        marker person_marker;
+        marker computer_marker;
         marker winning_side;
 
         clear_screen();
@@ -1207,7 +1251,8 @@ class Hex {
 
         // who goes first?  break when we have a valid answer
         while (true) {
-            cout << "*** Do you want to go first? (enter y or yes) ";
+            cout << string_by_n("\n", 15);
+            cout << "*** Do you want to go first? (enter y or yes or n or no) ";
             answer = safe_input<string>("Enter y or yes or n or no: ");
 
             if (is_in(tolower(answer), "yes")) {
@@ -1215,9 +1260,11 @@ class Hex {
                 person_marker = marker::playerX;
                 computer_marker = marker::playerO;
 
-                cout << "You go first playing X markers.\n";
+                cout << "\nYou go first playing X markers.\n";
+                cout << "Make a path from the top row to the bottom.\n";
                 cout << "The computer goes second playing O markers.\n";
-                this_thread::sleep_for(std::chrono::milliseconds(3500));
+                cout << string_by_n("\n", 2);
+                // this_thread::sleep_for(std::chrono::milliseconds(4000));
 
                 break;
             }
@@ -1226,9 +1273,12 @@ class Hex {
                 person_marker = marker::playerO;
                 computer_marker = marker::playerX;
 
-                cout << "The computer goes first playing X markers.\n";
+                cout << "\nThe computer goes first playing X markers.\n";
                 cout << "You go second playing O markers.\n";
-                this_thread::sleep_for(std::chrono::milliseconds(3500));
+                cout << "Make a path from the first column to the last column.\n";
+                cout << string_by_n("\n", 2);
+
+                // this_thread::sleep_for(std::chrono::milliseconds(4000));
 
                 break;
             }
@@ -1236,61 +1286,63 @@ class Hex {
                 cout << "    Please enter [y]es or [n]o\n";
         }
 
-        clear_screen();
+        // clear_screen();
         move_count = 0;
 
         while (true) // move loop
         {
             switch (person_marker) {
-            case marker::playerX:
+
+            // person goes first
+            case marker::playerX :     
                 display_board();
-                rc = prompt_for_person_move(person_marker);
-                if (rc.rank == -1) {
+
+                person_rc = person_move(person_marker);
+                if (person_rc.row == -1) {
                     cout << "Game over! Come back again...\n";
                     exit(0);
                 }
-                set_hex_marker(person_marker, rc);
-                move_seq[enum2int(person_marker)].push_back(rc);
-
-                clear_screen();
 
                 computer_rc = computer_move(computer_marker, how, n_trials);
-                set_hex_marker(computer_marker, computer_rc);
-                move_seq[enum2int(computer_marker)].push_back(computer_rc);
+                clear_screen();
+                cout << "The computer moved at " << computer_rc << "\n";
+                cout << "Your move at " << person_rc << " was valid.\n\n\n";
+
+                move_count++;
+
                 break;
 
-            case marker::playerO:
+            // computer goes first
+            case marker::playerO :      
+                
                 computer_rc = computer_move(computer_marker, how, n_trials);
-                set_hex_marker(computer_marker, computer_rc);
-                move_seq[enum2int(computer_marker)].push_back(computer_rc);
-
+                cout << "The computer moved at "<< computer_rc << "\n\n";
 
                 display_board();
-                rc = prompt_for_person_move(person_marker);
-                if (rc.rank == -1) {
+
+                person_rc = person_move(person_marker);
+                if (person_rc.row == -1) {
                     cout << "Game over! Come back again...\n";
                     exit(0);
                 }
-                set_hex_marker(person_marker, rc);
-                move_seq[enum2int(person_marker)].push_back(rc);
 
+                move_count++;
                 clear_screen();
+                cout << "Your move at " << person_rc << " was valid.\n";
 
                 break;
-
             case marker::empty:
                 cout << "Error: Player marker for human player cannot be empty.\n";
                 exit(-1);
             }
 
-            move_count++;
-
             // test for a winner
             if (move_count >= edge_len) {
                 winning_side = who_won(); // result is marker::empty, marker::playerX, or marker::playerO
+
                 if (enum2int(winning_side)) {
                     cout << "We have a winner. "
-                         << (winning_side == marker::playerX ? "You won. Congratulations!"
+                         << (winning_side == person_marker ? "You won. Congratulations!"
                                                              : " The computer beat you )-:")
                          << "\nGame over. Come back and play again!\n\n";
                     display_board();
@@ -1298,17 +1350,13 @@ class Hex {
                 }
             }
 
-            clear_screen();
-
-            cout << "Your move at " << rc << " is valid.\n";
-            cout << "The computer moved at " << computer_rc << ". Move count = " << move_count << "\n\n";
         }
         
     }
 
-    // copy RankCol positions to a set of ints.   caller provides destination
+    // copy RowCol positions to a set of ints.   caller provides destination
     // container:  set or vector.
-    void copy_move_seq(vector<RankCol> moves, set<int> &cands)
+    void copy_move_seq(vector<RowCol> moves, set<int> &cands)
     {
         int node;
         cands.clear();
@@ -1318,7 +1366,7 @@ class Hex {
         }
     }
 
-    void copy_move_seq(vector<RankCol> moves, vector<int> &cands)
+    void copy_move_seq(vector<RowCol> moves, vector<int> &cands)
     {
         int node;
 
@@ -1329,63 +1377,63 @@ class Hex {
         }
     }
 
-    // game play methods use rank and col for board positions
-    // rank and col indices are 1-based for end users playing the game
+    // game play methods use row and col for board positions
+    // row and col indices are 1-based for end users playing the game
     
-    void set_hex_marker(marker val, RankCol rc) { hex_graph.set_node_data(val, linear_index(rc));}
+    void set_hex_marker(marker val, RowCol rc) { hex_graph.set_node_data(val, linear_index(rc));}
 
-    void set_hex_marker(marker val, int rank, int col) { hex_graph.set_node_data(val, linear_index(rank, col)); }
+    void set_hex_marker(marker val, int row, int col) { hex_graph.set_node_data(val, linear_index(row, col)); }
 
     void set_hex_marker(marker val, int linear) { hex_graph.set_node_data(val, linear); }
 
-    marker get_hex_marker(RankCol rc) const {return hex_graph.get_node_data(linear_index(rc)); }
+    marker get_hex_marker(RowCol rc) const {return hex_graph.get_node_data(linear_index(rc)); }
 
-    marker get_hex_marker(int rank, int col) const { return hex_graph.get_node_data(linear_index(rank, col)); }
+    marker get_hex_marker(int row, int col) const { return hex_graph.get_node_data(linear_index(row, col)); }
 
     marker get_hex_marker(int linear) const { return hex_graph.get_node_data(linear); }
 
-    // convert rank, col position to a linear index to an array or map
+    // convert row, col position to a linear index to an array or map
     // graph and minimum cost path use linear indices
     // linear indexes are 0-based to access c++ data structures
-    int linear_index(RankCol rc) const
+    int linear_index(RowCol rc) const
     {
-        int rank;
+        int row;
         int col;
 
-        rank = rc.rank - 1; // convert from input 1-based indexing to zero-based indexing
+        row = rc.row - 1; // convert from input 1-based indexing to zero-based indexing
         col = rc.col - 1;
-        if (rank < edge_len && col < edge_len) {
-            return (rank * edge_len) + col;
+        if (row < edge_len && col < edge_len) {
+            return (row * edge_len) + col;
         }
         else {
-            cout << "Error: rank or col >= edge length\n";
+            cout << "Error: row or col >= edge length\n";
             return -1;
         }
     }
 
-    // convert rank, col position to a linear index to an array or map
-    int linear_index(int rank, int col) const
+    // convert row, col position to a linear index to an array or map
+    int linear_index(int row, int col) const
     {
-        rank -= 1; // convert from input 1-based indexing to zero-based indexing
+        row -= 1; // convert from input 1-based indexing to zero-based indexing
         col -= 1;
-        if (rank < edge_len && col < edge_len) {
-            return (rank * edge_len) + col;
+        if (row < edge_len && col < edge_len) {
+            return (row * edge_len) + col;
         }
         else {
-            cout << "Error: rank or col >= edge length\n";
+            cout << "Error: row or col >= edge length\n";
             return -1;
         }
     }
 
-    // convert linear_index to RankCol index
-    RankCol rank_col_index(int linear) const
+    // convert linear_index to RowCol index
+    RowCol row_col_index(int linear) const
     {
         if (linear < max_idx) {
-            return RankCol((linear / edge_len) + 1, (linear % edge_len) + 1);
+            return RowCol((linear / edge_len) + 1, (linear % edge_len) + 1);
         }
         else {
-            cout << "Error: rank or col >= edge length\n";
-            return RankCol(-1, -1);
+            cout << "Error: row or col >= edge length\n";
+            return RowCol(-1, -1);
         }
     }
 
@@ -1398,6 +1446,7 @@ class Hex {
             return idx % edge_len == 0;
         }
         else
+            cout << "Error: invalid side. Must be " << marker::playerX << " or " << marker::playerO << ".\n";
             exit(-1);
     }
 
@@ -1414,7 +1463,7 @@ class Hex {
         }
     }
 
-    inline bool is_empty(RankCol rc) const { return is_empty(linear_index(rc)); }
+    inline bool is_empty(RowCol rc) const { return is_empty(linear_index(rc)); }
 
     inline bool is_empty(int linear) const { return get_hex_marker(linear) == marker::empty; }
 };
@@ -1428,6 +1477,46 @@ class Hex {
 // 
 // ######################################################
 
+
+// ######################################################
+// some tests
+void test_board_regions(int edge_len)
+{
+    Hex::marker vert{Hex::marker::playerX}, horiz{Hex::marker::playerO};
+
+    Hex hb;
+    hb.make_board(edge_len);
+
+
+    cout << "start_border for vertical player" << endl;
+    for (int i = 0; i < edge_len; i++)
+    {
+        cout << " start vert "<< i << " matches true? " << (hb.is_in_start(i, vert) == true) << endl;
+    }
+
+    cout << "finish_border for vertical player" << endl;
+    for (int i = (edge_len*edge_len - edge_len); i < (edge_len*edge_len); i++) {
+        cout << " finish vert " << i << " matches true? " << (hb.is_in_finish(i, vert) == true) << endl;
+    }
+
+    cout << "start_border for horizontal player" << endl;
+    for (int i = 0; i < (edge_len*edge_len - edge_len); i+=edge_len) {
+        cout << " start horiz " << i << " matches true? " << (hb.is_in_start(i, horiz) == true) << endl;
+    }
+
+    cout << "finish_border for horizontal player" << endl;
+    for (int i = edge_len - 1; i < (edge_len * edge_len); i+=edge_len) {
+        cout << " finish horiz " << i << " matches true? " << (hb.is_in_finish(i, horiz) == true) << endl;
+    }
+}
+
+int foo()
+{
+    int edge_len = 7;
+    test_board_regions(edge_len);
+
+    return 0;
+}
 
 int main(int argc, char *argv[])
 {
