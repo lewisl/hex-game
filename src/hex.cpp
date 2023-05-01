@@ -411,9 +411,10 @@ class Graph {
                 ss >> tmp_size;
 
                 // reserve storage
-                graph.reserve(tmp_size);
-                graph.max_load_factor(0.8);
-                node_data.reserve(tmp_size);
+                set_storage(tmp_size);
+                // graph.reserve(tmp_size);
+                // graph.max_load_factor(0.8);
+                // node_data.reserve(tmp_size);
             }
             else if (leader == "node") {
                 ss >> node_id;
@@ -522,8 +523,24 @@ class Hex {
     vector<vector<int>> start_border; // holds indices at the top and left edges of the board
     vector<vector<int>> finish_border; // holds indices at the bottom and right edges of the board
     vector<vector<RowCol>> move_seq; // history of moves: use ONLY indices 1 and 2 for outer vector
-    vector<marker> &positions = hex_graph.node_data;  // positions of all markers on the board
-    
+    vector<marker> &positions = hex_graph.node_data; // positions of all markers on the board
+    vector<int> empty_hex_pos; // empty positions that are available for candidate move and for simulated moves
+    vector<int> random_pos; // copy of empty_hex_pos (except the candidate move) to be shuffled
+    vector<float> win_pct_per_move;
+    vector<int> neighbors;
+    vector<int> captured;
+
+
+    void set_storage(int max_idx)
+    {
+        empty_hex_pos.reserve(max_idx);
+        random_pos.reserve(max_idx);
+        win_pct_per_move.reserve(max_idx);
+        captured.reserve(max_idx/2 + 1);  // for one player, can only be half the board positions + 1 for the side that goes first
+        hex_graph.set_storage(max_idx); // using Graph method
+        neighbors.reserve(6);
+    }
+
     // METHODS FOR DRAWING THE BOARD
     // return hexboard marker based on value and add the spacer lines ___ needed to draw the board
     string symdash(marker val, bool last = false) const
@@ -607,7 +624,7 @@ class Hex {
         // REMINDER!!!: row and col indices are treated as 1-based!
 
         // reserve storage
-        hex_graph.set_storage(max_idx);
+        set_storage(max_idx);
 
         // define the board regions and move sequences
         define_borders();
@@ -704,9 +721,11 @@ class Hex {
         // define the board regions and move sequences
         define_borders();
         initialize_move_seq();
-        
+
         // additional vectors pre-allocation
-            // something for rand_nodes if we keep it TODO
+        // something for rand_nodes if we keep it TODO
+        // reserve storage
+        set_storage(max_idx);
     }
 
     // methods for playing game externally defined
@@ -876,23 +895,22 @@ class Hex {
     {
         move_simulation_time.start();
 
-        vector<int> empty_hex_pos; // empty positions that are available for candidate move and for simulated moves
-        vector<int> random_pos;    // copy of empty_hex_pos (except the candidate move) that can be modified by the randomized simulation 
-        vector<float> win_pct_per_move; 
+        // method uses class fields empty_hex_pos, random_pos, win_pct_per_move
+        empty_hex_pos.clear();
+        random_pos.clear();
+        win_pct_per_move.clear();
+
         int wins = 0;
         marker winning_side;
-        int best_move=0;
+        int best_move = 0;
+        char pause;
 
-        empty_hex_pos.reserve(max_idx); // performance improvement for push_back
         // loop over positions on the board to find available moves = empty positions
         for (int i = 0; i < max_idx; ++i) {
             if (is_empty(i)) {
                 empty_hex_pos.push_back(i); // indices of where the board is empty
             }
         }
-        random_pos.reserve(empty_hex_pos.size());  // vector that will be shuffled for monte carlo trials
-        random_pos.resize(empty_hex_pos.size() - 1); // one of the empty positions is filled by the trial move
-        win_pct_per_move.resize(empty_hex_pos.size());
 
         int move_num = 0; // the index of empty hex positions that will be assigned the move to evaluate
         
@@ -906,16 +924,19 @@ class Hex {
             // only on the first move, copy all the empty_hex_pos except 0 to the vector to be shuffled
             if (move_num == 0 ) {  
                 for (auto j = 0; j < move_num; j++)
-                    random_pos[j] = empty_hex_pos[j];
-                for (auto j = move_num; j < random_pos.size(); j++)
-                    random_pos[j] = empty_hex_pos[j + 1];
+                    // random_pos[j] = empty_hex_pos[j];
+                    random_pos.push_back(empty_hex_pos[j]);  // with memory reserved, this is about as fast as an update in place
+                for (auto j = move_num; j < empty_hex_pos.size()-1; j++)
+                    // random_pos[j] = empty_hex_pos[j + 1];
+                    random_pos.push_back(empty_hex_pos[j + 1]);
             }
             else {    // for the other moves, faster to simply change 2 values
                 random_pos[move_num - 1] = empty_hex_pos[move_num - 1];
                 random_pos[move_num]     = empty_hex_pos[move_num + 1];  // skip the position containing the assumed move
             }
 
-            for (int trial = 0; trial < n_trials; ++trial) {
+            for (int trial = 0; trial < n_trials; ++trial)
+            {
                 simulate_hexboard_positions(random_pos);
 
                 winning_side = find_ends(side, true);
@@ -924,7 +945,8 @@ class Hex {
             }
 
             // calculate and save computer win percentage for this move
-            win_pct_per_move[move_num] = (static_cast<float>(wins) / n_trials);
+            // win_pct_per_move[move_num] = (static_cast<float>(wins) / n_trials);
+            win_pct_per_move.push_back(static_cast<float>(wins) / n_trials);
 
             // reverse the trial move
             set_hex_marker(marker::empty, empty_hex_pos[move_num]); 
@@ -1096,13 +1118,11 @@ class Hex {
         marker winner = marker::empty;
         int front = 0;
         deque<int> possibles; // MUST BE A DEQUE! hold candidate sequences across the board
-        vector<int> neighbors;
-        neighbors.reserve(6);
-        vector<int> captured; // nodes already included in a candidate path:  cannot be neighbors again
-        captured.reserve(max_idx / 2 + 1);
+            //
+        // method uses class fields neighbors and captured
         
         // test for positions in the finish border, though start border would also work: assumption fewer markers at the finish
-        
+        captured.clear();
         for (auto hex : finish_border[enum2int(side)]) {  //look through the finish border
             if (get_hex_marker(hex) == side) // if there is a marker for this side, add it
             {
@@ -1111,6 +1131,7 @@ class Hex {
             }
         }
 
+        neighbors.clear();
         while (!possibles.empty()) {
             front = 0;         // we will work off the front using index rather than iterator
 
