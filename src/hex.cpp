@@ -1,6 +1,6 @@
 /* Draw a hexboard and play the game of hex
-Run as ./hex 7 or ./hex 5 2500
-Default size is 5; default trials = 2500 so running ./hex is a quick game.
+Run as ./hex 7 or ./hex 5 1000
+Default size is 5; default trials = 1000 so running ./hex is a quick game.
 Two arguments: first is board edge length;
                second is number of trials for each position assessed by simulation.
 The computer uses simulation to choose its moves,  but a human often wins.
@@ -11,18 +11,14 @@ with a small file containing int main(argc, *char[argv]) to run the game.
 Programmer: Lewis Levin Date: April 2023
 */
 
-#include <algorithm>
 #include <chrono> // for performance timing
-#include <cstddef>
 #include <deque> // sequence of nodes in a path between start and destination
 #include <fstream> // to write graph to file and read graph from file
 #include <iostream>
 #include <random>
-#include <set>     // hold nodes for shortest path algorithm
 #include <sstream> // to use stringstream to parse inputs from file
 #include <stdlib.h> // for atoi()
 #include <string>
-#include <thread>   // to delay output to human player
 #include <unordered_map> // container for definition of Graph
 #include <vector>
 
@@ -32,18 +28,6 @@ using namespace std;
 // not guaranteed to work on all OS'es.  Works on MacOs.
 void clear_screen() { cout << u8"\033[2J"; }
 
-// print all elements of a set of various types, assuming the element type has default support in ostream
-template <typename T> ostream &operator<<(ostream &os, const set<T> &s)
-{
-    int count = 0;
-    for (const auto &member : s) {
-        os << member << " ";   // assumes an ostream overload exists for the class of member
-        count++;
-        if (count % 10 == 0)
-            os << endl;
-    }
-    return os;
-}
 
 // print key and values of an unordered_map
 template <class T> ostream &operator<<(ostream &os, const unordered_map<int, int, T> &um)
@@ -105,10 +89,6 @@ std::string tolower(const std::string &str)
 }
 
 // other non-class functions
-
-// test if value is in set for various element types
-template <typename T>
-bool is_in(T val, set<T> v_set) { return v_set.find(val) != v_set.end() ? true : false; }
 
 // test if value is in vector with trivial linear search for various primitive element types
 template <typename T>
@@ -458,9 +438,22 @@ class Hex {
   public:
     Hex() = default;
     ~Hex() = default;
+    // the actual board is created either by make_board(int size) or load_board_from_file(string filename)
+    // this is better than 2 very large constructors that only differ by input type
+    // because we clearly know what each does from its name
 
     enum class marker { empty = 0, playerX = 1, playerO = 2 }; // for the data held at each board position
     enum class Do_move { naive = 0, monte_carlo };
+
+    // row and col on the hexboard to address a hexagon
+    // row and col are seen by the human player so we use 1-based indexing
+    // the linear_index conversion method handles this
+    struct RowCol {
+        int row;
+        int col;
+
+        RowCol(int row = 0, int col = 0) : row(row), col(col) {} // initialize to illegal position as sentinel
+    };
 
     Timing winner_assess_time; // measure cumulative time for assessing the game
     Timing move_simulation_time; // measure cumulative time for simulating moves
@@ -474,19 +467,23 @@ class Hex {
     int edge_len = 0;
     int max_idx = 0; // maximum linear index
     int move_count = 0; // number of moves played during the game: each player's move adds 1 (both moves = a ply)
-    vector<int> rand_nodes; // use in rand move method  
+    vector<int> rand_nodes; // use in rand move method
 
+  private:
+    vector<vector<int>> start_border; // holds indices to the top and left edges of the board
+    vector<vector<int>> finish_border; // holds indices to the bottom and right edges of the board
+    vector<vector<RowCol>> move_seq; // history of moves: use ONLY indices 1 and 2 for outer vector
+    vector<marker> &positions = hex_graph.node_data; // positions of all markers on the board: alias to Graph member
+        
+    // used by monte_carlo_move: pre-allocated memory by method set_storage
+    vector<int> empty_hex_pos; // empty positions that are available for candidate move and for simulated moves
+    vector<int> random_pos; // copy of empty_hex_pos (except the candidate move) to be shuffled
+    vector<float> win_pct_per_move;
+    // used by find_ends: pre-allocated memory by method set_storage
+    vector<int> neighbors;
+    vector<int> captured;
 
-    // row and col on the hexboard to address a hexagon
-    // row and col are seen by the human player so we use 1-based indexing
-    // the linear_index conversion method handles this
-    struct RowCol {
-        int row;
-        int col;
-
-        RowCol(int row = 0, int col = 0) : row(row), col(col) {} // initialize to illegal position as sentinel
-    };
-
+  public:
     // ostream overloads
     // output a RowCol in an output stream
     friend ostream &operator<<(ostream &os, const RowCol &rc) 
@@ -519,17 +516,8 @@ class Hex {
         return os;
     }
 
-  private:
-    vector<vector<int>> start_border; // holds indices at the top and left edges of the board
-    vector<vector<int>> finish_border; // holds indices at the bottom and right edges of the board
-    vector<vector<RowCol>> move_seq; // history of moves: use ONLY indices 1 and 2 for outer vector
-    vector<marker> &positions = hex_graph.node_data; // positions of all markers on the board
-    vector<int> empty_hex_pos; // empty positions that are available for candidate move and for simulated moves
-    vector<int> random_pos; // copy of empty_hex_pos (except the candidate move) to be shuffled
-    vector<float> win_pct_per_move;
-    vector<int> neighbors;
-    vector<int> captured;
 
+  private:
 
     void set_storage(int max_idx)
     {
@@ -637,7 +625,7 @@ class Hex {
         // add nodes:  the required hexagonal "tiles" on the board
         // initial values:  all tiles are empty = 0
         for (int i = 0; i < max_idx; i++) {
-            hex_graph.add_edge(i);
+            hex_graph.add_edge(i);   // create an empty edge container at each node
             rand_nodes.push_back(i); // vector of nodes
         }
 
@@ -891,11 +879,11 @@ class Hex {
         return rc;
     }
 
-    RowCol monte_carlo_move(marker side, int n_trials)  // move trials into the class to initialize the vector
+    RowCol monte_carlo_move(marker side, int n_trials)  
     {
         move_simulation_time.start();
 
-        // method uses class fields empty_hex_pos, random_pos, win_pct_per_move
+        // method uses class fields: clear them instead of creating new objects each time 
         empty_hex_pos.clear();
         random_pos.clear();
         win_pct_per_move.clear();
@@ -924,15 +912,13 @@ class Hex {
             // only on the first move, copy all the empty_hex_pos except 0 to the vector to be shuffled
             if (move_num == 0 ) {  
                 for (auto j = 0; j < move_num; j++)
-                    // random_pos[j] = empty_hex_pos[j];
-                    random_pos.push_back(empty_hex_pos[j]);  // with memory reserved, this is about as fast as an update in place
+                    random_pos.push_back(empty_hex_pos[j]);  // with memory reserved, this is about as fast as an update by array index
                 for (auto j = move_num; j < empty_hex_pos.size()-1; j++)
-                    // random_pos[j] = empty_hex_pos[j + 1];
                     random_pos.push_back(empty_hex_pos[j + 1]);
             }
             else {    // for the other moves, faster to simply change 2 values
                 random_pos[move_num - 1] = empty_hex_pos[move_num - 1];
-                random_pos[move_num]     = empty_hex_pos[move_num + 1];  // skip the position containing the assumed move
+                random_pos[move_num]     = empty_hex_pos[move_num + 1];  // this skips empty_hex_pos[move_num]
             }
 
             for (int trial = 0; trial < n_trials; ++trial)
@@ -945,7 +931,6 @@ class Hex {
             }
 
             // calculate and save computer win percentage for this move
-            // win_pct_per_move[move_num] = (static_cast<float>(wins) / n_trials);
             win_pct_per_move.push_back(static_cast<float>(wins) / n_trials);
 
             // reverse the trial move
@@ -955,7 +940,7 @@ class Hex {
         // find the maximum computer win percentage across all the candidate moves
         float maxpct = 0.0;
         best_move = empty_hex_pos[0];
-        for (int i = 0; i < win_pct_per_move.size(); ++i) {
+        for (int i = 0; i < win_pct_per_move.size(); ++i) {  // linear search
             if (win_pct_per_move[i] > maxpct)
             {
                 maxpct = win_pct_per_move[i]; 
@@ -1115,14 +1100,14 @@ class Hex {
     {
         winner_assess_time.start();
 
-        marker winner = marker::empty;
         int front = 0;
         deque<int> possibles; // MUST BE A DEQUE! hold candidate sequences across the board
-            //
-        // method uses class fields neighbors and captured
-        
-        // test for positions in the finish border, though start border would also work: assumption fewer markers at the finish
+
+        // method uses class fields neighbors and captured: clear them each time instead of creating new objects
+        neighbors.clear();
         captured.clear();
+
+        // test for positions in the finish border, though start border would also work: assumption fewer markers at the finish
         for (auto hex : finish_border[enum2int(side)]) {  //look through the finish border
             if (get_hex_marker(hex) == side) // if there is a marker for this side, add it
             {
@@ -1131,7 +1116,6 @@ class Hex {
             }
         }
 
-        neighbors.clear();
         while (!possibles.empty()) {
             front = 0;         // we will work off the front using index rather than iterator
 
@@ -1142,16 +1126,16 @@ class Hex {
                     return side;
                 }
 
-                // find neighbors of the first possible matching side excluding already captured nodes
+                // find neighbors of the current node that match the current side and exclude already captured nodes
                 neighbors = hex_graph.get_neighbor_nodes(possibles[front], side, captured); 
                 
                 if (neighbors.empty()) {    
-                    if (!possibles.empty())  // always have to do this before pop because c++ will terminate
+                    if (!possibles.empty())  // always have to do this before pop because c++ will terminate if you pop from empty
                         possibles.pop_front(); // pop this node because it has no neighbors
-                    break; // go back to the top whether empty or not:  top will test if empty
+                    break; // go back to the top whether empty or not:  outer while loop will test if empty
                 }
                 else {  // when we have one or more neighbors:
-                    possibles[front] = neighbors[0];  // advance the endpoint by one position, get rid of the previous possible
+                    possibles[front] = neighbors[0];  // advance the endpoint to this neighbor, get rid of the previous possible
                     captured.push_back(neighbors[0]);
 
                     for (int i = 1; i < neighbors.size(); ++i) {  // if there is more than one neighbor..
@@ -1163,11 +1147,12 @@ class Hex {
         } // while (!working.empty())
 
         winner_assess_time.cum();
-        if (whole_board) {
-            return (side == marker::playerO ? marker::playerX : marker::playerO);
+        // we've exhausted all the possibles w/o finding a complete branch
+        if (whole_board) {   // the winner has to be the other side because the side we tested doesn't have a complete path
+            return (side == marker::playerO ? marker::playerX : marker::playerO); // just reverse the side
         }
         else
-            return marker::empty; // we did not find a winner
+            return marker::empty; // no winner--too early in the game--no path from start to finish for this side
     }
 
     marker who_won()  // we use this when we may not have a full board, so do need to evaluate both sides
@@ -1397,7 +1382,7 @@ class Hex {
 int main(int argc, char *argv[])
 {
     int size = 5;
-    int n_trials = 2500;
+    int n_trials = 1000;
     if (argc == 2)
         size = atoi(argv[1]);
     else if (argc == 3) {
