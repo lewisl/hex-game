@@ -75,7 +75,7 @@ template <class T> ostream &operator<<(ostream &os, const vector<T> &dq)
 string string_by_n(string s, int n)
 {
     string ret;
-    for (int i = 0; i < n; i++) {
+    for (int i = 0; i != n; ++i) {
         ret += s;
     }
     return ret;
@@ -94,8 +94,8 @@ std::string tolower(const std::string &str)
 template <typename T>
 bool is_in(T val, vector<T> vec)
 {
-    auto it = find(vec.begin(), vec.end(), val);
-    return it != vec.end();
+    auto it = find(vec.cbegin(), vec.cend(), val);
+    return it != vec.cend();
 }
 
 // test if value of char or string is in a string
@@ -110,8 +110,8 @@ bool is_in(T val, const string & test_string)
 template <typename T>
 bool is_in(T val, deque<T> deq)
 {
-    auto it = find(deq.begin(), deq.end(), val);
-    return it != deq.end();
+    auto it = find(deq.cbegin(), deq.cend(), val);
+    return it != deq.cend();
 }
 
 // compare to a single value not wrapped in a container
@@ -238,7 +238,7 @@ class Graph {
     vector<Edge> get_neighbors(const int current_node, const T_data data_filter) const
     {
         vector<Edge> ve;
-        for (const auto e : graph.at(current_node)) {
+        for (const auto &e : graph.at(current_node)) {
             if (node_data[e.to_node] == data_filter) {
                 ve.push_back(e);
             }
@@ -252,7 +252,7 @@ class Graph {
     vector<Edge> get_neighbors(const int current_node, const T_data data_filter, const Container &exclude_set) const
     {
         vector<Edge> vr;
-        for (const auto e : graph.at(current_node)) {
+        for (const auto & e : graph.at(current_node)) {
             if (node_data[e.to_node] == data_filter && !is_in(e.to_node, exclude_set))
                 vr.push_back(e);
         }
@@ -264,7 +264,7 @@ class Graph {
     vector<int> get_neighbor_nodes(const int current_node, const T_data data_filter) const
     {
         vector<int> neighbor_nodes;
-        for (const auto e : graph.at(current_node)) {
+        for (const auto & e : graph.at(current_node)) {
             if (node_data[e.to_node] == data_filter)
                 neighbor_nodes.push_back(e.to_node);
         }
@@ -276,7 +276,7 @@ class Graph {
     vector<int> get_neighbor_nodes(const int current_node, const T_data data_filter, const Container &exclude) const
     {
         vector<int> neighbor_nodes;
-        for (const auto e : graph.at(current_node)) {
+        for (const auto & e : graph.at(current_node)) {
             if (node_data[e.to_node] == data_filter && !is_in(e.to_node, exclude))
                 neighbor_nodes.push_back(e.to_node);
         }
@@ -291,9 +291,9 @@ class Graph {
     // with to_node and cost
     void add_edge(const int node, const int y, const int cost = 1, const bool bidirectional = false)
     {
-        if (graph.find(node) != graph.end()) {
-            if (graph.find(y) != graph.end()) {
-                for (auto edge : graph[node]) { // iterate over edges of node
+        if (graph.find(node) != graph.cend()) {
+            if (graph.find(y) != graph.cend()) {
+                for (auto & edge : graph[node]) { // iterate over edges of node
                     if (y == edge.to_node) {
                         return; // to_node y already exists as an edge of node
                     }
@@ -573,7 +573,7 @@ class Hex {
 
         // initialize the inner vectors as empty. NOTE: the zero index for the outer
         // vector should NEVER be used
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i != 3; ++i) {
             start_border.push_back(vector<int>{});
             finish_border.push_back(vector<int>{});
         }
@@ -589,7 +589,7 @@ class Hex {
             start_border[enum2int(marker::playerO)].push_back(linear_index(row, col));
         }
 
-        for (int row = 1, col = edge_len; row < edge_len + 1; row++) {
+        for (int row = 1, col = edge_len; row != edge_len + 1; ++row) {
             finish_border[enum2int(marker::playerO)].push_back(linear_index(row, col));
         }
     }
@@ -624,7 +624,7 @@ class Hex {
 
         // add nodes:  the required hexagonal "tiles" on the board
         // initial values:  all tiles are empty = 0
-        for (int i = 0; i < max_idx; i++) {
+        for (int i = 0; i != max_idx; ++i) {
             hex_graph.add_edge(i);   // create an empty edge container at each node
             rand_nodes.push_back(i); // vector of nodes
         }
@@ -648,7 +648,7 @@ class Hex {
 
         // 4 borders (excluding corners)  4 edges per node.
         // north-south edges: constant row, vary col
-        for (int c = 2; c < edge_len; c++) {
+        for (int c = 2; c != edge_len; ++c) {
             int r = 1;
             hex_graph.add_edge(linear_index(r, c), linear_index(r, c - 1));
             hex_graph.add_edge(linear_index(r, c), linear_index(r, c + 1));
@@ -662,7 +662,7 @@ class Hex {
             hex_graph.add_edge(linear_index(r, c), linear_index(r - 1, c + 1));
         }
         // east-west edges: constant col, vary row
-        for (int r = 2; r < edge_len; r++) {
+        for (int r = 2; r != edge_len; ++r) {
             int c = 1;
             hex_graph.add_edge(linear_index(r, c), linear_index(r - 1, c));
             hex_graph.add_edge(linear_index(r, c), linear_index(r - 1, c + 1));
@@ -677,8 +677,8 @@ class Hex {
         }
 
         // interior tiles: 6 edges per hex
-        for (int r = 2; r < edge_len; r++) {
-            for (int c = 2; c < edge_len; c++) {
+        for (int r = 2; r != edge_len; ++r) {
+            for (int c = 2; c != edge_len; ++c) {
                 hex_graph.add_edge(linear_index(r, c), linear_index(r - 1, c + 1));
                 hex_graph.add_edge(linear_index(r, c), linear_index(r, c + 1));
                 hex_graph.add_edge(linear_index(r, c), linear_index(r + 1, c));
@@ -720,7 +720,7 @@ class Hex {
     void initialize_move_seq()
     {
         // for move_seq for players 1 and 2
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i != 3; ++i) {
             move_seq.push_back(vector<RowCol>{});
             if (i > 0)
                 move_seq[i].reserve(max_idx / 2 + 1);
@@ -735,7 +735,7 @@ class Hex {
 
             // number legend across the top of the board
             cout << "  " << 1;
-            for (int col = 2; col < edge_len + 1; col++) {
+            for (int col = 2; col != edge_len + 1; ++col) {
                 if (col < 10) {
                     cout << "   ";
                     cout << col;
@@ -747,7 +747,7 @@ class Hex {
             }
             cout << endl;
             // format two lines for each row (except the last)
-            for (int row = 1; row < edge_len + 1; row++) {
+            for (int row = 1; row != edge_len + 1; ++row) {
                 if (row < 10) {
                     cout << lead_space(row-1);
                     cout << row;
@@ -758,7 +758,7 @@ class Hex {
                     cout << row;
                     cout << " ";
                 }
-                for (int col = 1; col < edge_len + 1; col++) {
+                for (int col = 1; col != edge_len + 1; ++col) {
                     last = col < edge_len ? false : true;
                     cout << symdash(get_hex_marker(row, col), last); // add each column value
                 }
@@ -803,7 +803,7 @@ class Hex {
     void simulate_hexboard_positions(vector<int> empty_hex_positions)
     {
         shuffle(empty_hex_positions.begin(), empty_hex_positions.end(), rng);
-        for (int i = 0; i < empty_hex_positions.size(); i++) {
+        for (int i = 0; i != empty_hex_positions.size(); ++i) {
             if (i % 2 == 0)
                 // CRUCIAL: we don't test the board position for even/odd
                 // we test the index to the currently empty positions on the board
@@ -822,7 +822,7 @@ class Hex {
 
         shuffle(rand_nodes.begin(), rand_nodes.end(), rng);
 
-        for (int i = 0; i < max_idx; i++) {
+        for (int i = 0; i != max_idx; ++i) {
             maybe = rand_nodes[i];
             if (is_empty(maybe)) {
                 rc = row_col_index(maybe);
@@ -894,7 +894,7 @@ class Hex {
         char pause;
 
         // loop over positions on the board to find available moves = empty positions
-        for (int i = 0; i < max_idx; ++i) {
+        for (int i = 0; i != max_idx; ++i) {
             if (is_empty(i)) {
                 empty_hex_pos.push_back(i); // indices of where the board is empty
             }
@@ -903,7 +903,7 @@ class Hex {
         int move_num = 0; // the index of empty hex positions that will be assigned the move to evaluate
         
         // loop over the available move positions: make eval move, setup positions to randomize
-        for (move_num = 0; move_num < empty_hex_pos.size(); move_num++) {
+        for (move_num = 0; move_num != empty_hex_pos.size(); ++move_num) {
 
             // make the computer's move to be evaluated
             set_hex_marker(side, empty_hex_pos[move_num]);
@@ -911,9 +911,9 @@ class Hex {
 
             // only on the first move, copy all the empty_hex_pos except 0 to the vector to be shuffled
             if (move_num == 0 ) {  
-                for (auto j = 0; j < move_num; j++)
+                for (auto j = 0; j != move_num; ++j)
                     random_pos.push_back(empty_hex_pos[j]);  // with memory reserved, this is about as fast as an update by array index
-                for (auto j = move_num; j < empty_hex_pos.size()-1; j++)
+                for (auto j = move_num; j != empty_hex_pos.size()-1; ++j)
                     random_pos.push_back(empty_hex_pos[j + 1]);
             }
             else {    // for the other moves, faster to simply change 2 values
@@ -921,7 +921,7 @@ class Hex {
                 random_pos[move_num]     = empty_hex_pos[move_num + 1];  // this skips empty_hex_pos[move_num]
             }
 
-            for (int trial = 0; trial < n_trials; ++trial)
+            for (int trial = 0; trial != n_trials; ++trial)
             {
                 simulate_hexboard_positions(random_pos);
 
@@ -940,7 +940,7 @@ class Hex {
         // find the maximum computer win percentage across all the candidate moves
         float maxpct = 0.0;
         best_move = empty_hex_pos[0];
-        for (int i = 0; i < win_pct_per_move.size(); ++i) {  // linear search
+        for (int i = 0; i != win_pct_per_move.size(); ++i) {  // linear search
             if (win_pct_per_move[i] > maxpct)
             {
                 maxpct = win_pct_per_move[i]; 
@@ -1138,7 +1138,7 @@ class Hex {
                     possibles[front] = neighbors[0];  // advance the endpoint to this neighbor, get rid of the previous possible
                     captured.push_back(neighbors[0]);
 
-                    for (int i = 1; i < neighbors.size(); ++i) {  // if there is more than one neighbor..
+                    for (int i = 1; i != neighbors.size(); ++i) {  // if there is more than one neighbor..
                         possibles.push_back(neighbors[i]); // a new possible finishing end point
                         captured.push_back(neighbors[i]);
                     }

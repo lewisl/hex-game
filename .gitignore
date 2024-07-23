@@ -10,6 +10,7 @@
 
 # files in .vscode and all directories below .vscode
 .vscode/
+.idea/
 
 .DS_Store
 
