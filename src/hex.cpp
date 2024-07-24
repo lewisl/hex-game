@@ -16,7 +16,7 @@
 using namespace std;
 
 #include "hex.h"
-#include "helpers.cpp"
+#include "helpers.h"
 
 int main(int argc, char *argv[])
 {

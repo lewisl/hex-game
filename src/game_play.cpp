@@ -496,7 +496,7 @@ void Hex::play_game(Do_move how, int n_trials)
                      << (winning_side == person_marker ? "You won. Congratulations!" : " The computer beat you )-:")
                      << "\nGame over. Come back and play again!\n\n";
                 display_board();
-                break;
+                // break;
             }
         }
     }

@@ -28,7 +28,7 @@ using namespace std;
 
 // send control codes to console to clear the screen
 // not guaranteed to work on all OS'es.  Works on MacOs.
-void clear_screen();
+inline void clear_screen() { cout << u8"\033[2J"; }
 
 // print key and values of an unordered_map
 template <class T> ostream &operator<<(ostream &os, const unordered_map<int, int, T> &um)
@@ -71,11 +71,21 @@ template <class T> ostream &operator<<(ostream &os, const vector<T> &dq)
 
 // SOME STRING HELPERS FOR DRAWING THE BOARD
 // catenate multiple copies of a string
-string string_by_n(string s, int n);
+inline string string_by_n(string s, int n)
+{
+    string ret;
+    for (int i = 0; i != n; ++i) {
+        ret += s;
+    }
+    return ret;
+}
 
-
-std::string tolower(const std::string &str);
-
+inline std::string tolower(const std::string &str)
+{
+    std::string result = str;
+    std::transform(result.begin(), result.end(), result.begin(), [](unsigned char c) { return tolower(c); });
+    return result;
+}
 
 // other non-class functions
 

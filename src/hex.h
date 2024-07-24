@@ -13,7 +13,7 @@
 #include <unordered_map> // container for definition of Graph
 #include <vector>
 
-#include "helpers.h"
+// #include "helpers.h"
 #include "graph.h"
 #include "timing.h"
 
@@ -249,7 +249,6 @@ class Hex {
         neighbors.reserve(6);
     }
 
-    // METHODS FOR DRAWING THE BOARD
 
 };
 

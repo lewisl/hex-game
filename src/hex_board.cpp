@@ -26,10 +26,9 @@ Programmer: Lewis Levin Date: April 2023
 // #include <unordered_map> // container for definition of Graph
 // #include <vector>
 
-// #include "graph.cpp"
-// #include "helpers.cpp"
+
 #include "hex.h"
-// #include "game_play.cpp"
+
 
 using namespace std;
 
