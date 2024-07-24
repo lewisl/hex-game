@@ -26,10 +26,10 @@ Programmer: Lewis Levin Date: April 2023
 // #include <unordered_map> // container for definition of Graph
 // #include <vector>
 
-#include "graph.cpp"
-#include "helpers.cpp"
+// #include "graph.cpp"
+// #include "helpers.cpp"
 #include "hex.h"
-#include "game_play.cpp"
+// #include "game_play.cpp"
 
 using namespace std;
 
@@ -64,10 +64,6 @@ string Hex::symdash(marker val, bool last) const
 
 // how many spaces to indent each line of the hexboard?
 string Hex::lead_space(int row) const { return string_by_n(" ", row * 2); }
-
-// some string constants used to draw the board
-const string connector = R"( \ /)";
-const string last_connector = R"( \)";
 
 // create vectors containing start and finish borders for both sides
 void Hex::define_borders() // tested OK

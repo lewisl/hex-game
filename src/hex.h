@@ -13,10 +13,12 @@
 #include <unordered_map> // container for definition of Graph
 #include <vector>
 
-#include "helpers.cpp"
-#include "graph.cpp"
+#include "helpers.h"
+#include "graph.h"
+#include "timing.h"
 
 using namespace std;
+
 
 class Hex {
   public:
@@ -40,9 +42,6 @@ class Hex {
         // RowCol() = default;
         // ~RowCol() = default;
     };
-
-    Timing winner_assess_time; // measure cumulative time for assessing the game
-    Timing move_simulation_time; // measure cumulative time for simulating moves
 
     
     template <typename T> // should be int, float or string
@@ -96,6 +95,9 @@ class Hex {
 
     unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
     std::mt19937 rng{seed};
+
+    Timing winner_assess_time; // measure cumulative time for assessing the game
+    Timing move_simulation_time; // measure cumulative time for simulating moves
 
     // convert row, col position to a linear index to an array or map
     // graph and minimum cost path use linear indices
@@ -190,8 +192,8 @@ class Hex {
     string lead_space(int row) const;
 
     // some string constants used to draw the board
-    static const string connector;
-    static const string last_connector;
+    const string connector = R"( \ /)";
+    const string last_connector = R"( \)";
 
     // create vectors containing start and finish borders for both sides
     void define_borders(); // tested OK
@@ -226,7 +228,7 @@ class Hex {
     RowCol naive_move(marker side);
     RowCol monte_carlo_move(marker side, int n_trials);
     RowCol computer_move(marker side, Do_move how, int n_trials);
-    RowCol move_input(const string &msg);
+    RowCol move_input(const string &msg) const;   
     RowCol person_move(marker side);
     bool is_valid_move(RowCol rc) const;
     marker find_ends(marker side, bool whole_board);

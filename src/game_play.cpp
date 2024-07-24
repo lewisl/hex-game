@@ -13,10 +13,13 @@
 #include <unordered_map> // container for definition of Graph
 #include <vector>
 
-using namespace std;
 
 #include "hex.h"
-// #include "helpers.cpp"
+#include "timing.h"
+#include "helpers.h"
+#include "graph.h"
+
+using namespace std;
 
 
 // fill entire board with random markers for side 1 and 2
@@ -213,7 +216,7 @@ Hex::RowCol Hex::computer_move(marker side, Do_move how, int n_trials)
 }
 
 
-Hex::RowCol move_input(const string &msg)
+Hex::RowCol Hex::move_input(const string &msg) const
 {
     int row, col;
     while (true) {
