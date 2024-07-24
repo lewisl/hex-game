@@ -67,8 +67,8 @@ string Hex::lead_space(int row) const { return string_by_n(" ", row * 2); }
 // create vectors containing start and finish borders for both sides
 void Hex::define_borders() // tested OK
 {
-    int row;
-    int col;
+    // int row;
+    // int col;
 
     // yes--we could this all in one loop but, this is much more obvious
 

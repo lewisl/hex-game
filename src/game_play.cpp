@@ -131,7 +131,7 @@ Hex::RowCol Hex::monte_carlo_move(marker side, int n_trials)
     int wins = 0;
     marker winning_side;
     int best_move = 0;
-    char pause;
+    // char pause;
 
     // loop over positions on the board to find available moves = empty positions
     for (int i = 0; i != max_idx; ++i) {
@@ -195,15 +195,15 @@ Hex::RowCol Hex::monte_carlo_move(marker side, int n_trials)
     return row_col_index(best_move);
 }
 
-Hex::RowCol Hex::computer_move(marker side, Do_move how, int n_trials)
+Hex::RowCol Hex::computer_move(marker side, Hex::Do_move how, int n_trials)
 {
     RowCol rc;
 
     switch (how) {
-    case Do_move::naive:
+    case Hex::Do_move::naive:
         rc = naive_move(side);
         break;
-    case Do_move::monte_carlo:
+    case Hex::Do_move::monte_carlo:
         rc = monte_carlo_move(side, n_trials);
         break;
     }
@@ -230,15 +230,18 @@ Hex::RowCol Hex::move_input(const string &msg) const
         if (!cin.fail())
             break;
     }
+
+    cout << "row " << row << " col " << col << endl;
+
     return Hex::RowCol{row, col};
 }
 
 Hex::RowCol Hex::person_move(marker side)
 {
     RowCol rc;
-    int row;
-    int col;
-    int val;
+    // int row;
+    // int col;
+    // int val;
     bool valid_move = false;
 
     while (!valid_move) {
@@ -250,37 +253,59 @@ Hex::RowCol Hex::person_move(marker side)
 
         rc = move_input("Please enter 2 integers: ");
 
-        if (rc.row == -1 || rc.col == -1) {
-            rc.row = -1;
+        cout << "from inside person_move " << rc << endl;  // prints 1 1
+
+        cout << rc.row << " " << rc.col << endl;    // prints 1 1
+
+        cout << ((rc.row == -1) || (rc.col == -1)) << endl; // prints 0, meaning false
+
+        if (rc.row == -1) {
             rc.col = -1;
+
+            cout << " if condition met for rc.row " << " rc " << rc << endl;   
+
             return rc;
         }
 
-        if (row == -5) { // hidden command to write the current board positions
-            // to a file
-            // prepare output file
-            string filename = "Board Graph.txt";
-            ofstream outfile;
-            outfile.open(filename,
-                         ios::out); // open a file to perform write operation
-            // using file object
-            if (!(outfile.is_open())) {
-                cout << "Error opening file: " << filename << " Terminating.\n";
-                exit(-1);
-            }
-            hex_graph.display_graph(outfile, true);
-            outfile.close();
+
+        cout << "rc.col " << rc.col << endl;
+        
+        if (rc.col == -1) {
+            rc.row = -1;
+
+            cout << " if condition met for rc.col "<< " rc " << rc << endl; 
+
+            return rc;
         }
 
-        // rc.row = row;
-        // rc.col = col;
-        valid_move = is_valid_move(rc);
-    }
+            if (rc.row == -5) { // hidden command to write the current board positions
+                // to a file
+                // prepare output file
+                string filename = "Board Graph.txt";
+                ofstream outfile;
+                outfile.open(filename,
+                             ios::out); // open a file to perform write operation
+                // using file object
+                if (!(outfile.is_open())) {
+                    cout << "Error opening file: " << filename << " Terminating.\n";
+                    exit(-1);
+                }
+                hex_graph.display_graph(outfile, true);
+                outfile.close();
+            }
+
+            // rc.row = row;
+            // rc.col = col;
+            valid_move = is_valid_move(rc);
+        }
 
     set_hex_marker(side, rc);
     move_seq[enum2int(side)].push_back(rc);
 
     move_count++;
+
+    cout << "move count: " << move_count << " rc " << rc << endl;
+
     return rc;
 }
 
@@ -309,6 +334,8 @@ bool Hex::is_valid_move(Hex::RowCol rc) const
     }
 
     cout << msg;
+
+    cout << "from is_valid_move " << rc << endl;
 
     return valid_move;
 }
@@ -393,12 +420,12 @@ Hex::marker Hex::who_won() // we use this when we may not have a full board, so 
     return winner;
 }
 
-void Hex::play_game(Do_move how, int n_trials) 
+void Hex::play_game(Hex::Do_move how, int n_trials) 
 {
     RowCol person_rc; // person's move
     RowCol computer_rc; // computer's move
-    bool valid_move;
-    bool person_first = true;
+    // bool valid_move;
+    // bool person_first = true;
     string answer;
     marker person_marker;
     marker computer_marker;
@@ -407,6 +434,8 @@ void Hex::play_game(Do_move how, int n_trials)
     clear_screen();
     cout << "\n\n";
 
+    cout << person_rc << endl;
+
     // who goes first?  break when we have a valid answer
     while (true) {
         cout << string_by_n("\n", 15);
@@ -414,7 +443,7 @@ void Hex::play_game(Do_move how, int n_trials)
         answer = safe_input<string>("Enter y or yes or n or no: ");
 
         if (is_in(tolower(answer), "yes")) {
-            person_first = true;
+            // person_first = true;
             person_marker = marker::playerX;
             computer_marker = marker::playerO;
 
@@ -426,7 +455,7 @@ void Hex::play_game(Do_move how, int n_trials)
             break;
         }
         else if (is_in(tolower(answer), "no")) {
-            person_first = false;
+            // person_first = false;
             person_marker = marker::playerO;
             computer_marker = marker::playerX;
 
@@ -451,7 +480,13 @@ void Hex::play_game(Do_move how, int n_trials)
         case marker::playerX:
             display_board();
 
+            cout << person_rc << endl;
+
             person_rc = person_move(person_marker);
+
+            cout << "returned from person_move " << person_rc << endl;
+
+
             if (person_rc.row == -1) {
                 cout << "Game over! Come back again...\n";
                 exit(0);

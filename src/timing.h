@@ -46,12 +46,12 @@ class Timing {
         duration += ticks();
     }
 
-    void reset()
-    {
-        std::chrono::time_point<std::chrono::steady_clock> begint;
-        std::chrono::time_point<std::chrono::steady_clock> endt;
-        double duration = 0.0;
-    }
+    // void reset()
+    // {
+    //     std::chrono::time_point<std::chrono::steady_clock> begint;
+    //     std::chrono::time_point<std::chrono::steady_clock> endt;
+    //     // double duration = 0.0;
+    // }
 
     double show() { return duration; }
 };

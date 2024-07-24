@@ -232,7 +232,7 @@ class Graph {
         int cost;
         int tmp_size = 0; // only used locally here
         int input_data; // as read from text file
-        T_data data;
+        // T_data data;
 
         // loads data into graph and positions
         while (getline(infile, linestr)) {

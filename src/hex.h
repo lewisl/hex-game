@@ -227,13 +227,13 @@ class Hex {
     RowCol random_move();
     RowCol naive_move(marker side);
     RowCol monte_carlo_move(marker side, int n_trials);
-    RowCol computer_move(marker side, Do_move how, int n_trials);
+    RowCol computer_move(marker side, Hex::Do_move how, int n_trials);
     RowCol move_input(const string &msg) const;   
     RowCol person_move(marker side);
     bool is_valid_move(RowCol rc) const;
     marker find_ends(marker side, bool whole_board);
     marker who_won();
-    void play_game(Do_move how, int n_trials=1000);
+    void play_game(Hex::Do_move how, int n_trials=1000);
     bool inline is_in_start(int idx, marker side) const;
     bool inline is_in_finish(int idx, marker side) const;
 
