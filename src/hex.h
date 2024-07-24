@@ -1,19 +1,19 @@
+// ##########################################################################
+// #             Definition/Declaration of Class Hex 
+// ##########################################################################
+
 #ifndef HEX_H
 #define HEX_H
 
 
-#include <chrono> // for performance timing
 #include <deque> // sequence of nodes in a path between start and destination
-#include <fstream> // to write graph to file and read graph from file
 #include <iostream>
 #include <random>
-#include <sstream> // to use stringstream to parse inputs from file
 #include <stdlib.h> // for atoi()
 #include <string>
 #include <unordered_map> // container for definition of Graph
 #include <vector>
 
-// #include "helpers.h"
 #include "graph.h"
 #include "timing.h"
 
@@ -173,44 +173,23 @@ class Hex {
     // 
     void make_board(int border_len = 7); // initialize board positions
 
-
-    // not used for the simulation but good for testing
-    void load_board_from_file(string filename);
-
-    // externally defined methods
-    // methods for playing game externally defined
-    void initialize_move_seq();
-
-
-    // print the ascii board on screen
-    void display_board() const;
-
-    // return hexboard marker based on value and add the spacer lines ___ needed to draw the board
-    string symdash(marker val, bool last = false) const;
-
-    // how many spaces to indent each line of the hexboard?
-    string lead_space(int row) const;
-
+    void load_board_from_file(string filename); // not used for the simulation but good for testing
+    void display_board() const; // print the ascii board on screen
+    string symdash(marker val, bool last = false) const; // return hexboard marker and add the spacer lines ___ needed to draw the board
+    string lead_space(int row) const; // how many spaces to indent each line of the hexboard?
     // some string constants used to draw the board
     const string connector = R"( \ /)";
     const string last_connector = R"( \)";
+    void define_borders(); // create vectors containing start and finish borders for both sides
 
-    // create vectors containing start and finish borders for both sides
-    void define_borders(); // tested OK
-
-    // game play methods use row and col for board positions
+    // indexing the board positions: game play methods use row and col for board positions
     // row and col indices are 1-based for end users playing the game
-
+    // linear indices are zero-based
     void set_hex_marker(marker val, RowCol rc) { hex_graph.set_node_data(val, linear_index(rc)); }
-
     void set_hex_marker(marker val, int row, int col) { hex_graph.set_node_data(val, linear_index(row, col)); }
-
     void set_hex_marker(marker val, int linear) { hex_graph.set_node_data(val, linear); }
-
     marker get_hex_marker(RowCol rc) const { return hex_graph.get_node_data(linear_index(rc)); }
-
     marker get_hex_marker(int row, int col) const { return hex_graph.get_node_data(linear_index(row, col)); }
-
     marker get_hex_marker(int linear) const { return hex_graph.get_node_data(linear); }
 
     void fill_board(vector<int> indices, marker value)
@@ -220,8 +199,8 @@ class Hex {
         }
     }
 
-
     // externally defined methods of class Hex in file game_play.cpp
+    void initialize_move_seq();
     void simulate_hexboard_positions(vector<int> empty_hex_positions);
     void simulate_hexboard_positions();
     RowCol random_move();
@@ -251,6 +230,5 @@ class Hex {
 
 
 };
-
 
 #endif

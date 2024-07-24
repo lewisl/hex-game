@@ -1,19 +1,7 @@
 /*
-    start playing the game
+    start playing the game:  this is the "main" for running the game
 */
 
-#include <chrono> // for performance timing
-#include <deque> // sequence of nodes in a path between start and destination
-#include <fstream> // to write graph to file and read graph from file
-#include <iostream>
-#include <random>
-#include <sstream> // to use stringstream to parse inputs from file
-#include <stdlib.h> // for atoi()
-#include <string>
-#include <unordered_map> // container for definition of Graph
-#include <vector>
-
-using namespace std;
 
 #include "hex.h"
 #include "helpers.h"

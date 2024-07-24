@@ -15,26 +15,12 @@ with a small file containing int main(argc, *char[argv]) to run the game.
 Programmer: Lewis Levin Date: April 2023
 */
 
-// #include <chrono> // for performance timing
-// #include <deque> // sequence of nodes in a path between start and destination
-// #include <fstream> // to write graph to file and read graph from file
-// #include <iostream>
-// #include <random>
-// #include <sstream> // to use stringstream to parse inputs from file
-// #include <stdlib.h> // for atoi()
-// #include <string>
-// #include <unordered_map> // container for definition of Graph
-// #include <vector>
-
 
 #include "hex.h"
-
 
 using namespace std;
 
 
-
-// METHODS FOR DRAWING THE BOARD
 // return hexboard marker based on value and add the spacer lines ___ needed to draw the board
 string Hex::symdash(marker val, bool last) const
 {
@@ -67,9 +53,6 @@ string Hex::lead_space(int row) const { return string_by_n(" ", row * 2); }
 // create vectors containing start and finish borders for both sides
 void Hex::define_borders() // tested OK
 {
-    // int row;
-    // int col;
-
     // yes--we could this all in one loop but, this is much more obvious
 
     // initialize the inner vectors as empty. NOTE: the zero index for the outer
@@ -79,23 +62,23 @@ void Hex::define_borders() // tested OK
         finish_border.push_back(vector<int>{});
     }
 
+    // top border
     for (int row = 1, col = 1; col < edge_len + 1; col++) {
         start_border[enum2int(marker::playerX)].push_back(linear_index(row, col));
     }
+    // bottom border
     for (int row = edge_len, col = 1; col < edge_len + 1; col++) {
         finish_border[enum2int(marker::playerX)].push_back(linear_index(row, col));
     }
-
+    // left border
     for (int row = 1, col = 1; row < edge_len + 1; row++) {
         start_border[enum2int(marker::playerO)].push_back(linear_index(row, col));
     }
-
+    // right border
     for (int row = 1, col = edge_len; row != edge_len + 1; ++row) {
         finish_border[enum2int(marker::playerO)].push_back(linear_index(row, col));
     }
 }
-
-
 
 
 void Hex::make_board(int border_len) // initialize board positions

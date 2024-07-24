@@ -2,22 +2,10 @@
 // #             Class Hex game playing methods
 // ##########################################################################
 
-#include <chrono> // for performance timing
-#include <deque> // sequence of nodes in a path between start and destination
-#include <fstream> // to write graph to file and read graph from file
-#include <iostream>
-#include <random>
-#include <sstream> // to use stringstream to parse inputs from file
-#include <stdlib.h> // for atoi()
-#include <string>
-#include <unordered_map> // container for definition of Graph
-#include <vector>
-
 
 #include "hex.h"
-#include "timing.h"
 #include "helpers.h"
-#include "graph.h"
+#include "timing.h"
 
 using namespace std;
 
@@ -231,8 +219,6 @@ Hex::RowCol Hex::move_input(const string &msg) const
             break;
     }
 
-    cout << "row " << row << " col " << col << endl;
-
     return Hex::RowCol{row, col};
 }
 
@@ -253,28 +239,13 @@ Hex::RowCol Hex::person_move(marker side)
 
         rc = move_input("Please enter 2 integers: ");
 
-        cout << "from inside person_move " << rc << endl;  // prints 1 1
-
-        cout << rc.row << " " << rc.col << endl;    // prints 1 1
-
-        cout << ((rc.row == -1) || (rc.col == -1)) << endl; // prints 0, meaning false
-
         if (rc.row == -1) {
             rc.col = -1;
-
-            cout << " if condition met for rc.row " << " rc " << rc << endl;   
-
             return rc;
         }
 
-
-        cout << "rc.col " << rc.col << endl;
-        
         if (rc.col == -1) {
             rc.row = -1;
-
-            cout << " if condition met for rc.col "<< " rc " << rc << endl; 
-
             return rc;
         }
 
@@ -294,8 +265,6 @@ Hex::RowCol Hex::person_move(marker side)
                 outfile.close();
             }
 
-            // rc.row = row;
-            // rc.col = col;
             valid_move = is_valid_move(rc);
         }
 
@@ -303,8 +272,6 @@ Hex::RowCol Hex::person_move(marker side)
     move_seq[enum2int(side)].push_back(rc);
 
     move_count++;
-
-    cout << "move count: " << move_count << " rc " << rc << endl;
 
     return rc;
 }
@@ -334,8 +301,6 @@ bool Hex::is_valid_move(Hex::RowCol rc) const
     }
 
     cout << msg;
-
-    cout << "from is_valid_move " << rc << endl;
 
     return valid_move;
 }
@@ -434,8 +399,6 @@ void Hex::play_game(Hex::Do_move how, int n_trials)
     clear_screen();
     cout << "\n\n";
 
-    cout << person_rc << endl;
-
     // who goes first?  break when we have a valid answer
     while (true) {
         cout << string_by_n("\n", 15);
@@ -480,11 +443,7 @@ void Hex::play_game(Hex::Do_move how, int n_trials)
         case marker::playerX:
             display_board();
 
-            cout << person_rc << endl;
-
             person_rc = person_move(person_marker);
-
-            cout << "returned from person_move " << person_rc << endl;
 
 
             if (person_rc.row == -1) {
@@ -531,7 +490,7 @@ void Hex::play_game(Hex::Do_move how, int n_trials)
                      << (winning_side == person_marker ? "You won. Congratulations!" : " The computer beat you )-:")
                      << "\nGame over. Come back and play again!\n\n";
                 display_board();
-                // break;
+                break;
             }
         }
     }
@@ -564,4 +523,3 @@ bool inline Hex::is_in_finish(int idx, marker side) const
         exit(-1);
     }
 }
-

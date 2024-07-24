@@ -3,24 +3,17 @@
 
 /*
 Helper functions and overrides:
-- printing unordered_map
-- printing deque
-- printing vector
+- template: printing unordered_map with various element types
+- template: printing deque with various element types
+- template: printing vector with various element types
 
 String helpers
 
-an is_in function for simple linear search of several types of small containers
-
-timing functions to measure execution time of running code and return it
-
+an is_in function template for simple linear search of several types of small containers
 */
-
-
 
 #include <deque> // sequence of nodes in a path between start and destination
 #include <iostream>
-#include <sstream> // to use stringstream to parse inputs from file
-#include <stdlib.h> // for atoi()
 #include <unordered_map> // container for definition of Graph
 #include <vector>
 
@@ -115,7 +108,5 @@ template <typename T> bool is_in(T val, deque<T> deq)
 
 // compare to a single value not wrapped in a container
 template <typename T> bool is_in(T val, T one) { return val == one; }
-
-
 
 #endif
