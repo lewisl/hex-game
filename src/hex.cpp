@@ -1,5 +1,8 @@
 /*
     start playing the game:  this is the "main" for running the game
+
+
+    Run as hex [size] [n_trials]
 */
 
 
@@ -10,14 +13,20 @@ int main(int argc, char *argv[])
 {
     int size = 5;
     int n_trials = 1000;
-    if (argc == 2)
+    if (argc == 1)
+        ;  // run with defaults
+    else if (argc == 2)
         size = atoi(argv[1]);
     else if (argc == 3) {
         size = atoi(argv[1]);
-        n_trials = atoi(argv[2]);
-    }
+        n_trials = atoi(argv[2]);}
+    else {
+        cout << "Wrong number of input arguments:\n"
+             << "Run as hex [size] [n_trials]. exiting..." << endl;
+        return 0;}
+    
 
-    Hex hb;
+    Hex hb;  // create the game object
     hb.make_board(size);
     
     hb.play_game(Hex::Do_move::monte_carlo, n_trials);
