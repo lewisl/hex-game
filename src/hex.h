@@ -16,21 +16,30 @@
 
 #include "graph.h"
 #include "timing.h"
+#include "helpers.h"
 
 using namespace std;
 
 
 class Hex {
-//
-// methods
-//
-public:
-  Hex() = default;
-  ~Hex() = default;
-  // the actual board is created either by make_board(int size) or
-  // load_board_from_file(string filename) this is better than 2 very large
-  // constructors that only differ by input type because we clearly know what
-  // each does from its name
+  private:
+    const int edge_len;
+    int max_idx;    // maximum linear index
+    int move_count{0}; // number of moves played during the game: each player's move
+                    // adds 1 (both moves = a ply)
+    vector<int> rand_nodes; // use in rand move method
+  public:
+    Hex(int size) : edge_len(size)
+        {  // enforce input requirement and invariant
+            if ((size < 0) || (size % 2 == 0)) {
+            throw std::invalid_argument(
+                "Bad size input. Must be odd, positive integer.");
+            }
+        max_idx = edge_len * edge_len;
+    } // the actual board will created by obj.make_board()
+
+   ~Hex() = default;
+
 
   enum class marker {
     empty = 0,
@@ -53,7 +62,7 @@ public:
   };
 
 //
-// members
+// more members
 //
 public:
   friend class Graph<marker>;
@@ -61,13 +70,6 @@ public:
   // a member of Hex that is a Graph object, using "composition" instead
   // of inheritance. The graph content is created by either make_board()
   // or load_board_from_file()
-private:
-  int edge_len; 
-  int max_idx;    // maximum linear index
-  int move_count; // number of moves played during the game: each player's move
-                  // adds 1 (both moves = a ply)
-  vector<int> rand_nodes; // use in rand move method
-
 
 private:
   vector<vector<int>>
@@ -90,6 +92,16 @@ private:
   vector<int> neighbors;
   vector<int> captured;
 
+  void set_storage(int max_idx) {  // optimization to reduce memory allocations for resizing containers
+    empty_hex_pos.reserve(max_idx);
+    random_pos.reserve(max_idx);
+    win_pct_per_move.reserve(max_idx);
+    captured.reserve(max_idx / 2 + 1);
+    // for a player, can only be half the board positions + 1 for the player that goes first
+    hex_graph.set_storage(max_idx); // using Graph method
+    neighbors.reserve(6);
+  }
+
 public:
   // for random shuffling of board moves
 
@@ -98,7 +110,6 @@ public:
 
   Timing winner_assess_time;   // measure cumulative time for assessing the game
   Timing move_simulation_time; // measure cumulative time for simulating moves
-
 
   //
   // methods
@@ -130,10 +141,10 @@ public:
     // convert row, col position to a linear index to an array or map
     // graph and minimum cost path use linear indices
     // linear indexes are 0-based to access c++ data structures
-    int inline linear_index(RowCol rc) const { return linear_index(rc.row, rc.col); }
+    int linear_index(RowCol rc) const { return linear_index(rc.row, rc.col); }
 
     // convert row, col position to a linear index to an array or map
-    int inline linear_index(int row, int col) const
+    int linear_index(int row, int col) const
     {
         row -= 1; // convert from input 1-based indexing to zero-based indexing
         col -= 1;
@@ -147,7 +158,7 @@ public:
     }
 
     // convert linear_index to RowCol index
-    RowCol inline row_col_index(int linear) const
+    RowCol row_col_index(int linear) const
     {
         if (linear < max_idx) {
             return RowCol((linear / edge_len) + 1, (linear % edge_len) + 1);
@@ -201,7 +212,7 @@ public:
   // hex_board.cpp
   //
   public:
-    void make_board(int border_len = 7); // initialize board positions
+    void make_board(); //   int border_len = 7initialize board positions
     void display_board() const; // print the ascii board on screen
     void play_game(Hex::Do_move how, int n_trials = 1000);
 
@@ -246,19 +257,6 @@ public:
     
     bool inline is_in_start(int idx, marker side) const;
     bool inline is_in_finish(int idx, marker side) const;
-
-    void set_storage(int max_idx)
-    {
-        empty_hex_pos.reserve(max_idx);
-        random_pos.reserve(max_idx);
-        win_pct_per_move.reserve(max_idx);
-        captured.reserve(max_idx / 2 +
-                         1); // for one player, can only be half the board positions + 1 for the side that goes first
-        hex_graph.set_storage(max_idx); // using Graph method
-        neighbors.reserve(6);
-    }
-
-
 };
 
 #endif

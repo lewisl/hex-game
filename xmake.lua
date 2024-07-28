@@ -3,3 +3,4 @@ target("hex")
     add_files("src/hex.cpp", "src/game_play.cpp", "src/hex_board.cpp", "src/hex_board.cpp")
     set_languages("cxx14")
     set_optimize("fastest")
+    add_cxxflags("-flto")  -- doesn't really do much

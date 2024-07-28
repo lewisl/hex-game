@@ -6,7 +6,6 @@
 */
 
 #include "hex.h"
-#include "helpers.h"
 
 int main(int argc, char *argv[])
 {
@@ -23,10 +22,14 @@ int main(int argc, char *argv[])
         cout << "Wrong number of input arguments:\n"
              << "Run as hex [size] [n_trials]. exiting..." << endl;
         return 0;}
-    
 
-    Hex hb;  // create the game object
-    hb.make_board(size);
+    if ((size < 0) || (size % 2 == 0)) {
+        throw std::invalid_argument(
+            "Bad size input. Must be odd, positive integer.");
+    }
+
+    Hex hb(size);  // create the game object
+    hb.make_board();
     
     hb.play_game(Hex::Do_move::monte_carlo, n_trials);
 

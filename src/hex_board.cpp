@@ -80,13 +80,8 @@ void Hex::define_borders() // tested OK
     }
 }
 
-
-void Hex::make_board(int border_len) // initialize board positions
+void Hex::make_board() //   int border_len initialize board positions
 {
-    // initialize all members
-    edge_len = border_len;
-    max_idx = edge_len * edge_len; // same as size
-
     // REMINDER!!!: row and col indices are treated as 1-based!
 
     // reserve storage
@@ -166,8 +161,6 @@ void Hex::make_board(int border_len) // initialize board positions
         }
     }
 } // end of make_board
-
-
 
 // methods for playing game externally defined
 void Hex::initialize_move_seq()
