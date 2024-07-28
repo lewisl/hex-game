@@ -497,6 +497,7 @@ void Hex::play_game(Hex::Do_move how, int n_trials)
 }
 
 
+
 bool inline Hex::is_in_start(int idx, marker side) const
 {
     if (side == marker::playerX) {
@@ -510,7 +511,6 @@ bool inline Hex::is_in_start(int idx, marker side) const
     exit(-1);
 }
 
-
 bool inline Hex::is_in_finish(int idx, marker side) const
 {
     if (side == marker::playerX) {
@@ -519,7 +519,7 @@ bool inline Hex::is_in_finish(int idx, marker side) const
     else if (side == marker::playerO) {
         return idx % edge_len == edge_len - 1;
     }
-    else 
-        cout << "Error: invalid side. Must be " << marker::playerX << " or " << marker::playerO << ".\n";
-    exit(-1);
+    else {
+        exit(-1);
+    }
 }

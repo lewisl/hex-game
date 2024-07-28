@@ -30,9 +30,10 @@ using namespace std;
 */
 template <typename T_data> // T_data can be various primitive data types
 class Graph {
-
-  // members
   public:
+    Graph<T_data>() = default;
+    ~Graph<T_data>() = default;
+
     vector<T_data> node_data; // holds Data values of all nodes
 
     // holds an edge for a starting node: to node, cost to the neighbor
@@ -44,15 +45,9 @@ class Graph {
 
         Edge(int to_node = 0, int cost = 1) : to_node(to_node), cost(cost) {}
     };
-    
+
   private:
     unordered_map<int, vector<Edge>> graph;
-
-  // methods
-  public:
-    Graph<T_data>() = default;
-    ~Graph<T_data>() = default;
-
 
   public:
     void set_storage(int size)
