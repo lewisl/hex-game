@@ -1,6 +1,16 @@
 [
 {
-  "directory": "/Users/lewis/Dropbox/Online Coursework/UCSC C for Everyone/Course 4/hex",
-  "arguments": ["/Library/Developer/CommandLineTools/usr/bin/clang", "-c", "-Qunused-arguments", "-target", "arm64-apple-macos14.5", "-isysroot", "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX14.5.sdk", "-O3", "-std=c++14", "-o", "build/.objs/hex/macosx/arm64/release/src/hex.cpp.o", "src/hex.cpp"],
+  "directory": "/Users/lewislevin/Dropbox/Online Coursework/UCSC C for Everyone/Course 4/hex",
+  "arguments": ["/Library/Developer/CommandLineTools/usr/bin/clang", "-c", "-Qunused-arguments", "-isysroot", "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk", "-O3", "-std=c++14", "-o", "build/.objs/hex/macosx/arm64/release/src/hex.cpp.o", "src/hex.cpp"],
   "file": "src/hex.cpp"
+},
+{
+  "directory": "/Users/lewislevin/Dropbox/Online Coursework/UCSC C for Everyone/Course 4/hex",
+  "arguments": ["/Library/Developer/CommandLineTools/usr/bin/clang", "-c", "-Qunused-arguments", "-isysroot", "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk", "-O3", "-std=c++14", "-o", "build/.objs/hex/macosx/arm64/release/src/game_play.cpp.o", "src/game_play.cpp"],
+  "file": "src/game_play.cpp"
+},
+{
+  "directory": "/Users/lewislevin/Dropbox/Online Coursework/UCSC C for Everyone/Course 4/hex",
+  "arguments": ["/Library/Developer/CommandLineTools/usr/bin/clang", "-c", "-Qunused-arguments", "-isysroot", "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk", "-O3", "-std=c++14", "-o", "build/.objs/hex/macosx/arm64/release/src/hex_board.cpp.o", "src/hex_board.cpp"],
+  "file": "src/hex_board.cpp"
 }]

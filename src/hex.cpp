@@ -5,7 +5,6 @@
     Run as hex [size] [n_trials]
 */
 
-
 #include "hex.h"
 #include "helpers.h"
 

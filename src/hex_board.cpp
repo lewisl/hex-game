@@ -167,32 +167,7 @@ void Hex::make_board(int border_len) // initialize board positions
     }
 } // end of make_board
 
-// not used for the simulation but good for testing
-void Hex::load_board_from_file(string filename)
-{
-    hex_graph.load_graph_from_file(filename);
 
-    // initialize Hex class members
-    max_idx = hex_graph.count_nodes();
-    edge_len = sqrt(max_idx);
-
-    if (edge_len * edge_len != max_idx) {
-        cout << "Error: incorrect size for hexboard. Got size = " << max_idx << endl;
-        cout << "Size must have an integer square root for number of tiles in "
-                "edge "
-                "of board.\n";
-        exit(-1);
-    }
-
-    // define the board regions and move sequences
-    define_borders();
-    initialize_move_seq();
-
-    // additional vectors pre-allocation
-    // something for rand_nodes if we keep it TODO
-    // reserve storage
-    set_storage(max_idx);
-}
 
 // methods for playing game externally defined
 void Hex::initialize_move_seq()

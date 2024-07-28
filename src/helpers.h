@@ -1,5 +1,5 @@
-#ifndef HELPERS
-#define HELPERS
+#ifndef HELPERS_H
+#define HELPERS_H
 
 /*
 Helper functions and overrides:

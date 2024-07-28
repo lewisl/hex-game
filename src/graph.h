@@ -2,8 +2,8 @@
 // #             Definition/Declaration of Class Graph
 // ##########################################################################
 
-#ifndef GRAPH
-#define GRAPH
+#ifndef GRAPH_H
+#define GRAPH_H
 
 #include <deque> // sequence of nodes in a path between start and destination
 #include <fstream> // to write graph to file and read graph from file

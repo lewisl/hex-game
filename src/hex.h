@@ -21,28 +21,89 @@ using namespace std;
 
 
 class Hex {
-  public:
-    Hex() = default;
-    ~Hex() = default;
-    // the actual board is created either by make_board(int size) or load_board_from_file(string filename)
-    // this is better than 2 very large constructors that only differ by input type
-    // because we clearly know what each does from its name
+//
+// methods
+//
+public:
+  Hex() = default;
+  ~Hex() = default;
+  // the actual board is created either by make_board(int size) or
+  // load_board_from_file(string filename) this is better than 2 very large
+  // constructors that only differ by input type because we clearly know what
+  // each does from its name
 
-    enum class marker { empty = 0, playerX = 1, playerO = 2 }; // for the data held at each board position
-    enum class Do_move { naive = 0, monte_carlo };
+  enum class marker {
+    empty = 0,
+    playerX = 1,
+    playerO = 2
+  }; // for the data held at each board position
+  enum class Do_move { naive = 0, monte_carlo };
 
-    // row and col on the hexboard to address a hexagon
-    // row and col are seen by the human player so we use 1-based indexing
-    // the linear_index conversion method handles this
-    struct RowCol {
-        int row;
-        int col;
+  // row and col on the hexboard to address a hexagon
+  // row and col are seen by the human player so we use 1-based indexing
+  // the linear_index conversion method handles this
+  struct RowCol {
+    int row;
+    int col;
 
-        RowCol(int row = 0, int col = 0) : row(row), col(col) {} // initialize to illegal position as sentinel
-        // RowCol() = default;
-        // ~RowCol() = default;
-    };
+    RowCol(int row = 0, int col = 0)
+        : row(row), col(col) {} // initialize to illegal position as sentinel
+                                // RowCol() = default;
+                                // ~RowCol() = default;
+  };
 
+//
+// members
+//
+public:
+  friend class Graph<marker>;
+  Graph<marker> hex_graph;
+  // a member of Hex that is a Graph object, using "composition" instead
+  // of inheritance. The graph content is created by either make_board()
+  // or load_board_from_file()
+private:
+  int edge_len; 
+  int max_idx;    // maximum linear index
+  int move_count; // number of moves played during the game: each player's move
+                  // adds 1 (both moves = a ply)
+  vector<int> rand_nodes; // use in rand move method
+
+
+private:
+  vector<vector<int>>
+      start_border; // holds indices to the top and left edges of the board
+  vector<vector<int>>
+      finish_border; // holds indices to the bottom and right edges of the board
+  vector<vector<RowCol>>
+      move_seq; // history of moves: use ONLY indices 1 and 2 for outer vector
+  vector<marker> &positions =
+      hex_graph.node_data; // positions of all markers on the board: alias to
+                           // Graph member
+
+  // used by monte_carlo_move: pre-allocated memory by method set_storage
+  vector<int> empty_hex_pos; // empty positions that are available for candidate
+                             // move and for simulated moves
+  vector<int> random_pos; // copy of empty_hex_pos (except the candidate move)
+                          // to be shuffled
+  vector<float> win_pct_per_move;
+  // used by find_ends: pre-allocated memory by method set_storage
+  vector<int> neighbors;
+  vector<int> captured;
+
+public:
+  // for random shuffling of board moves
+
+  unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+  std::mt19937 rng{seed};
+
+  Timing winner_assess_time;   // measure cumulative time for assessing the game
+  Timing move_simulation_time; // measure cumulative time for simulating moves
+
+
+  //
+  // methods
+  //
+  private:
     
     template <typename T> // should be int, float or string
     T safe_input(const string &msg)
@@ -62,42 +123,9 @@ class Hex {
         return input;
     }
 
-    friend class Graph<marker>;
-    Graph<marker> hex_graph;
-    // a member of Hex that is a Graph object, using "composition" instead
-    // of inheritance. The graph content is created by either make_board()
-    // or load_board_from_file()
+    inline bool is_empty(int linear) const {return get_hex_marker(linear) == marker::empty;}
 
-    int edge_len;
-    int max_idx; // maximum linear index
-    int move_count; // number of moves played during the game: each player's move adds 1 (both moves = a ply)
-    vector<int> rand_nodes; // use in rand move method
-
-    inline bool is_empty(int linear) const { return get_hex_marker(linear) == marker::empty; }
     inline bool is_empty(RowCol rc) const { return is_empty(linear_index(rc)); }
-
-  private:
-    vector<vector<int>> start_border; // holds indices to the top and left edges of the board
-    vector<vector<int>> finish_border; // holds indices to the bottom and right edges of the board
-    vector<vector<RowCol>> move_seq; // history of moves: use ONLY indices 1 and 2 for outer vector
-    vector<marker> &positions = hex_graph.node_data; // positions of all markers on the board: alias to Graph member
-
-    // used by monte_carlo_move: pre-allocated memory by method set_storage
-    vector<int> empty_hex_pos; // empty positions that are available for candidate move and for simulated moves
-    vector<int> random_pos; // copy of empty_hex_pos (except the candidate move) to be shuffled
-    vector<float> win_pct_per_move;
-    // used by find_ends: pre-allocated memory by method set_storage
-    vector<int> neighbors;
-    vector<int> captured;
-
-  public:
-    // for random shuffling of board moves
-
-    unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
-    std::mt19937 rng{seed};
-
-    Timing winner_assess_time; // measure cumulative time for assessing the game
-    Timing move_simulation_time; // measure cumulative time for simulating moves
 
     // convert row, col position to a linear index to an array or map
     // graph and minimum cost path use linear indices
@@ -168,13 +196,16 @@ class Hex {
         return static_cast<int>(t);
     }
 
-    // 
-    // externally defined methods of class Hex to draw and manage board in hex_board.cpp
-    // 
+  //
+  // externally defined methods of class Hex to draw and manage board in
+  // hex_board.cpp
+  //
+  public:
     void make_board(int border_len = 7); // initialize board positions
-
-    void load_board_from_file(string filename); // not used for the simulation but good for testing
     void display_board() const; // print the ascii board on screen
+    void play_game(Hex::Do_move how, int n_trials = 1000);
+
+  private:                              
     string symdash(marker val, bool last = false) const; // return hexboard marker and add the spacer lines ___ needed to draw the board
     string lead_space(int row) const; // how many spaces to indent each line of the hexboard?
     // some string constants used to draw the board
@@ -212,11 +243,10 @@ class Hex {
     bool is_valid_move(RowCol rc) const;
     marker find_ends(marker side, bool whole_board);
     marker who_won();
-    void play_game(Hex::Do_move how, int n_trials=1000);
+    
     bool inline is_in_start(int idx, marker side) const;
     bool inline is_in_finish(int idx, marker side) const;
 
-  private:
     void set_storage(int max_idx)
     {
         empty_hex_pos.reserve(max_idx);
