@@ -138,7 +138,7 @@ class Graph {
         return neighbor_nodes;
     }
 
-    void add_edge(const int node) // empty Edge container
+    void create_edge_container(const int node) // empty Edge container
     {
         graph.emplace(node, vector<Edge>{});
     }

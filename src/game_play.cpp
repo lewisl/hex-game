@@ -225,9 +225,6 @@ Hex::RowCol Hex::move_input(const string &msg) const
 Hex::RowCol Hex::person_move(marker side)
 {
     RowCol rc;
-    // int row;
-    // int col;
-    // int val;
     bool valid_move = false;
 
     while (!valid_move) {

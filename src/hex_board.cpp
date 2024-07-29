@@ -98,7 +98,7 @@ void Hex::make_board() //   int border_len initialize board positions
     // add nodes:  the required hexagonal "tiles" on the board
     // initial values:  all tiles are empty = 0
     for (int i = 0; i != max_idx; ++i) {
-        hex_graph.add_edge(i);   // create an empty edge container at each node
+        hex_graph.create_edge_container(i);   // create an empty edge container at each node
         rand_nodes.push_back(i); // vector of nodes
     }
 
