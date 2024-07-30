@@ -91,10 +91,6 @@ void Hex::make_board() //   int border_len initialize board positions
     define_borders();
     initialize_move_seq();
 
-    // initialize positions: and also node_data because positions is a reference
-    // to it
-    hex_graph.initialize_data(marker::empty, max_idx);
-
     // add nodes:  the required hexagonal "tiles" on the board
     // initial values:  all tiles are empty = 0
     for (int i = 0; i != max_idx; ++i) {

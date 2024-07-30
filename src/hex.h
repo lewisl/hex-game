@@ -29,13 +29,15 @@ class Hex {
                     // adds 1 (both moves = a ply)
     vector<int> rand_nodes; // use in rand move method
   public:
-    Hex(int size) : edge_len(size)
-        {  // enforce input requirement and invariant
-            if ((size < 0) || (size % 2 == 0)) {
-            throw std::invalid_argument(
-                "Bad size input. Must be odd, positive integer.");
-            }
-        max_idx = edge_len * edge_len;
+    // constructor/destructor
+    Hex(size_t size)
+        : edge_len(size) { // enforce input requirement and invariant
+      if ((size < 0) || (size % 2 == 0)) {
+        throw std::invalid_argument(
+            "Bad size input. Must be odd, positive integer.");
+      }
+      max_idx = edge_len * edge_len;
+      Graph<marker> hex_graph(max_idx, Hex::marker::empty);
     } // the actual board will created by obj.make_board()
 
    ~Hex() = default;
@@ -65,7 +67,6 @@ class Hex {
 // more members
 //
 public:
-  friend class Graph<marker>;
   Graph<marker> hex_graph;
   // a member of Hex that is a Graph object, using "composition" instead
   // of inheritance. The graph content is created by either make_board()
@@ -104,7 +105,6 @@ private:
 
 public:
   // for random shuffling of board moves
-
   unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
   std::mt19937 rng{seed};
 
@@ -114,32 +114,34 @@ public:
   //
   // methods
   //
-  private:
-    
-    template <typename T> // should be int, float or string
-    T safe_input(const string &msg)
-    {
-        T input;
-        while (true) {
-            cin >> input;
-            if (cin.fail()) {
-                cin.clear();
-                cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-                cout << msg;
-                cin >> input;
-            }
-            if (!cin.fail())
-                break;
+private:
+  template <typename T> // should be int, float or string
+  T safe_input(const string &msg) {
+    T input;
+    while (true) {
+        cin >> input;
+        if (cin.fail()) {
+          cin.clear();
+          cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+          cout << msg;
+          cin >> input;
         }
-        return input;
+        if (!cin.fail())
+          break;
+    }
+    return input;
     }
 
     inline bool is_empty(int linear) const {return get_hex_marker(linear) == marker::empty;}
 
     inline bool is_empty(RowCol rc) const { return is_empty(linear_index(rc)); }
 
+    // indexing the board positions: game play methods use row and col for board positions
+    // row and col indices are 1-based for end users playing the game
+    // linear indices are zero-based
+
     // convert row, col position to a linear index to an array or map
-    // graph and minimum cost path use linear indices
+    // Class graph uses 0-based linear indices
     // linear indexes are 0-based to access c++ data structures
     int linear_index(RowCol rc) const { return linear_index(rc.row, rc.col); }
 
@@ -170,7 +172,6 @@ public:
     }
 
     // ostream overloads
-    // output a RowCol in an output stream
     friend std::ostream &operator<<(std::ostream &os, const Hex::RowCol &rc)
     {
         os << "Row: " << rc.row << " Col: " << rc.col;
@@ -207,15 +208,13 @@ public:
         return static_cast<int>(t);
     }
 
-  //
-  // externally defined methods of class Hex to draw and manage board in
-  // hex_board.cpp
-  //
+//
+// externally defined methods of class Hex to draw and manage board in
+// hex_board.cpp
+//
   public:
-    void make_board(); //   int border_len = 7initialize board positions
+    void make_board();
     void display_board() const; // print the ascii board on screen
-    void play_game(Hex::Do_move how, int n_trials = 1000);
-
   private:                              
     string symdash(marker val, bool last = false) const; // return hexboard marker and add the spacer lines ___ needed to draw the board
     string lead_space(int row) const; // how many spaces to indent each line of the hexboard?
@@ -224,9 +223,6 @@ public:
     const string last_connector = R"( \)";
     void define_borders(); // create vectors containing start and finish borders for both sides
 
-    // indexing the board positions: game play methods use row and col for board positions
-    // row and col indices are 1-based for end users playing the game
-    // linear indices are zero-based
     void set_hex_marker(marker val, RowCol rc) { hex_graph.set_node_data(val, linear_index(rc)); }
     void set_hex_marker(marker val, int row, int col) { hex_graph.set_node_data(val, linear_index(row, col)); }
     void set_hex_marker(marker val, int linear) { hex_graph.set_node_data(val, linear); }
@@ -242,21 +238,24 @@ public:
     }
 
     // externally defined methods of class Hex in file game_play.cpp
-    void initialize_move_seq();
-    void simulate_hexboard_positions(vector<int> empty_hex_positions);
-    void simulate_hexboard_positions();
-    RowCol random_move();
-    RowCol naive_move(marker side);
-    RowCol monte_carlo_move(marker side, int n_trials);
-    RowCol computer_move(marker side, Hex::Do_move how, int n_trials);
-    RowCol move_input(const string &msg) const;   
-    RowCol person_move(marker side);
-    bool is_valid_move(RowCol rc) const;
-    marker find_ends(marker side, bool whole_board);
-    marker who_won();
-    
-    bool inline is_in_start(int idx, marker side) const;
-    bool inline is_in_finish(int idx, marker side) const;
+    public:
+        void play_game(Hex::Do_move how, int n_trials = 1000);
+    private:
+        void initialize_move_seq();
+        void simulate_hexboard_positions(vector<int> empty_hex_positions);
+        void simulate_hexboard_positions();
+        RowCol random_move();
+        RowCol naive_move(marker side);
+        RowCol monte_carlo_move(marker side, int n_trials);
+        RowCol computer_move(marker side, Hex::Do_move how, int n_trials);
+        RowCol move_input(const string &msg) const;   
+        RowCol person_move(marker side);
+        bool is_valid_move(RowCol rc) const;
+        marker find_ends(marker side, bool whole_board);
+        marker who_won();
+        
+        bool inline is_in_start(int idx, marker side) const;
+        bool inline is_in_finish(int idx, marker side) const;
 };
 
 #endif

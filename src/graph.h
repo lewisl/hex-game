@@ -18,6 +18,30 @@ using namespace std;
 
 #include "helpers.h"
 
+// holds an edge for a starting node: to node, cost to the neighbor
+// doesn't include starting node because that is part of the graph container
+// all of the edges of a node are held in a vector or map of Edges
+struct Edge {
+  int to_node; // use linear index to hexboard
+  int cost; // default to cost=1 => should NOT change this when creating edges
+
+  Edge(int to_node = 0, int cost = 1) : to_node(to_node), cost(cost) {}
+};
+
+// output an Edge in an output stream
+inline ostream& operator<<(ostream &out, const Edge &e) {
+  out << "  to: " << e.to_node << " cost: " << e.cost << endl;
+  return out;
+}
+
+// output a vector of edges: used in the graph definition for each node
+inline ostream& operator<<(ostream  &out, const vector<Edge> &ve) {
+  for (auto const &e : ve) {
+    out << e << endl;
+  }
+  return out;
+}
+
 /* 
 ##########################################################################
 #                            class Graph
@@ -31,51 +55,26 @@ using namespace std;
 template <typename T_data> // T_data can be various primitive data types
 class Graph {
   public:
-    Graph<T_data>() = default;
+    Graph<T_data>() = default; // for arbitrary graphs
+    Graph<T_data>(size_t size, T_data node_elem)
+        : size(size), node_data(size, node_elem) {}
     ~Graph<T_data>() = default;
 
     vector<T_data> node_data; // holds Data values of all nodes
 
-    // holds an edge for a starting node: to node, cost to the neighbor
-    // doesn't include starting node because that is part of the graph container
-    // all of the edges of a node are held in a vector of Edges
-    struct Edge {
-        int to_node; // use linear index to hexboard
-        int cost; // default to cost=1 => should NOT change this when creating edges
-
-        Edge(int to_node = 0, int cost = 1) : to_node(to_node), cost(cost) {}
-    };
-
   private:
     unordered_map<int, vector<Edge>> graph;
+    size_t size;
+    T_data node_elem; // initial value for node_data
 
-  public:
-    void set_storage(int size)
-    {
-        graph.reserve(size);
-        graph.max_load_factor(0.8);
-        node_data.reserve(size);
-    }
-
-    // output an Edge in an output stream
-    friend ostream &operator<<(ostream &os, const Edge &e)
-    {
-        os << "  to: " << e.to_node << " cost: " << e.cost << endl;
-        return os;
-    }
-
-    // output a vector of edges: used in the graph definition for each node
-    friend ostream &operator<<(ostream &os, const vector<Edge> &ve)
-    {
-        for (auto const &e : ve) {
-            os << e << endl;
-        }
-        return os;
+public:
+  void set_storage(int size) {
+    graph.reserve(size);
+    graph.max_load_factor(0.8);
+    node_data.reserve(size);
     }
 
     int count_nodes() const { return graph.size(); }
-
-    void initialize_data(const T_data val, const int size) { node_data.insert(node_data.begin(), size, val); };
 
     void set_node_data(const T_data val, const int idx) { node_data[idx] = val; }
 
