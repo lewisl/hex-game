@@ -40,8 +40,7 @@ string Hex::symdash(marker val, bool last) const
     else if (val == marker::playerO)
         symunit = o + spacer;
     else {
-        cout << "Error: invalid hexboard value: " << val << endl;
-        exit(-1);
+        throw invalid_argument("Error: invalid hexboard value.");
     }
 
     return symunit;
@@ -80,7 +79,7 @@ void Hex::define_borders() // tested OK
     }
 }
 
-void Hex::make_board() //   int border_len initialize board positions
+void Hex::make_board() 
 {
     // REMINDER!!!: row and col indices are treated as 1-based!
 
@@ -91,25 +90,31 @@ void Hex::make_board() //   int border_len initialize board positions
     define_borders();
     initialize_move_seq();
 
-    // add nodes:  the required hexagonal "tiles" on the board
+    // add vector<Edge> for each node to hold edges in the graph for each node
     // initial values:  all tiles are empty = 0
     for (int i = 0; i != max_idx; ++i) {
-        hex_graph.create_edge_container(i);   // create an empty edge container at each node
-        rand_nodes.push_back(i); // vector of nodes
+        hex_graph.create_edge_container(i); // create an empty edge container at each node
+        rand_nodes.push_back(i);            // vector of nodes
+        // NOTE: node_data, which holds the marker at each board position,
+        //              initialized by class Graph constructor, called by class Hex constructor
+        
     }
 
     // add graph edges for adjacent hexes based on the layout of a Hex game
-    // 4 corners of the board                            tested OK
+    //    linear indices run from 0 at upper, left then across the row,
+    //    then down 1 row at the left edge, and across, etc.
+    // 
+    // 4 corners of the board: 2 or 3 edges per node                            
     // upper left
     hex_graph.add_edge(linear_index(1, 1), linear_index(2, 1));
     hex_graph.add_edge(linear_index(1, 1), linear_index(1, 2));
-    // lower right
-    hex_graph.add_edge(linear_index(edge_len, edge_len), linear_index(edge_len, (edge_len - 1)));
-    hex_graph.add_edge(linear_index(edge_len, edge_len), linear_index((edge_len - 1), edge_len));
     // upper right
     hex_graph.add_edge(linear_index(1, edge_len), linear_index(1, (edge_len - 1)));
     hex_graph.add_edge(linear_index(1, edge_len), linear_index(2, edge_len));
     hex_graph.add_edge(linear_index(1, edge_len), linear_index(2, (edge_len - 1)));
+    // lower right
+    hex_graph.add_edge(linear_index(edge_len, edge_len), linear_index(edge_len, (edge_len - 1)));
+    hex_graph.add_edge(linear_index(edge_len, edge_len), linear_index((edge_len - 1), edge_len));
     // lower left
     hex_graph.add_edge(linear_index(edge_len, 1), linear_index((edge_len - 1), 1));
     hex_graph.add_edge(linear_index(edge_len, 1), linear_index(edge_len, 2));

@@ -30,15 +30,15 @@ class Hex {
     vector<int> rand_nodes; // use in rand move method
   public:
     // constructor/destructor
-    Hex(size_t size)
-        : edge_len(size) { // enforce input requirement and invariant
-      if ((size < 0) || (size % 2 == 0)) {
-        throw std::invalid_argument(
-            "Bad size input. Must be odd, positive integer.");
-      }
-      max_idx = edge_len * edge_len;
-      Graph<marker> hex_graph(max_idx, Hex::marker::empty);
-    } // the actual board will created by obj.make_board()
+    Hex(size_t size): edge_len(size) { // enforce input requirement and invariant
+            if ((size < 0) || (size % 2 == 0)) {
+                throw std::invalid_argument(
+                    "Bad size input. Must be odd, positive integer.");
+            }
+            max_idx = edge_len * edge_len;
+            Graph<marker> hex_graph(max_idx, Hex::marker::empty);  // initializes all board positions to empty
+    }
+    // Hex::make_board() greats the graph of the board and the ascii display of the board
 
    ~Hex() = default;
 
@@ -154,8 +154,7 @@ private:
             return (row * edge_len) + col;
         }
         else {
-            cout << "Error: row or col >= edge length\n";
-            exit(-1);
+            throw invalid_argument("Bad row or col input: >= edge length\n");
         }
     }
 
@@ -243,7 +242,6 @@ private:
     private:
         void initialize_move_seq();
         void simulate_hexboard_positions(vector<int> empty_hex_positions);
-        void simulate_hexboard_positions();
         RowCol random_move();
         RowCol naive_move(marker side);
         RowCol monte_carlo_move(marker side, int n_trials);
@@ -255,7 +253,6 @@ private:
         marker who_won();
         
         bool inline is_in_start(int idx, marker side) const;
-        bool inline is_in_finish(int idx, marker side) const;
 };
 
 #endif

@@ -91,50 +91,44 @@ public:
     // there
     vector<Edge> get_neighbors(const int current_node, const T_data data_filter) const
     {
-        vector<Edge> ve;
+        vector<Edge> vec;
         for (const auto &e : graph.at(current_node)) {
             if (node_data[e.to_node] == data_filter) {
-                ve.push_back(e);
+                vec.push_back(e);
             }
         }
-        return ve;
+        return vec;
     }
 
-    // get the neighbors that match the select data and are not in the exclude
-    // set, deque or vector
+    // get the neighbors that match the select data and are not in the exclude set, deque or vector
     template <typename Container>
     vector<Edge> get_neighbors(const int current_node, const T_data data_filter, const Container &exclude_set) const
     {
-        vector<Edge> vr;
+        vector<Edge> vec;
         for (const auto &e : graph.at(current_node)) {
             if (node_data[e.to_node] == data_filter && !is_in(e.to_node, exclude_set))
-                vr.push_back(e);
+                vec.push_back(e);
         }
-        return vr; // in c++14 this returns an rvalue reference so the caller
-            // moves the returned value to a vector
+        return vec; // in c++14 this returns an rvalue reference so the caller moves the returned value to a vector
     }
 
     // get the neighbor_nodes as a vector of nodes instead of the edges
     vector<int> get_neighbor_nodes(const int current_node, const T_data data_filter) const
     {
-        vector<int> neighbor_nodes;
-        for (const auto &e : graph.at(current_node)) {
-            if (node_data[e.to_node] == data_filter)
-                neighbor_nodes.push_back(e.to_node);
-        }
-        return neighbor_nodes;
+        vector<int> vec;
+        for (const auto &e : get_neighbors(current_node, data_filter))
+            vec.push_back(e.to_node);
+        return vec;
     }
 
-    // get the neighbor_nodes that match the filter while excluding a set or vector of nodes
+    // get the neighbor_nodes that match the filter while excluding a set or vector or deque of nodes
     template <typename Container>
     vector<int> get_neighbor_nodes(const int current_node, const T_data data_filter, const Container &exclude) const
     {
-        vector<int> neighbor_nodes;
-        for (const auto &e : graph.at(current_node)) {
-            if (node_data[e.to_node] == data_filter && !is_in(e.to_node, exclude))
-                neighbor_nodes.push_back(e.to_node);
-        }
-        return neighbor_nodes;
+        vector<int> vec;
+        for (const auto &e : get_neighbors(current_node, data_filter, exclude))
+            vec.push_back(e.to_node);
+        return vec;
     }
 
     void create_edge_container(const int node) // empty Edge container
@@ -223,8 +217,7 @@ public:
         ifstream infile;
         infile.open(filename); // open a file to perform read operation using file object
         if (!(infile.is_open())) {
-            cout << "Error opening file: " << filename << " Terminating.\n";
-            exit(-1);
+            throw invalid_argument("Error opening file.\n");
         }
 
         // read the file line by line and create graph
@@ -269,14 +262,6 @@ public:
         }
     }
 }; // end class Graph
-// ##########################################################################
-// #
-// #
-// #
-// # end class Graph
-// #
-// #
-// #
-// ##########################################################################
+
 
 #endif

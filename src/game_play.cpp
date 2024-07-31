@@ -6,28 +6,11 @@
 #include "hex.h"
 #include "helpers.h"
 #include "timing.h"
+#include <stdexcept>
+#include <system_error>
 
 using namespace std;
 
-
-// fill entire board with random markers for side 1 and 2
-// Note: not used for the monte carlo simulation because we never randomize the entire board
-void Hex::simulate_hexboard_positions()
-{
-    vector<int> allidx(hex_graph.count_nodes());
-
-    iota(allidx.begin(), allidx.end(), 0);
-    shuffle(allidx.begin(), allidx.end(), rng);
-
-    for (int i : allidx) {
-        if (is_empty(i)) {
-            if (i % 2 == 0)
-                set_hex_marker(marker::playerX, i);
-            else
-                set_hex_marker(marker::playerO, i);
-        }
-    }
-}
 
 void Hex::simulate_hexboard_positions(vector<int> empty_hex_positions)
 {
@@ -43,7 +26,8 @@ void Hex::simulate_hexboard_positions(vector<int> empty_hex_positions)
 }
 
 // the program makes a random move
-// Not used for the monte carlo simulation: used for testing computer moves early on
+// Not used for the monte carlo simulation:
+// used for naive computer move
 Hex::RowCol Hex::random_move()
 {
     RowCol rc;
@@ -255,8 +239,7 @@ Hex::RowCol Hex::person_move(marker side)
                              ios::out); // open a file to perform write operation
                 // using file object
                 if (!(outfile.is_open())) {
-                    cout << "Error opening file: " << filename << " Terminating.\n";
-                    exit(-1);
+                    throw invalid_argument("Error opening file.");
                 }
                 hex_graph.display_graph(outfile, true);
                 outfile.close();
@@ -367,6 +350,17 @@ Hex::marker Hex::find_ends(Hex::marker side, bool whole_board = false)
         return marker::empty; // no winner--too early in the game--no path from start to finish for this side
 }
 
+bool inline Hex::is_in_start(int idx, marker side) const {
+    if (side == marker::playerX) {
+        return idx < edge_len;
+    } else if (side == marker::playerO) {
+        return idx % edge_len == 0;
+    } else
+        throw invalid_argument("Error: invalid side. Must be marker::playerX  "
+                               "or  marker::playerO.\n");
+}
+
+
 Hex::marker Hex::who_won() // we use this when we may not have a full board, so do need to evaluate both sides
 {
     marker winner = marker::empty;
@@ -474,8 +468,7 @@ void Hex::play_game(Hex::Do_move how, int n_trials)
 
             break;
         case marker::empty:
-            cout << "Error: Player marker for human player cannot be empty.\n";
-            exit(-1);
+            throw invalid_argument("Error: Player marker for human player cannot be empty.\n");
         }
 
         // test for a winner
@@ -495,28 +488,4 @@ void Hex::play_game(Hex::Do_move how, int n_trials)
 
 
 
-bool inline Hex::is_in_start(int idx, marker side) const
-{
-    if (side == marker::playerX) {
-        return idx < edge_len;
-    }
-    else if (side == marker::playerO) {
-        return idx % edge_len == 0;
-    }
-    else
-        cout << "Error: invalid side. Must be " << marker::playerX << " or " << marker::playerO << ".\n";
-    exit(-1);
-}
 
-bool inline Hex::is_in_finish(int idx, marker side) const
-{
-    if (side == marker::playerX) {
-        return idx > max_idx - edge_len - 1;
-    }
-    else if (side == marker::playerO) {
-        return idx % edge_len == edge_len - 1;
-    }
-    else {
-        exit(-1);
-    }
-}
