@@ -36,14 +36,14 @@ class Hex {
                     "Bad size input. Must be odd, positive integer.");
             }
             max_idx = edge_len * edge_len;
-            Graph<marker> hex_graph(max_idx, Hex::marker::empty);  // initializes all board positions to empty
+            Graph<Marker> hex_graph(max_idx, Hex::Marker::empty);  // initializes all board positions to empty
     }
     // Hex::make_board() greats the graph of the board and the ascii display of the board
 
    ~Hex() = default;
 
 
-  enum class marker {
+  enum class Marker {
     empty = 0,
     playerX = 1,
     playerO = 2
@@ -67,7 +67,7 @@ class Hex {
 // more members
 //
 public:
-  Graph<marker> hex_graph;
+  Graph<Marker> hex_graph;
   // a member of Hex that is a Graph object, using "composition" instead
   // of inheritance. The graph content is created by either make_board()
   // or load_board_from_file()
@@ -79,8 +79,8 @@ private:
       finish_border; // holds indices to the bottom and right edges of the board
   vector<vector<RowCol>>
       move_seq; // history of moves: use ONLY indices 1 and 2 for outer vector
-  vector<marker> &positions =
-      hex_graph.node_data; // positions of all markers on the board: alias to
+  vector<Marker> &positions =
+      hex_graph.node_data; // positions of all Markers on the board: alias to
                            // Graph member
 
   // used by monte_carlo_move: pre-allocated memory by method set_storage
@@ -132,7 +132,7 @@ private:
     return input;
     }
 
-    inline bool is_empty(int linear) const {return get_hex_marker(linear) == marker::empty;}
+    inline bool is_empty(int linear) const {return get_hex_Marker(linear) == Marker::empty;}
 
     inline bool is_empty(RowCol rc) const { return is_empty(linear_index(rc)); }
 
@@ -177,11 +177,11 @@ private:
         return os;
     }
 
-    friend std::ostream &operator<<(std::ostream &os, const Hex::marker &m)
+    friend std::ostream &operator<<(std::ostream &os, const Hex::Marker &m)
     {
-        if (m == Hex::marker::playerX)
+        if (m == Hex::Marker::playerX)
             os << "player1";
-        else if (m == Hex::marker::playerO)
+        else if (m == Hex::Marker::playerO)
             os << "player2";
         else
             os << "empty";
@@ -189,11 +189,11 @@ private:
         return os;
     }
 
-    friend std::fstream &operator<<(std::fstream &os, const Hex::marker &m)
+    friend std::fstream &operator<<(std::fstream &os, const Hex::Marker &m)
     {
-        if (m == Hex::marker::playerX)
+        if (m == Hex::Marker::playerX)
             os << 1;
-        else if (m == Hex::marker::playerO)
+        else if (m == Hex::Marker::playerO)
             os << 2;
         else
             os << 0;
@@ -215,21 +215,21 @@ private:
     void make_board();
     void display_board() const; // print the ascii board on screen
   private:                              
-    string symdash(marker val, bool last = false) const; // return hexboard marker and add the spacer lines ___ needed to draw the board
+    string symdash(Marker val, bool last = false) const; // return hexboard Marker and add the spacer lines ___ needed to draw the board
     string lead_space(int row) const; // how many spaces to indent each line of the hexboard?
     // some string constants used to draw the board
     const string connector = R"( \ /)";
     const string last_connector = R"( \)";
     void define_borders(); // create vectors containing start and finish borders for both sides
 
-    void set_hex_marker(marker val, RowCol rc) { hex_graph.set_node_data(val, linear_index(rc)); }
-    void set_hex_marker(marker val, int row, int col) { hex_graph.set_node_data(val, linear_index(row, col)); }
-    void set_hex_marker(marker val, int linear) { hex_graph.set_node_data(val, linear); }
-    marker get_hex_marker(RowCol rc) const { return hex_graph.get_node_data(linear_index(rc)); }
-    marker get_hex_marker(int row, int col) const { return hex_graph.get_node_data(linear_index(row, col)); }
-    marker get_hex_marker(int linear) const { return hex_graph.get_node_data(linear); }
+    void set_hex_Marker(Marker val, RowCol rc) { hex_graph.set_node_data(val, linear_index(rc)); }
+    void set_hex_Marker(Marker val, int row, int col) { hex_graph.set_node_data(val, linear_index(row, col)); }
+    void set_hex_Marker(Marker val, int linear) { hex_graph.set_node_data(val, linear); }
+    Marker get_hex_Marker(RowCol rc) const { return hex_graph.get_node_data(linear_index(rc)); }
+    Marker get_hex_Marker(int row, int col) const { return hex_graph.get_node_data(linear_index(row, col)); }
+    Marker get_hex_Marker(int linear) const { return hex_graph.get_node_data(linear); }
 
-    void fill_board(vector<int> indices, marker value)
+    void fill_board(vector<int> indices, Marker value)
     {
         for (const auto idx : indices) {
             positions[idx] = value;
@@ -243,16 +243,16 @@ private:
         void initialize_move_seq();
         void simulate_hexboard_positions(vector<int> empty_hex_positions);
         RowCol random_move();
-        RowCol naive_move(marker side);
-        RowCol monte_carlo_move(marker side, int n_trials);
-        RowCol computer_move(marker side, Hex::Do_move how, int n_trials);
+        RowCol naive_move(Marker side);
+        RowCol monte_carlo_move(Marker side, int n_trials);
+        RowCol computer_move(Marker side, Hex::Do_move how, int n_trials);
         RowCol move_input(const string &msg) const;   
-        RowCol person_move(marker side);
+        RowCol person_move(Marker side);
         bool is_valid_move(RowCol rc) const;
-        marker find_ends(marker side, bool whole_board);
-        marker who_won();
+        Marker find_ends(Marker side, bool whole_board);
+        Marker who_won();
         
-        bool inline is_in_start(int idx, marker side) const;
+        bool inline is_in_start(int idx, Marker side) const;
 };
 
 #endif

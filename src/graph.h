@@ -87,7 +87,7 @@ public:
             // vector<Edge> and holds the neighbors
     }
 
-    // get the neighbors that match the select data--the player whose marker is
+    // get the neighbors that match the select data--the player whose Marker is
     // there
     vector<Edge> get_neighbors(const int current_node, const T_data data_filter) const
     {
@@ -192,7 +192,7 @@ public:
         Read a graph file to initialize a graph using the format of this example:
         size 4        // optional: if used, will check if it matches actual number of input nodes
         node 0        // node must be positive integer; not required to be consecutive
-            data 0    // data value at this position (can be used to represent hex markers)
+            data 0    // data value at this position (can be used to represent hex Markers)
             edge 2 3  // edge is to_node, cost. No error checking so to_node must exist
         node 1
             data 1

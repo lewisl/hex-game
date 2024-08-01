@@ -21,23 +21,23 @@ Programmer: Lewis Levin Date: April 2023
 using namespace std;
 
 
-// return hexboard marker based on value and add the spacer lines ___ needed to draw the board
-string Hex::symdash(marker val, bool last) const
+// return hexboard Marker based on value and add the spacer lines ___ needed to draw the board
+string Hex::symdash(Marker val, bool last) const
 {
     string symunit;
-    string dot = "."; // for markers encoded as 0 == empty
-    string x = "X"; // for markers encoded as 1
-    string o = "O"; // for markers encoded as 2
+    string dot = "."; // for Markers encoded as 0 == empty
+    string x = "X"; // for Markers encoded as 1
+    string o = "O"; // for Markers encoded as 2
     string spacer = "___"; // part of drawing the board as ascii characters
 
     if (last)
         spacer = "";
 
-    if (val == marker::empty)
+    if (val == Marker::empty)
         symunit = dot + spacer;
-    else if (val == marker::playerX)
+    else if (val == Marker::playerX)
         symunit = x + spacer;
-    else if (val == marker::playerO)
+    else if (val == Marker::playerO)
         symunit = o + spacer;
     else {
         throw invalid_argument("Error: invalid hexboard value.");
@@ -63,19 +63,19 @@ void Hex::define_borders() // tested OK
 
     // top border
     for (int row = 1, col = 1; col < edge_len + 1; col++) {
-        start_border[enum2int(marker::playerX)].push_back(linear_index(row, col));
+        start_border[enum2int(Marker::playerX)].push_back(linear_index(row, col));
     }
     // bottom border
     for (int row = edge_len, col = 1; col < edge_len + 1; col++) {
-        finish_border[enum2int(marker::playerX)].push_back(linear_index(row, col));
+        finish_border[enum2int(Marker::playerX)].push_back(linear_index(row, col));
     }
     // left border
     for (int row = 1, col = 1; row < edge_len + 1; row++) {
-        start_border[enum2int(marker::playerO)].push_back(linear_index(row, col));
+        start_border[enum2int(Marker::playerO)].push_back(linear_index(row, col));
     }
     // right border
     for (int row = 1, col = edge_len; row != edge_len + 1; ++row) {
-        finish_border[enum2int(marker::playerO)].push_back(linear_index(row, col));
+        finish_border[enum2int(Marker::playerO)].push_back(linear_index(row, col));
     }
 }
 
@@ -95,7 +95,7 @@ void Hex::make_board()
     for (int i = 0; i != max_idx; ++i) {
         hex_graph.create_edge_container(i); // create an empty edge container at each node
         rand_nodes.push_back(i);            // vector of nodes
-        // NOTE: node_data, which holds the marker at each board position,
+        // NOTE: node_data, which holds the Marker at each board position,
         //              initialized by class Graph constructor, called by class Hex constructor
         
     }
@@ -207,7 +207,7 @@ void Hex::display_board() const
             }
             for (int col = 1; col != edge_len + 1; ++col) {
                 last = col < edge_len ? false : true;
-                cout << symdash(get_hex_marker(row, col), last); // add each column value
+                cout << symdash(get_hex_Marker(row, col), last); // add each column value
             }
 
             cout << endl; // line break for row

@@ -14,15 +14,15 @@ using namespace std;
 
 void Hex::simulate_hexboard_positions(vector<int> empty_hex_positions)
 {
+    // put the empty positions in the graph in random order
     shuffle(empty_hex_positions.begin(), empty_hex_positions.end(), rng);
+
+    // swap the scalars each iteration to alternate markers    
+    Marker current = Marker::playerO; Marker next = Marker::playerX; Marker tmp = Marker::empty;
     for (int i = 0; i != empty_hex_positions.size(); ++i) {
-        if (i % 2 == 0)
-            // CRUCIAL: we don't test the board position for even/odd
-            // we test the index to the currently empty positions on the board
-            set_hex_marker(marker::playerX, empty_hex_positions[i]);
-        else
-            set_hex_marker(marker::playerO, empty_hex_positions[i]);
-    }
+      set_hex_Marker(current, empty_hex_positions[i]);
+      tmp= current; current=next; next=tmp;
+      }
 }
 
 // the program makes a random move
@@ -31,7 +31,7 @@ void Hex::simulate_hexboard_positions(vector<int> empty_hex_positions)
 Hex::RowCol Hex::random_move()
 {
     RowCol rc;
-    int maybe; // candidate node to place a marker on
+    int maybe; // candidate node to place a Marker on
 
     shuffle(rand_nodes.begin(), rand_nodes.end(), rng);
 
@@ -52,7 +52,7 @@ Hex::RowCol Hex::random_move()
 
 // the program makes a naive move to extend its longest path
 // Not used for the monte carlo simulation
-Hex::RowCol Hex::naive_move(marker side)
+Hex::RowCol Hex::naive_move(Marker side)
 {
     RowCol rc;
     RowCol prev_move;
@@ -72,7 +72,7 @@ Hex::RowCol Hex::naive_move(marker side)
         prev_move = move_seq[enum2int(side)].back();
         prev_move_linear = linear_index(prev_move);
 
-        neighbor_nodes = hex_graph.get_neighbor_nodes(prev_move_linear, marker::empty);
+        neighbor_nodes = hex_graph.get_neighbor_nodes(prev_move_linear, Marker::empty);
 
         if (neighbor_nodes.empty())
             return random_move();
@@ -91,7 +91,7 @@ Hex::RowCol Hex::naive_move(marker side)
     return rc;
 }
 
-Hex::RowCol Hex::monte_carlo_move(marker side, int n_trials)
+Hex::RowCol Hex::monte_carlo_move(Marker side, int n_trials)
 {
     move_simulation_time.start();
 
@@ -101,7 +101,7 @@ Hex::RowCol Hex::monte_carlo_move(marker side, int n_trials)
     win_pct_per_move.clear();
 
     int wins = 0;
-    marker winning_side;
+    Marker winning_side;
     int best_move = 0;
     // char pause;
 
@@ -118,7 +118,7 @@ Hex::RowCol Hex::monte_carlo_move(marker side, int n_trials)
     for (move_num = 0; move_num != empty_hex_pos.size(); ++move_num) {
 
         // make the computer's move to be evaluated
-        set_hex_marker(side, empty_hex_pos[move_num]);
+        set_hex_Marker(side, empty_hex_pos[move_num]);
         wins = 0; // reset the win counter across the trials
 
         // only on the first move, copy all the empty_hex_pos except 0 to the vector to be shuffled
@@ -146,7 +146,7 @@ Hex::RowCol Hex::monte_carlo_move(marker side, int n_trials)
         win_pct_per_move.push_back(static_cast<float>(wins) / n_trials);
 
         // reverse the trial move
-        set_hex_marker(marker::empty, empty_hex_pos[move_num]);
+        set_hex_Marker(Marker::empty, empty_hex_pos[move_num]);
     }
 
     // find the maximum computer win percentage across all the candidate moves
@@ -160,14 +160,14 @@ Hex::RowCol Hex::monte_carlo_move(marker side, int n_trials)
     }
 
     // restore the board
-    fill_board(empty_hex_pos, marker::empty);
+    fill_board(empty_hex_pos, Marker::empty);
 
     move_simulation_time.cum();
 
     return row_col_index(best_move);
 }
 
-Hex::RowCol Hex::computer_move(marker side, Hex::Do_move how, int n_trials)
+Hex::RowCol Hex::computer_move(Marker side, Hex::Do_move how, int n_trials)
 {
     RowCol rc;
 
@@ -180,7 +180,7 @@ Hex::RowCol Hex::computer_move(marker side, Hex::Do_move how, int n_trials)
         break;
     }
 
-    set_hex_marker(side, rc);
+    set_hex_Marker(side, rc);
     move_seq[enum2int(side)].push_back(rc);
 
     move_count++;
@@ -206,7 +206,7 @@ Hex::RowCol Hex::move_input(const string &msg) const
     return Hex::RowCol{row, col};
 }
 
-Hex::RowCol Hex::person_move(marker side)
+Hex::RowCol Hex::person_move(Marker side)
 {
     RowCol rc;
     bool valid_move = false;
@@ -248,7 +248,7 @@ Hex::RowCol Hex::person_move(marker side)
             valid_move = is_valid_move(rc);
         }
 
-    set_hex_marker(side, rc);
+    set_hex_Marker(side, rc);
     move_seq[enum2int(side)].push_back(rc);
 
     move_count++;
@@ -275,7 +275,7 @@ bool Hex::is_valid_move(Hex::RowCol rc) const
         valid_move = false;
         msg = bad_position;
     }
-    else if (get_hex_marker(rc) != Hex::marker::empty) {
+    else if (get_hex_Marker(rc) != Hex::Marker::empty) {
         valid_move = false;
         msg = not_empty;
     }
@@ -289,7 +289,7 @@ bool Hex::is_valid_move(Hex::RowCol rc) const
 // Might not look it but this is a DFS, but it doesn't build a path. It only
 // finds the start point given a point in the finish border.  If the end point is
 // in the start border, we have a winner.  We don't care about the middle steps of the path.
-Hex::marker Hex::find_ends(Hex::marker side, bool whole_board = false)
+Hex::Marker Hex::find_ends(Hex::Marker side, bool whole_board = false)
 {
     winner_assess_time.start();
 
@@ -300,9 +300,9 @@ Hex::marker Hex::find_ends(Hex::marker side, bool whole_board = false)
     neighbors.clear();
     captured.clear();
 
-    // test for positions in the finish border, though start border would also work: assumption fewer markers at the finish
+    // test for positions in the finish border, though start border would also work: assumption fewer Markers at the finish
     for (auto hex : finish_border[enum2int(side)]) { //look through the finish border
-        if (get_hex_marker(hex) == side) // if there is a marker for this side, add it
+        if (get_hex_Marker(hex) == side) // if there is a Marker for this side, add it
         {
             possibles.push_back(hex); // we'll try to trace a path extending from each of these nodes
             captured.push_back(hex); // it should never be added again
@@ -344,31 +344,31 @@ Hex::marker Hex::find_ends(Hex::marker side, bool whole_board = false)
     winner_assess_time.cum();
     // we've exhausted all the possibles w/o finding a complete branch
     if (whole_board) { // the winner has to be the other side because the side we tested doesn't have a complete path
-        return (side == marker::playerO ? marker::playerX : marker::playerO); // just reverse the side
+        return (side == Marker::playerO ? Marker::playerX : Marker::playerO); // just reverse the side
     }
     else
-        return marker::empty; // no winner--too early in the game--no path from start to finish for this side
+        return Marker::empty; // no winner--too early in the game--no path from start to finish for this side
 }
 
-bool inline Hex::is_in_start(int idx, marker side) const {
-    if (side == marker::playerX) {
+bool inline Hex::is_in_start(int idx, Marker side) const {
+    if (side == Marker::playerX) {
         return idx < edge_len;
-    } else if (side == marker::playerO) {
+    } else if (side == Marker::playerO) {
         return idx % edge_len == 0;
     } else
-        throw invalid_argument("Error: invalid side. Must be marker::playerX  "
-                               "or  marker::playerO.\n");
+        throw invalid_argument("Error: invalid side. Must be Marker::playerX  "
+                               "or  Marker::playerO.\n");
 }
 
 
-Hex::marker Hex::who_won() // we use this when we may not have a full board, so do need to evaluate both sides
+Hex::Marker Hex::who_won() // we use this when we may not have a full board, so do need to evaluate both sides
 {
-    marker winner = marker::empty;
-    vector<marker> sides{marker::playerX, marker::playerO};
+    Marker winner = Marker::empty;
+    vector<Marker> sides{Marker::playerX, Marker::playerO};
 
     for (auto side : sides) {
         winner = find_ends(side);
-        if (winner != marker::empty) {
+        if (winner != Marker::empty) {
             break;
         }
     }
@@ -383,9 +383,9 @@ void Hex::play_game(Hex::Do_move how, int n_trials)
     // bool valid_move;
     // bool person_first = true;
     string answer;
-    marker person_marker;
-    marker computer_marker;
-    marker winning_side;
+    Marker person_Marker;
+    Marker computer_Marker;
+    Marker winning_side;
 
     clear_screen();
     cout << "\n\n";
@@ -398,23 +398,23 @@ void Hex::play_game(Hex::Do_move how, int n_trials)
 
         if (is_in(tolower(answer), "yes")) {
             // person_first = true;
-            person_marker = marker::playerX;
-            computer_marker = marker::playerO;
+            person_Marker = Marker::playerX;
+            computer_Marker = Marker::playerO;
 
-            cout << "\nYou go first playing X markers.\n";
+            cout << "\nYou go first playing X Markers.\n";
             cout << "Make a path from the top row to the bottom.\n";
-            cout << "The computer goes second playing O markers.\n";
+            cout << "The computer goes second playing O Markers.\n";
             cout << string_by_n("\n", 2);
 
             break;
         }
         else if (is_in(tolower(answer), "no")) {
             // person_first = false;
-            person_marker = marker::playerO;
-            computer_marker = marker::playerX;
+            person_Marker = Marker::playerO;
+            computer_Marker = Marker::playerX;
 
-            cout << "\nThe computer goes first playing X markers.\n";
-            cout << "You go second playing O markers.\n";
+            cout << "\nThe computer goes first playing X Markers.\n";
+            cout << "You go second playing O Markers.\n";
             cout << "Make a path from the first column to the last column.\n";
             cout << string_by_n("\n", 2);
 
@@ -428,13 +428,13 @@ void Hex::play_game(Hex::Do_move how, int n_trials)
 
     while (true) // move loop
     {
-        switch (person_marker) {
+        switch (person_Marker) {
 
         // person goes first
-        case marker::playerX:
+        case Marker::playerX:
             display_board();
 
-            person_rc = person_move(person_marker);
+            person_rc = person_move(person_Marker);
 
 
             if (person_rc.row == -1) {
@@ -442,7 +442,7 @@ void Hex::play_game(Hex::Do_move how, int n_trials)
                 exit(0);
             }
 
-            computer_rc = computer_move(computer_marker, how, n_trials);
+            computer_rc = computer_move(computer_Marker, how, n_trials);
             clear_screen();
             cout << "The computer moved at " << computer_rc << "\n";
             cout << "Your move at " << person_rc << " was valid.\n\n\n";
@@ -450,14 +450,14 @@ void Hex::play_game(Hex::Do_move how, int n_trials)
             break;
 
         // computer goes first
-        case marker::playerO:
+        case Marker::playerO:
 
-            computer_rc = computer_move(computer_marker, how, n_trials);
+            computer_rc = computer_move(computer_Marker, how, n_trials);
             cout << "The computer moved at " << computer_rc << "\n\n";
 
             display_board();
 
-            person_rc = person_move(person_marker);
+            person_rc = person_move(person_Marker);
             if (person_rc.row == -1) {
                 cout << "Game over! Come back again...\n";
                 exit(0);
@@ -467,17 +467,17 @@ void Hex::play_game(Hex::Do_move how, int n_trials)
             cout << "Your move at " << person_rc << " was valid.\n";
 
             break;
-        case marker::empty:
-            throw invalid_argument("Error: Player marker for human player cannot be empty.\n");
+        case Marker::empty:
+            throw invalid_argument("Error: Player Marker for human player cannot be empty.\n");
         }
 
         // test for a winner
         if (move_count >= (edge_len + edge_len - 1)) {
-            winning_side = who_won(); // result is marker::empty, marker::playerX, or marker::playerO
+            winning_side = who_won(); // result is Marker::empty, Marker::playerX, or Marker::playerO
 
-            if (enum2int(winning_side)) { // e.g., wasn't marker::empty
+            if (enum2int(winning_side)) { // e.g., wasn't Marker::empty
                 cout << "We have a winner. "
-                     << (winning_side == person_marker ? "You won. Congratulations!" : " The computer beat you )-:")
+                     << (winning_side == person_Marker ? "You won. Congratulations!" : " The computer beat you )-:")
                      << "\nGame over. Come back and play again!\n\n";
                 display_board();
                 break;
