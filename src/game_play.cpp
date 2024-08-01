@@ -21,13 +21,12 @@ void Hex::simulate_hexboard_positions(vector<int> empty_hex_positions)
     Marker current = Marker::playerO; Marker next = Marker::playerX; Marker tmp = Marker::empty;
     for (int i = 0; i != empty_hex_positions.size(); ++i) {
       set_hex_Marker(current, empty_hex_positions[i]);
-      tmp= current; current=next; next=tmp;
+      tmp = current; current = next; next = tmp;  // faster than std::swap
       }
 }
 
-// the program makes a random move
-// Not used for the monte carlo simulation:
-// used for naive computer move
+
+// Not used for the monte carlo simulation: used for naive computer move
 Hex::RowCol Hex::random_move()
 {
     RowCol rc;
@@ -38,7 +37,7 @@ Hex::RowCol Hex::random_move()
     for (int i = 0; i != max_idx; ++i) {
         maybe = rand_nodes[i];
         if (is_empty(maybe)) {
-            rc = row_col_index(maybe);
+            rc = linear2row_col(maybe);
             break;
         }
     }
@@ -63,7 +62,7 @@ Hex::RowCol Hex::naive_move(Marker side)
         shuffle(start_border[static_cast<int>(side)].begin(), start_border[static_cast<int>(side)].end(), rng);
         for (int maybe : start_border[static_cast<int>(side)]) {
             if (is_empty(maybe)) {
-                rc = row_col_index(maybe);
+                rc = linear2row_col(maybe);
                 return rc;
             }
         }
@@ -77,15 +76,15 @@ Hex::RowCol Hex::naive_move(Marker side)
         if (neighbor_nodes.empty())
             return random_move();
 
-        shuffle(neighbor_nodes.begin(), neighbor_nodes.end(), rng);
+        shuffle(neighbor_nodes.begin(), neighbor_nodes.end(), rng); // why twice?
         shuffle(neighbor_nodes.begin(), neighbor_nodes.end(), rng);
 
         for (int node : neighbor_nodes) {
-            rc = row_col_index(node);
+            rc = linear2row_col(node);
             if (rc.col > prev_move.col)
                 return rc;
         }
-        rc = row_col_index(neighbor_nodes.back());
+        rc = linear2row_col(neighbor_nodes.back());
     }
 
     return rc;
@@ -103,7 +102,6 @@ Hex::RowCol Hex::monte_carlo_move(Marker side, int n_trials)
     int wins = 0;
     Marker winning_side;
     int best_move = 0;
-    // char pause;
 
     // loop over positions on the board to find available moves = empty positions
     for (int i = 0; i != max_idx; ++i) {
@@ -124,14 +122,13 @@ Hex::RowCol Hex::monte_carlo_move(Marker side, int n_trials)
         // only on the first move, copy all the empty_hex_pos except 0 to the vector to be shuffled
         if (move_num == 0) {
             for (auto j = 0; j != move_num; ++j)
-                random_pos.push_back(
-                    empty_hex_pos[j]); // with memory reserved, this is about as fast as an update by array index
+                random_pos.push_back(empty_hex_pos[j]); 
             for (auto j = move_num; j != empty_hex_pos.size() - 1; ++j)
                 random_pos.push_back(empty_hex_pos[j + 1]);
         }
         else { // for the other moves, faster to simply change 2 values
             random_pos[move_num - 1] = empty_hex_pos[move_num - 1];
-            random_pos[move_num] = empty_hex_pos[move_num + 1]; // this skips empty_hex_pos[move_num]
+            random_pos[move_num] = empty_hex_pos[move_num + 1]; // skip empty_hex_pos[move_num]
         }
 
         for (int trial = 0; trial != n_trials; ++trial) {
@@ -164,7 +161,7 @@ Hex::RowCol Hex::monte_carlo_move(Marker side, int n_trials)
 
     move_simulation_time.cum();
 
-    return row_col_index(best_move);
+    return linear2row_col(best_move);
 }
 
 Hex::RowCol Hex::computer_move(Marker side, Hex::Do_move how, int n_trials)
@@ -230,22 +227,22 @@ Hex::RowCol Hex::person_move(Marker side)
             return rc;
         }
 
-            if (rc.row == -5) { // hidden command to write the current board positions
-                // to a file
-                // prepare output file
-                string filename = "Board Graph.txt";
-                ofstream outfile;
-                outfile.open(filename,
-                             ios::out); // open a file to perform write operation
-                // using file object
-                if (!(outfile.is_open())) {
-                    throw invalid_argument("Error opening file.");
-                }
-                hex_graph.display_graph(outfile, true);
-                outfile.close();
+        if (rc.row == -5) { // hidden command to write the current board positions
+            // to a file
+            // prepare output file
+            string filename = "Board Graph.txt";
+            ofstream outfile;
+            outfile.open(filename,
+                            ios::out); // open a file to perform write operation
+            // using file object
+            if (!(outfile.is_open())) {
+                throw invalid_argument("Error opening file.");
             }
+            hex_graph.display_graph(outfile, true);
+            outfile.close();
+        }
 
-            valid_move = is_valid_move(rc);
+        valid_move = is_valid_move(rc);
         }
 
     set_hex_Marker(side, rc);
@@ -323,14 +320,12 @@ Hex::Marker Hex::find_ends(Hex::Marker side, bool whole_board = false)
             neighbors = hex_graph.get_neighbor_nodes(possibles[front], side, captured);
 
             if (neighbors.empty()) {
-                if (!possibles
-                         .empty()) // always have to do this before pop because c++ will terminate if you pop from empty
+                if (!possibles.empty()) // always have to do this before pop because c++ will terminate if you pop from empty
                     possibles.pop_front(); // pop this node because it has no neighbors
                 break; // go back to the top whether empty or not:  outer while loop will test if empty
             }
             else { // when we have one or more neighbors:
-                possibles[front] =
-                    neighbors[0]; // advance the endpoint to this neighbor, get rid of the previous possible
+                possibles[front] = neighbors[0]; // advance the endpoint to this neighbor, get rid of the previous possible
                 captured.push_back(neighbors[0]);
 
                 for (int i = 1; i != neighbors.size(); ++i) { // if there is more than one neighbor..
@@ -436,7 +431,6 @@ void Hex::play_game(Hex::Do_move how, int n_trials)
 
             person_rc = person_move(person_Marker);
 
-
             if (person_rc.row == -1) {
                 cout << "Game over! Come back again...\n";
                 exit(0);
@@ -485,7 +479,3 @@ void Hex::play_game(Hex::Do_move how, int n_trials)
         }
     }
 }
-
-
-
-

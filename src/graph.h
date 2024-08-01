@@ -87,8 +87,7 @@ public:
             // vector<Edge> and holds the neighbors
     }
 
-    // get the neighbors that match the select data--the player whose Marker is
-    // there
+    // get the neighbors whose data match the filter data 
     vector<Edge> get_neighbors(const int current_node, const T_data data_filter) const
     {
         vector<Edge> vec;

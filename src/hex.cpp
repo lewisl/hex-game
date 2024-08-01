@@ -20,7 +20,7 @@ int main(int argc, char *argv[])
         n_trials = atoi(argv[2]);}
     else {
         cout << "Wrong number of input arguments:\n"
-             << "Run as hex [size] [n_trials]. exiting..." << endl;
+            << "Run as hex [size] [n_trials]. exiting..." << endl;
         return 0;}
 
     if ((size < 0) || (size % 2 == 0)) {

@@ -22,13 +22,26 @@ using namespace std;
 
 
 class Hex {
-  private:
-    const int edge_len;
-    int max_idx;    // maximum linear index
-    int move_count{0}; // number of moves played during the game: each player's move
-                    // adds 1 (both moves = a ply)
-    vector<int> rand_nodes; // use in rand move method
-  public:
+public:
+  enum class Marker {
+    empty = 0,
+    playerX = 1,
+    playerO = 2
+  }; // for the data held at each board position
+
+  enum class Do_move { naive = 0, monte_carlo };
+
+  // row and col on the hexboard to address a hexagon
+  // row and col are seen by the human player so we use 1-based indexing
+  // the linear_index conversion method handles this
+  struct RowCol {
+    int row;
+    int col;
+
+    RowCol(int row = 0, int col = 0)
+        : row(row), col(col) {} // initialize to illegal position as sentinel
+    };
+
     // constructor/destructor
     Hex(size_t size): edge_len(size) { // enforce input requirement and invariant
             if ((size < 0) || (size % 2 == 0)) {
@@ -42,46 +55,30 @@ class Hex {
 
    ~Hex() = default;
 
-
-  enum class Marker {
-    empty = 0,
-    playerX = 1,
-    playerO = 2
-  }; // for the data held at each board position
-  enum class Do_move { naive = 0, monte_carlo };
-
-  // row and col on the hexboard to address a hexagon
-  // row and col are seen by the human player so we use 1-based indexing
-  // the linear_index conversion method handles this
-  struct RowCol {
-    int row;
-    int col;
-
-    RowCol(int row = 0, int col = 0)
-        : row(row), col(col) {} // initialize to illegal position as sentinel
-                                // RowCol() = default;
-                                // ~RowCol() = default;
-  };
-
 //
-// more members
+// members
 //
 public:
   Graph<Marker> hex_graph;
   // a member of Hex that is a Graph object, using "composition" instead
-  // of inheritance. The graph content is created by either make_board()
-  // or load_board_from_file()
+  // of inheritance. The graph content is created by make_board().
+
+  // for random shuffling of board moves
+  unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+  std::mt19937 rng{seed};
+
+  Timing winner_assess_time;   // measure cumulative time for assessing the game
+  Timing move_simulation_time; // measure cumulative time for simulating moves
 
 private:
-  vector<vector<int>>
-      start_border; // holds indices to the top and left edges of the board
-  vector<vector<int>>
-      finish_border; // holds indices to the bottom and right edges of the board
-  vector<vector<RowCol>>
-      move_seq; // history of moves: use ONLY indices 1 and 2 for outer vector
-  vector<Marker> &positions =
-      hex_graph.node_data; // positions of all Markers on the board: alias to
-                           // Graph member
+  const int edge_len;
+  int max_idx; // maximum linear index
+  int move_count{0}; // number of moves played during the game: each player's move adds 1
+  vector<int> rand_nodes; // use in rand move method
+  vector<vector<int>> start_border; // indices to the top and left edges of the board
+  vector<vector<int>> finish_border; // indices to the bottom and right edges of the board
+  vector<vector<RowCol>> move_seq; // history of moves: use ONLY indices 1 and 2 for outer vector
+  vector<Marker> &positions = hex_graph.node_data; // positions ofMarkers on the board: alias to Graph
 
   // used by monte_carlo_move: pre-allocated memory by method set_storage
   vector<int> empty_hex_pos; // empty positions that are available for candidate
@@ -93,23 +90,7 @@ private:
   vector<int> neighbors;
   vector<int> captured;
 
-  void set_storage(int max_idx) {  // optimization to reduce memory allocations for resizing containers
-    empty_hex_pos.reserve(max_idx);
-    random_pos.reserve(max_idx);
-    win_pct_per_move.reserve(max_idx);
-    captured.reserve(max_idx / 2 + 1);
-    // for a player, can only be half the board positions + 1 for the player that goes first
-    hex_graph.set_storage(max_idx); // using Graph method
-    neighbors.reserve(6);
-  }
 
-public:
-  // for random shuffling of board moves
-  unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
-  std::mt19937 rng{seed};
-
-  Timing winner_assess_time;   // measure cumulative time for assessing the game
-  Timing move_simulation_time; // measure cumulative time for simulating moves
 
   //
   // methods
@@ -130,19 +111,31 @@ private:
           break;
     }
     return input;
-    }
+  }
 
+  void set_storage(int max_idx) { // optimization to reduce memory allocations
+                                  // for resizing containers
+    empty_hex_pos.reserve(max_idx);
+    random_pos.reserve(max_idx);
+    win_pct_per_move.reserve(max_idx);
+    captured.reserve(max_idx / 2 + 1);
+    // for a player, can only be half the board positions + 1 for the player
+    // that goes first
+    hex_graph.set_storage(max_idx); // using Graph method
+    neighbors.reserve(6);
+  }
+
+public:
     inline bool is_empty(int linear) const {return get_hex_Marker(linear) == Marker::empty;}
 
     inline bool is_empty(RowCol rc) const { return is_empty(linear_index(rc)); }
 
-    // indexing the board positions: game play methods use row and col for board positions
-    // row and col indices are 1-based for end users playing the game
-    // linear indices are zero-based
-
-    // convert row, col position to a linear index to an array or map
+    // indexing the board positions: game play methods use row and col for board
+    // positions row and col indices are 1-based for end users playing the game
     // Class graph uses 0-based linear indices
     // linear indexes are 0-based to access c++ data structures
+
+    // convert row, col position to a linear index to an array or map
     int linear_index(RowCol rc) const { return linear_index(rc.row, rc.col); }
 
     // convert row, col position to a linear index to an array or map
@@ -159,7 +152,7 @@ private:
     }
 
     // convert linear_index to RowCol index
-    RowCol row_col_index(int linear) const
+    RowCol linear2row_col(int linear) const
     {
         if (linear < max_idx) {
             return RowCol((linear / edge_len) + 1, (linear % edge_len) + 1);
@@ -251,7 +244,6 @@ private:
         bool is_valid_move(RowCol rc) const;
         Marker find_ends(Marker side, bool whole_board);
         Marker who_won();
-        
         bool inline is_in_start(int idx, Marker side) const;
 };
 
