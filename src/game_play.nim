@@ -12,9 +12,10 @@ import helpers
 import std/rdstdin # read stdin and don't read control keys
 
 
-proc simulate_hexboard_positions(hb: var Hexboard) =  # , empty_hex_positions: var seq[int] 
 
-  shuffle(hb.empty_pos) 
+proc simulate_hexboard_positions(hb: var Hexboard) =  # , empty_hex_positions: var seq[int] 
+  var randgen = initRand(101)
+  randgen.shuffle(hb.empty_pos) 
 
   var
     current: Marker = playerO
@@ -35,7 +36,9 @@ proc random_move(hb: var Hexboard) : RowCol =
     rc: RowCol
     maybe: int
 
-  shuffle(hb.rand_nodes)
+  var randgen = initRand(rand(101))
+  randgen.shuffle(hb.rand_nodes)
+
   for i in 0 ..< hb.max_idx:
     maybe = hb.rand_nodes[i]
     if hb.is_empty(maybe):
@@ -54,7 +57,8 @@ proc naive_move(hb: var Hexboard, side: Marker) : RowCol =
     rc, prev_move: RowCol
     prev_move_linear: int
     neighbor_nodes: seq[int]
-    randgen = initRand(101)
+
+  var randgen = initRand(rand(101))
 
   if hb.move_seq[ord(side)].len == 0:
     randgen.shuffle(hb.start_border[ord(side)])
@@ -317,6 +321,7 @@ proc play_game*(hb: var Hexboard, how: Do_move, n_trials: int) =
     computer_marker: Marker
     winning_side: Marker
 
+  randomize()
   clear_screen()
   echo("\n")
 
