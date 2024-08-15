@@ -193,6 +193,15 @@ let a = 2
 for i in countup(a, a + 12, a + 1):  # very tricky because the loop counter is i, so the increment is 3
   echo i
 
+randomize()
+proc cards() =
+  # randomize()
+  var cards = @["king", "queen", "jack", "ace", "10"]
+  shuffle(cards)
+  echo cards
+
+cards()
+
 # echo(contains(sq, fv))
 # echo(contains(sq,fr))
 # echo(contains("yes", "y"))

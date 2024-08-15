@@ -1,13 +1,15 @@
 # nim c -d:release --mm:orc --threads:on --opt:speed --outdir:build src/hex.nim
 
-import hex_board
-import game_play
-import os
-import strutils
 
+import 
+  os,
+  strutils,
+  hex_board,
+  game_play
 
-var size: int = 5
-var n_trials: int = 1000
+var 
+  size: int = 5
+  n_trials: int = 1000
 
 echo("paramcount: ", $paramCount())
 

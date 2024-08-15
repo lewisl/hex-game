@@ -44,8 +44,9 @@ type
 
   
 proc newhexboard*(edge_len: int) : Hexboard =
-  var edge_len = edge_len
-  var max_idx = edge_len * edge_len
+  var 
+    edge_len = edge_len
+    max_idx = edge_len * edge_len
   var hb = Hexboard(edge_len: edge_len, 
                     max_idx: max_idx,
                     move_seq: newSeq[newSeq[RowCol](max_idx div 2 + 1)](3),
@@ -59,46 +60,46 @@ proc newhexboard*(edge_len: int) : Hexboard =
     hb.rand_nodes.add(i)
   for i in 1..2:
     hb.move_seq[i].add(@[]) # add instantiated empty seq[RowCol]
-  result = hb
+  return hb
 
-proc rowcol2linear(hb: Hexboard, row: int, col: int) : int {.inline.} =
+proc rowcol2linear(hb: Hexboard, row: int, col: int) : int  =
   let r = row - 1
   let c = col - 1
 
   if (r < hb.edge_len) and (c < hb.edge_len):
-    result = (r * hb.edge_len) + c
+    return (r * hb.edge_len) + c
   else:
     raise newException(ValueError, "Bad row or col input: both must be >= edge length")
 
-proc rowcol2linear*(hb: Hexboard, rc: RowCol) : int {.inline.} =
-  result = hb.rowcol2linear(rc.row, rc.col)
+proc rowcol2linear*(hb: Hexboard, rc: RowCol) : int  =
+  return hb.rowcol2linear(rc.row, rc.col)
 
-proc linear2rowcol*(hb: Hexboard, linear: int) : RowCol {.inline.} =
+proc linear2rowcol*(hb: Hexboard, linear: int) : RowCol  =
   if linear < hb.max_idx:
-    result = RowCol(row: (linear div hb.edge_len) + 1, col: (linear mod hb.edge_len) + 1)
+    return RowCol(row: (linear div hb.edge_len) + 1, col: (linear mod hb.edge_len) + 1)
   else:
     raise newException(ValueError, "Error: linear index input greater than edge_len * edge_len." )
 
 proc is_empty*(hb: Hexboard, linear: int) : bool =
-  result = hb.hex_graph.node_data[linear] == Marker.empty
+  return hb.hex_graph.node_data[linear] == Marker.empty
 
 proc is_empty*(hb: Hexboard, rc: RowCol) : bool =
-  result = hb.hex_graph.node_data[hb.rowcol2linear(rc)] == Marker.empty
+  return hb.hex_graph.node_data[hb.rowcol2linear(rc)] == Marker.empty
 
 # getters and setters from hex_board to graph: maybe this is reason to shadow node_data
-proc set_hex_marker*(hb: var Hex_board, hex_graph: var Graph, rc: RowCol, val: Marker) {.inline.} = 
+proc set_hex_marker*(hb: var Hex_board, hex_graph: var Graph, rc: RowCol, val: Marker)  = 
   hex_graph.set_node_data(hb.rowcol2linear(rc), val)
-proc set_hex_marker*(hb: var Hex_board, hex_graph: var Graph, row: int, col: int, val: Marker) {.inline.} =
+proc set_hex_marker*(hb: var Hex_board, hex_graph: var Graph, row: int, col: int, val: Marker)  =
   hex_graph.set_node_data(hb.rowcol2linear(row, col), val)
-proc set_hex_marker*(hb: var Hex_board, hex_graph: var Graph, linear: int, val: Marker) {.inline.} =
+proc set_hex_marker*(hb: var Hex_board, hex_graph: var Graph, linear: int, val: Marker)  =
   hex_graph.set_node_data(linear, val)
 
-proc get_hex_Marker*(hb: Hex_board, hex_graph: Graph[Marker], rc: RowCol) : Marker {.inline.} =
-  result = get_node_data[Marker](hex_graph, hb.rowcol2linear(rc))
-proc get_hex_Marker*(hb: Hex_board, hex_graph: Graph[Marker], row: int, col: int) : Marker {.inline.} =
-  result = get_node_data[Marker](hex_graph, hb.rowcol2linear(row, col))
-proc get_hex_Marker*(hex_graph: Graph[Marker], linear: int) : Marker {.inline.} =
-  result =  get_node_data[Marker](hex_graph, linear)
+proc get_hex_Marker*(hb: Hex_board, hex_graph: Graph[Marker], rc: RowCol) : Marker  =
+  return get_node_data[Marker](hex_graph, hb.rowcol2linear(rc))
+proc get_hex_Marker*(hb: Hex_board, hex_graph: Graph[Marker], row: int, col: int) : Marker  =
+  return get_node_data[Marker](hex_graph, hb.rowcol2linear(row, col))
+proc get_hex_Marker*(hex_graph: Graph[Marker], linear: int) : Marker  =
+  return  get_node_data[Marker](hex_graph, linear)
 
 
 
@@ -193,29 +194,29 @@ proc make_board*(hb: var Hexboard) =
     
   # east-west edges: constant col, vary row
   for r in 2..hb.edge_len-1:
-      var c: int = 1
-      hb.hex_graph.add_edge(hb.rowcol2linear(r, c), hb.rowcol2linear(r - 1, c))
-      hb.hex_graph.add_edge(hb.rowcol2linear(r, c), hb.rowcol2linear(r - 1, c + 1))
-      hb.hex_graph.add_edge(hb.rowcol2linear(r, c), hb.rowcol2linear(r, c + 1))
-      hb.hex_graph.add_edge(hb.rowcol2linear(r, c), hb.rowcol2linear(r + 1, c))
+    var c: int = 1
+    hb.hex_graph.add_edge(hb.rowcol2linear(r, c), hb.rowcol2linear(r - 1, c))
+    hb.hex_graph.add_edge(hb.rowcol2linear(r, c), hb.rowcol2linear(r - 1, c + 1))
+    hb.hex_graph.add_edge(hb.rowcol2linear(r, c), hb.rowcol2linear(r, c + 1))
+    hb.hex_graph.add_edge(hb.rowcol2linear(r, c), hb.rowcol2linear(r + 1, c))
 
-      c = hb.edge_len
-      hb.hex_graph.add_edge(hb.rowcol2linear(r, c), hb.rowcol2linear(r - 1, c))
-      hb.hex_graph.add_edge(hb.rowcol2linear(r, c), hb.rowcol2linear(r, c - 1))
-      hb.hex_graph.add_edge(hb.rowcol2linear(r, c), hb.rowcol2linear(r + 1, c - 1))
-      hb.hex_graph.add_edge(hb.rowcol2linear(r, c), hb.rowcol2linear(r + 1, c))
+    c = hb.edge_len
+    hb.hex_graph.add_edge(hb.rowcol2linear(r, c), hb.rowcol2linear(r - 1, c))
+    hb.hex_graph.add_edge(hb.rowcol2linear(r, c), hb.rowcol2linear(r, c - 1))
+    hb.hex_graph.add_edge(hb.rowcol2linear(r, c), hb.rowcol2linear(r + 1, c - 1))
+    hb.hex_graph.add_edge(hb.rowcol2linear(r, c), hb.rowcol2linear(r + 1, c))
     
 
   # interior tiles: 6 edges per hex
   for r in 2..hb.edge_len-1:
     # for (int c = 2 c != edge_len ++c) {
     for c in 2..hb.edge_len-1:
-        hb.hex_graph.add_edge(hb.rowcol2linear(r, c), hb.rowcol2linear(r - 1, c + 1))
-        hb.hex_graph.add_edge(hb.rowcol2linear(r, c), hb.rowcol2linear(r, c + 1))
-        hb.hex_graph.add_edge(hb.rowcol2linear(r, c), hb.rowcol2linear(r + 1, c))
-        hb.hex_graph.add_edge(hb.rowcol2linear(r, c), hb.rowcol2linear(r + 1, c - 1))
-        hb.hex_graph.add_edge(hb.rowcol2linear(r, c), hb.rowcol2linear(r, c - 1))
-        hb.hex_graph.add_edge(hb.rowcol2linear(r, c), hb.rowcol2linear(r - 1, c))
+      hb.hex_graph.add_edge(hb.rowcol2linear(r, c), hb.rowcol2linear(r - 1, c + 1))
+      hb.hex_graph.add_edge(hb.rowcol2linear(r, c), hb.rowcol2linear(r, c + 1))
+      hb.hex_graph.add_edge(hb.rowcol2linear(r, c), hb.rowcol2linear(r + 1, c))
+      hb.hex_graph.add_edge(hb.rowcol2linear(r, c), hb.rowcol2linear(r + 1, c - 1))
+      hb.hex_graph.add_edge(hb.rowcol2linear(r, c), hb.rowcol2linear(r, c - 1))
+      hb.hex_graph.add_edge(hb.rowcol2linear(r, c), hb.rowcol2linear(r - 1, c))
 
 
 proc display_board*(hb: Hexboard) =
@@ -270,7 +271,7 @@ var arr_y: arr_3 = [5,6,7]
 for i, value in @[3, 4, 5]:
   echo "index: ", $i, ", value:", $value
 
-  {.inline.} to inline a function (maybe!)
+   to inline a function (maybe!)
 
   pre-allocate a seq, use assignment by index to set values
   var foo = newSeq[int](5) # initializes to zero

@@ -1,6 +1,6 @@
 add_rules("mode.debug", "mode.release")
 
-target("hexnim")
+target("hex")
     set_kind("binary")
     add_ncflags("--opt:size")
     add_files("src/hex.nim")

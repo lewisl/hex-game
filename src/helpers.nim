@@ -9,7 +9,7 @@ proc is_in*[T_cont, T](val: T, cont: T_cont) : bool =
     if item == val:
       found = true
       break
-  result = found
+  return found
   ]#
 
 #[ This works but nim has repeat, so not needed...
@@ -19,7 +19,7 @@ proc string_by_n*(s: string, n: int) : string =
   var ret: string
   for i in 0..n-1:
     ret &= s
-  result = ret
+  return ret
 ]#
   
 

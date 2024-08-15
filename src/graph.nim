@@ -26,7 +26,7 @@ proc newgraph*[T_data](node_elem: T_data, size: int): Graph[T_data] =
   for i in 0..(size-1):
     gr.node_data.add(node_elem)
     gr.gmap[i] = @[] # create a node and empty seq[Edge]
-  result = gr
+  return gr
 
 
 # TODO: handle missing nodes, although less likely given full initialization
@@ -48,34 +48,34 @@ proc add_edge*(hex_graph: var Graph, node: int, tonode: int, cost: int = 0, bidi
 proc set_node_data*[T_data](hex_graph: var Graph, idx: int, val: T_data) =
   hex_graph.node_data[idx] = val
 
-proc get_node_data*[T_data](hex_graph: Graph[T_data], idx: int) : T_data {.inline.} =
+proc get_node_data*[T_data](hex_graph: Graph[T_data], idx: int) : T_data  =
   return hex_graph.node_data[idx]
 
 # get the neighbors of a node as a vector of edges
-proc get_neighbors*[T_data](hex_graph: Graph[T_data], current_node: int) : seq[Edge] {.inline.} =
-  result = hex_graph.gmap[current_node]
+proc get_neighbors*[T_data](hex_graph: Graph[T_data], current_node: int) : seq[Edge]  =
+  return hex_graph.gmap[current_node]
 
 # get the neighbors whose data match to filter data
-proc get_neighbors*[T_data](hex_graph: Graph[T_data], current_node: int, item_filter: T_data) : seq[Edge] {.inline.} =
+proc get_neighbors*[T_data](hex_graph: Graph[T_data], current_node: int, item_filter: T_data) : seq[Edge]  =
   
   var res: seq[Edge]
   for e in hex_graph.gmap[current_node]:
     if hex_graph.node_data[e.tonode] == item_filter:
       res.add(e)
-  result = res
+  return res
 
 
 # get the neighbors that match the select data and are not in the excluded nodes in a set, deque or vector
-proc get_neighbors*[T_data, T_cont](hex_graph: Graph[T_data], current_node: int, item_filter: T_data, exclude: T_cont) : seq[Edge] {.inline.} =
+proc get_neighbors*[T_data, T_cont](hex_graph: Graph[T_data], current_node: int, item_filter: T_data, exclude: T_cont) : seq[Edge]  =
   var res: seq[Edge]
   for e in hex_graph.gmap[current_node]:
     if hex_graph.node_data[e.tonode] == item_filter and (not (contains(exclude, e.to_node))):
       res.add(e)
-  result = res
+  return res
 
 
 # get the neighbor_nodes as a vector of nodes instead of the edges
-proc get_neighbor_nodes*[T_data](hex_graph: Graph[T_data], current_node: int, item_filter: T_data) : seq[int] {.inline.} =
+proc get_neighbor_nodes*[T_data](hex_graph: Graph[T_data], current_node: int, item_filter: T_data) : seq[int]  =
   var res : seq[int]
   for e in get_neighbors(hex_graph, current_node, item_filter):
       res.add(e.to_node)
@@ -83,7 +83,7 @@ proc get_neighbor_nodes*[T_data](hex_graph: Graph[T_data], current_node: int, it
 
 
 # get the neighbor_nodes as a vector of nodes instead of the edges
-proc get_neighbor_nodes*[T_data, T_cont](hex_graph: Graph[T_data], current_node: int, item_filter: T_data, exclude: T_cont) : seq[int] {.inline.} =
+proc get_neighbor_nodes*[T_data, T_cont](hex_graph: Graph[T_data], current_node: int, item_filter: T_data, exclude: T_cont) : seq[int]  =
   var res: seq[int]
   for e in get_neighbors(hex_graph, current_node, item_filter, exclude):
       res.add(e.to_node)

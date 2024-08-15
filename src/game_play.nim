@@ -14,8 +14,8 @@ import std/rdstdin # read stdin and don't read control keys
 
 
 proc simulate_hexboard_positions(hb: var Hexboard) =  # , empty_hex_positions: var seq[int] 
-  var randgen = initRand(101)
-  randgen.shuffle(hb.empty_pos) 
+  # var randgen = initRand(1_010_010)
+  shuffle(hb.empty_pos) 
 
   var
     current: Marker = playerO
@@ -26,7 +26,7 @@ proc simulate_hexboard_positions(hb: var Hexboard) =  # , empty_hex_positions: v
     swap(current, next) # swap the markers to be placed on the board each iteration
 
 
-proc fill_board(hb: var Hexboard, indices: seq[int], value: Marker) {.inline.} =
+proc fill_board(hb: var Hexboard, indices: seq[int], value: Marker)  =
   for idx in indices:
     # hb.hex_graph.node_data[idx] = value
     hb.hex_graph.set_node_data(idx, value)
@@ -36,8 +36,8 @@ proc random_move(hb: var Hexboard) : RowCol =
     rc: RowCol
     maybe: int
 
-  var randgen = initRand(rand(101))
-  randgen.shuffle(hb.rand_nodes)
+  # var randgen = initRand(rand(1_010_010))
+  shuffle(hb.rand_nodes)
 
   for i in 0 ..< hb.max_idx:
     maybe = hb.rand_nodes[i]
@@ -58,10 +58,10 @@ proc naive_move(hb: var Hexboard, side: Marker) : RowCol =
     prev_move_linear: int
     neighbor_nodes: seq[int]
 
-  var randgen = initRand(rand(101))
+  # var randgen = initRand(rand(1_010_010))
 
   if hb.move_seq[ord(side)].len == 0:
-    randgen.shuffle(hb.start_border[ord(side)])
+    shuffle(hb.start_border[ord(side)])
     for maybe in hb.start_border[ord(side)]:
       if hb.is_empty(maybe):
         rc = hb.linear2rowcol(maybe)
@@ -75,7 +75,7 @@ proc naive_move(hb: var Hexboard, side: Marker) : RowCol =
     if neighbor_nodes.len == 0:
       return hb.random_move()
 
-    randgen.shuffle(neighbor_nodes)
+    shuffle(neighbor_nodes)
     for node in neighbor_nodes:
       rc = hb.linear2rowcol(node)
       if rc.col > prev_move.col:
@@ -96,8 +96,9 @@ proc is_in_start(hb: Hexboard, idx: int, side: Marker) : bool =
 
 proc find_ends(hb: var Hexboard, side: Marker, whole_board: bool = false) : Marker =
   hb.winner_assess_time_t0 = cpuTime()
-  var front = 0
-  var possibles = initDeque[int](hb.max_idx-1)
+  var 
+    front = 0
+    possibles = initDeque[int](hb.max_idx-1)
 
   # clear instead of create new containers
   hb.neighbors.setLen(0)
@@ -242,13 +243,13 @@ proc is_valid_move(hb: var Hexboard, rc: RowCol) : bool =
   var
     row: int = rc.row
     col: int = rc.col
+    valid_move = true
   let
     bad_position: string = "Your move used an invalid row or column.\n\n"
     not_empty: string = "Your move didn't choose an empty position.\n\n"
   var
     msg: string = ""
 
-  var valid_move = true
 
   if row > hb.edge_len or row < 1:
     valid_move = false
@@ -285,10 +286,10 @@ proc person_move(hb: var Hexboard, side: Marker) : RowCol =
       return rc
 
     if rc.row == -5:
-      var date = now()
-      var filename = "board graph " & $date & ".txt"
-      # filename will almost always be unique
-      let f = open(filename, fmWrite)
+      let 
+        date = now()
+        filename = "board graph " & $date & ".txt"
+        f = open(filename, fmWrite) # filename will almost always be unique
       display_graph(hb.hex_graph, f)
       f.close
 
