@@ -1,5 +1,11 @@
 import std/os
 
+# clear screen not guaranteed to work on all OS'es.  Works on MacOs.
+# use "cls" for Windows
+proc clear_screen*() =
+  # write(stdout, u8"\033[2J")
+  discard execShellCmd("clear")
+
 #[
 This works great, but nim has contains so unneeded...
 # simple linear search through small containers
@@ -22,9 +28,3 @@ proc string_by_n*(s: string, n: int) : string =
   return ret
 ]#
   
-
-# clear screen not guaranteed to work on all OS'es.  Works on MacOs.
-# use "cls" for Windows
-proc clear_screen*() =
-  # write(stdout, u8"\033[2J")
-  discard execShellCmd("clear")

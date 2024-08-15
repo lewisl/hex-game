@@ -1,7 +1,8 @@
 
-import tables
-import strutils  
-import graph
+import 
+  tables,
+  strutils,
+  graph
 
 type 
   Marker*  = enum
@@ -32,8 +33,8 @@ type
     win_pct_per_move*:  seq[float]
     neighbors*:         seq[int]
     captured*:          seq[int]
-    random_pos*:        seq[int]
-    empty_pos*:         seq[int]
+    shuffle_idxs*:        seq[int]
+    empty_idxs*:         seq[int]
     connector:          string  = r" \ /"
     last_connector:     string = r" \"
 
@@ -102,7 +103,6 @@ proc get_hex_Marker*(hex_graph: Graph[Marker], linear: int) : Marker  =
   return  get_node_data[Marker](hex_graph, linear)
 
 
-
 proc symdash(val: Marker, last: bool): string =
   var
     symunit: string
@@ -136,7 +136,6 @@ proc define_borders(hb: var Hexboard) =
     var row: int = 1
     hb.start_border[ord(Marker.playerX)].add(hb.rowcol2linear(row, col))
   
-
   # bottom border
   for col in 1..hb.edge_len:
     let row = hb.edge_len

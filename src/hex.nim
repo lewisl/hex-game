@@ -1,5 +1,8 @@
 # nim c -d:release --mm:orc --threads:on --opt:speed --outdir:build src/hex.nim
 
+#######################################################
+# script to initiate the game
+#######################################################
 
 import 
   os,
@@ -10,8 +13,6 @@ import
 var 
   size: int = 5
   n_trials: int = 1000
-
-echo("paramcount: ", $paramCount())
 
 if paramCount() == 0:
   discard # run with defaults
@@ -28,11 +29,11 @@ else:
 if (size < 0) or (size mod 2) == 0:
   quit("Bad size input. Must be odd, positive integer. Exiting...")
 
-var hb = newhexboard(size)
+var hb = newhexboard(size) # create the game object
 hb.make_board()
 
 hb.play_game(Do_move.monte_carlo, n_trials)
 
-echo "Assessing who won took " , hb.winner_assess_time_cum, " seconds.\n";
+echo "Assessing who won took " , hb.winner_assess_time_cum, " seconds.";
 echo("Simulating and evaluating moves took ", 
   hb.move_sim_time_cum - hb.winner_assess_time_cum, " seconds.\n");

@@ -117,21 +117,21 @@ var edg:  Edge = Edge(tonode: 5, cost: 4)
 # echo(sequtils.any(tstseq, proc (x: int): bool = x == 6))
 
 
-var s = newSeqWith(8,0)
-echo(s)
-var s_of_s = newSeqWith(5,newSeq[Edge](3))
-echo(s_of_s)
+# var s = newSeqWith(8,0)
+# echo(s)
+# var s_of_s = newSeqWith(5,newSeq[Edge](3))
+# echo(s_of_s)
 
 # shuffling
-echo("SHUFFLING")
-# var sr = newSeqWith(10, (it, inc))
-var sr = (0..1_000).toSeq
-echo(sr[10..13])
-var randgen = initRand(101)
-randgen.shuffle(sr)
-echo(sr[10..13])
+# echo("SHUFFLING")
+# # var sr = newSeqWith(10, (it, inc))
+# var sr = (0..1_000).toSeq
+# echo(sr[10..13])
+# var randgen = initRand(101)
+# randgen.shuffle(sr)
+# echo(sr[10..13])
 
-echo("total time: ", cpuTime()-t0)
+# echo("total time: ", cpuTime()-t0)
 # avoid newline that echo always adds.
 # write(stdout, edg)
 # echo()
@@ -163,13 +163,13 @@ echo("total time: ", cpuTime()-t0)
 # write(stdout, "Enter 2 integers: 1 2")
 # discard move_input("enter 2 integers: ")
 
-var date = now()
-var filename = "board graph " & $date & ".txt"
-echo(filename)
+# var date = now()
+# var filename = "board graph " & $date & ".txt"
+# echo(filename)
 
-var ctr = 1
-ctr.inc()
-echo(ctr)
+# var ctr = 1
+# ctr.inc()
+# echo(ctr)
 
 echo("remainder: ", $(5 mod 3))
 
@@ -193,14 +193,39 @@ let a = 2
 for i in countup(a, a + 12, a + 1):  # very tricky because the loop counter is i, so the increment is 3
   echo i
 
-randomize()
-proc cards() =
-  # randomize()
-  var cards = @["king", "queen", "jack", "ace", "10"]
-  shuffle(cards)
-  echo cards
+# randomize()
+# proc cards() =
+#   # randomize()
+#   var cards = @["king", "queen", "jack", "ace", "10"]
+#   shuffle(cards)
+#   echo cards
 
-cards()
+# cards()
+
+var empty_idxs = @[5,6,7,8,10, 11, 12,13]
+var randomize_idxs = newSeq[int](empty_idxs.len - 1)
+
+
+
+for cont_idx, tst_move_idx in empty_idxs:
+  # tst_move_idx is where the move to be evaluated will be placed for the computer marker
+  # set the hex at tst_move_idx to computer marker
+  echo "moving empties to randomize"
+  echo cont_idx, " ", tst_move_idx
+  # copy_idx is the idx in the empties that will be copied to  randomize_idxs
+  for copy_idx in 0 ..< empty_idxs.len:  # range over all the empties
+    if copy_idx > randomize_idxs.len:
+      break  # no room!
+    elif copy_idx < cont_idx:
+      randomize_idxs[copy_idx] = empty_idxs[copy_idx]
+      echo copy_idx, " ", randomize_idxs[copy_idx], " ", empty_idxs[copy_idx]
+    elif copy_idx == cont_idx:
+      echo copy_idx, "    ", empty_idxs[copy_idx], " ", tst_move_idx
+      continue  # don't copy position of the tst_move into randomize_idxs
+    else:  # copy_idx > seq_idx
+      randomize_idxs[copy_idx - 1] = empty_idxs[copy_idx] # have to fill the place we skipped in randomize_idxs
+      echo copy_idx, " ", randomize_idxs[copy_idx-1], " ", empty_idxs[copy_idx]
+
 
 # echo(contains(sq, fv))
 # echo(contains(sq,fr))

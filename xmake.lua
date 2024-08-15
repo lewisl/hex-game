@@ -2,7 +2,7 @@ add_rules("mode.debug", "mode.release")
 
 target("hex")
     set_kind("binary")
-    add_ncflags("--opt:size")
+    add_ncflags("--opt:speed")
     add_files("src/hex.nim")
 
 --

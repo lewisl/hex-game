@@ -2,27 +2,26 @@
 #             Class Hex game playing procs
 ##########################################################################
 
-import hex_board
-import graph
-import random
-import strutils
-import times
-import std/deques
-import helpers
-import std/rdstdin # read stdin and don't read control keys
+import 
+  random,
+  strutils,
+  times,
+  std/deques,
+  std/rdstdin, # read stdin and don't read control keys
+  hex_board,
+  graph,
+  helpers
 
+proc simulate_hexboard_positions(hb: var Hexboard, empties: var seq[int] ) =  
 
-
-proc simulate_hexboard_positions(hb: var Hexboard) =  # , empty_hex_positions: var seq[int] 
-  # var randgen = initRand(1_010_010)
-  shuffle(hb.empty_pos) 
+  shuffle(empties)   # does not include current test move
 
   var
     current: Marker = playerO
     next: Marker    = playerX
   
-  for i in 0 ..< hb.empty_pos.len:
-    hb.set_hex_marker(hb.hex_graph, hb.empty_pos[i], current)
+  for pos in empties:
+    hb.set_hex_marker(hb.hex_graph, pos, current)
     swap(current, next) # swap the markers to be placed on the board each iteration
 
 
@@ -31,12 +30,12 @@ proc fill_board(hb: var Hexboard, indices: seq[int], value: Marker)  =
     # hb.hex_graph.node_data[idx] = value
     hb.hex_graph.set_node_data(idx, value)
 
+
 proc random_move(hb: var Hexboard) : RowCol =
   var
     rc: RowCol
     maybe: int
 
-  # var randgen = initRand(rand(1_010_010))
   shuffle(hb.rand_nodes)
 
   for i in 0 ..< hb.max_idx:
@@ -57,8 +56,6 @@ proc naive_move(hb: var Hexboard, side: Marker) : RowCol =
     rc, prev_move: RowCol
     prev_move_linear: int
     neighbor_nodes: seq[int]
-
-  # var randgen = initRand(rand(1_010_010))
 
   if hb.move_seq[ord(side)].len == 0:
     shuffle(hb.start_border[ord(side)])
@@ -119,7 +116,7 @@ proc find_ends(hb: var Hexboard, side: Marker, whole_board: bool = false) : Mark
 
     if hb.neighbors.len == 0:
       if not possibles.len == 0:
-        possibles.popfirst()
+        possibles.popFirst()
       break
     else:
       possibles[front] = hb.neighbors[0]
@@ -140,9 +137,8 @@ proc monte_carlo_move(hb: var Hexboard, side: Marker, n_trials: int) : RowCol =
 
   hb.move_sim_time_t0 = cpuTime()
 
-  # no more: method uses class fields: clear them instead of creating new objects each time
-  hb.empty_pos = newSeq[int](0)
-  hb.random_pos = newSeq[int](0)
+  # method uses class fields: clear them instead of creating new objects each time
+  hb.empty_idxs.setLen(0) 
   hb.win_pct_per_move.setLen(0)
 
   var
@@ -153,49 +149,46 @@ proc monte_carlo_move(hb: var Hexboard, side: Marker, n_trials: int) : RowCol =
   # loop over board positions to find empty positions
   for i in 0 ..< hb.max_idx:
     if hb.is_empty(i):
-      hb.empty_pos.add(i)
+      hb.empty_idxs.add(i)
 
-  var random_pos = newSeq[int](hb.empty_pos.len - 1)
+  hb.shuffle_idxs.setLen(hb.empty_idxs.len - 1) # one less than number of empties->one of the empties is the test move
 
+  var current_idx = -1
   # loop over the available move positions: make tst move, setup positions to randomize
-
-  for tst_move_no in 0 ..< hb.empty_pos.len:
-
-    hb.set_hex_marker(hb.hex_graph, hb.empty_pos[tst_move_no], side) # set computer's move to evaluate
+  for tst_move in hb.empty_idxs:  # tst_move is an empty position for simulating test computer moves 
+    current_idx.inc # index to the container empty_idxs
+    hb.set_hex_marker(hb.hex_graph, tst_move, side) # set the test move on the board
     wins = 0
 
-    for idx in 0 ..< hb.empty_pos.len:
-      if idx > random_pos.len:
-        break
-      elif idx < tst_move_no:
-        random_pos[idx] = hb.empty_pos[idx]
-
-      elif idx == tst_move_no:
-        continue
-      else:
-        random_pos[idx-1] = hb.empty_pos[idx]
+    # copy indices to empties to shuffle_idxs
+    for copy_idx in 0 ..< hb.empty_idxs.len:  # range over all the empties
+      if copy_idx > hb.shuffle_idxs.len:
+        break  # no room!
+      elif copy_idx < current_idx:
+        hb.shuffle_idxs[copy_idx] = hb.empty_idxs[copy_idx]
+      elif copy_idx == current_idx:
+        continue  # don't copy index of the test move into shuffle_idxs
+      else:  # copy_idx > current 
+        hb.shuffle_idxs[copy_idx - 1] = hb.empty_idxs[copy_idx] # fill the place we skipped in shuffle_idxs...
 
     for trial in 0 ..< n_trials:
-      hb.simulate_hexboard_positions()
-
+      hb.simulate_hexboard_positions(hb.shuffle_idxs)
       winning_side = hb.find_ends(side, true)
-
       wins += (if winning_side == side: 1 else: 0)
 
     hb.win_pct_per_move.add(wins.toFloat / n_trials.toFloat) # calculate and save computer win pct.
 
-    # reverse the trial move
-    hb.set_hex_marker(hb.hex_graph, hb.empty_pos[tst_move_no], Marker.empty)
+    hb.set_hex_marker(hb.hex_graph, tst_move, Marker.empty)  # reverse the trial move
 
   # find the maximum computer win pct across all simulated moves
-  var  maxpct: float= 0.0
-  best_move = hb.empty_pos[0]
-  for i in 0 ..< hb.win_pct_per_move.len:
-    if hb.win_pct_per_move[i] > maxpct:
-      maxpct = hb.win_pct_per_move[i]
-      best_move = hb.empty_pos[i]
+    var  maxpct: float= 0.0
+    best_move = hb.empty_idxs[0]
+    for i in 0 ..< hb.win_pct_per_move.len:
+      if hb.win_pct_per_move[i] > maxpct:
+        maxpct = hb.win_pct_per_move[i]
+        best_move = hb.empty_idxs[i]
 
-  hb.fill_board(hb.empty_pos, Marker.empty) # restore board to real move state
+  hb.fill_board(hb.empty_idxs, Marker.empty) # restore board to real move state
 
   hb.move_sim_time_cum += cpuTime() - hb.move_sim_time_t0
 
@@ -249,7 +242,6 @@ proc is_valid_move(hb: var Hexboard, rc: RowCol) : bool =
     not_empty: string = "Your move didn't choose an empty position.\n\n"
   var
     msg: string = ""
-
 
   if row > hb.edge_len or row < 1:
     valid_move = false
@@ -401,5 +393,3 @@ proc play_game*(hb: var Hexboard, how: Do_move, n_trials: int) =
           echo("\nGame over. Come back and play again!\n")
         hb.display_board()
         break
-
-

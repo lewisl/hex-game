@@ -1,7 +1,7 @@
 
-import tables
-import deques
-
+import 
+  tables,
+  deques
 
 type
   Edge* = object
@@ -11,6 +11,7 @@ type
 proc `$`*(e: Edge): string =
   return ("to: " & $e.tonode & " cost: " & $e.cost)
 
+
 type
   Graph*[T_data] = object  # object referred to as hex_graph from hex_board
     size*: int
@@ -18,8 +19,10 @@ type
     node_data*: seq[T_data]
     node_elem*: T_data  # might not need this
 
+
 proc count_nodes*(gr: Graph) : int =
   return gr.gmap.len
+
 
 proc newgraph*[T_data](node_elem: T_data, size: int): Graph[T_data] =
   var gr = Graph[T_data](size: size, node_elem: node_elem) 
@@ -48,12 +51,14 @@ proc add_edge*(hex_graph: var Graph, node: int, tonode: int, cost: int = 0, bidi
 proc set_node_data*[T_data](hex_graph: var Graph, idx: int, val: T_data) =
   hex_graph.node_data[idx] = val
 
+
 proc get_node_data*[T_data](hex_graph: Graph[T_data], idx: int) : T_data  =
   return hex_graph.node_data[idx]
 
 # get the neighbors of a node as a vector of edges
 proc get_neighbors*[T_data](hex_graph: Graph[T_data], current_node: int) : seq[Edge]  =
   return hex_graph.gmap[current_node]
+
 
 # get the neighbors whose data match to filter data
 proc get_neighbors*[T_data](hex_graph: Graph[T_data], current_node: int, item_filter: T_data) : seq[Edge]  =
@@ -111,7 +116,3 @@ proc display_graph*(gr: Graph, outf: File = stdout) =
 proc display_graph*(gr: Graph, filename: string) =
   var f = open(filename, fmWrite)
   gr.display_graph(f)
-
-
-
-  
