@@ -21,30 +21,28 @@ type
 
 type
   Hexboard* = object
-    hex_graph*:         Graph[Marker]
-    edge_len*:          int
-    max_idx*:           int
-    move_count*:        int
-    rand_nodes*:        seq[int]
-    start_border*:      seq[seq[int]]
-    finish_border*:     seq[seq[int]]
-    move_seq*:          seq[seq[RowCol]]
-    positions*:         seq[Marker]      
-    win_pct_per_move*:  seq[float]
-    neighbors*:         seq[int]
-    captured*:          seq[int]
+    # used by hex_board
+    hex_graph*:           Graph[Marker]
+    edge_len*:            int
+    max_idx*:             int
+    move_count*:          int
+    rand_nodes*:          seq[int]
+    start_border*:        seq[seq[int]]
+    finish_border*:       seq[seq[int]]
+    # used by game_play  
+    move_seq*:            seq[seq[RowCol]]
+    win_pct_per_move*:    seq[float]
+    neighbors*:           seq[int]
+    captured*:            seq[int]
     shuffle_idxs*:        seq[int]
-    empty_idxs*:         seq[int]
-    connector:          string  = r" \ /"
-    last_connector:     string = r" \"
-
+    empty_idxs*:          seq[int]
     winner_assess_time_t0*:  float
     winner_assess_time_cum*: float
     move_sim_time_t0*:       float
     move_sim_time_cum*:      float
 
   
-proc newhexboard*(edge_len: int) : Hexboard =
+proc newhexboard*(edge_len: int) : Hexboard =  # in c++ terms, a custom constructor
   var 
     edge_len = edge_len
     max_idx = edge_len * edge_len
@@ -55,14 +53,14 @@ proc newhexboard*(edge_len: int) : Hexboard =
                     finish_border: newSeq[newSeq[int](edge_len)](3))
   hb.hex_graph = newgraph[Marker](empty, max_idx)
 
-  echo(hb.positions)
-
   for i in 0..max_idx-1:
     hb.rand_nodes.add(i)
   for i in 1..2:
     hb.move_seq[i].add(@[]) # add instantiated empty seq[RowCol]
+
   return hb
 
+# conversions between row/col indices and ordinal integer indices to board positions
 proc rowcol2linear(hb: Hexboard, row: int, col: int) : int  =
   let r = row - 1
   let c = col - 1
@@ -87,6 +85,7 @@ proc is_empty*(hb: Hexboard, linear: int) : bool =
 proc is_empty*(hb: Hexboard, rc: RowCol) : bool =
   return hb.hex_graph.node_data[hb.rowcol2linear(rc)] == Marker.empty
 
+
 # getters and setters from hex_board to graph: maybe this is reason to shadow node_data
 proc set_hex_marker*(hb: var Hex_board, hex_graph: var Graph, rc: RowCol, val: Marker)  = 
   hex_graph.set_node_data(hb.rowcol2linear(rc), val)
@@ -103,9 +102,10 @@ proc get_hex_Marker*(hex_graph: Graph[Marker], linear: int) : Marker  =
   return  get_node_data[Marker](hex_graph, linear)
 
 
-proc symdash(val: Marker, last: bool): string =
+# catenate marker at board position to the spacer between positions
+proc markerdash(val: Marker, last: bool): string =
   var
-    symunit: string
+    segment: string
     dot  = "."
     x = "X"
     o = "O"
@@ -115,20 +115,22 @@ proc symdash(val: Marker, last: bool): string =
     spacer = ""
 
   if val == Marker.empty:
-    symunit = dot & spacer
+    segment = dot & spacer
   elif val == Marker.playerX:
-    symunit = x & spacer
+    segment = x & spacer
   elif val == Marker.playerO:
-    symunit = o & spacer
+    segment = o & spacer
   else:
     raise newException(ValueError, "Error: invalid hexboard value.")
 
-  return symunit
+  return segment
 
 
 proc lead_space(row: int): string =
   return repeat(" ", row * 2)
 
+
+# create lists of the indices of positions in the borders of the board
 proc define_borders(hb: var Hexboard) =
     
   # top border
@@ -152,7 +154,8 @@ proc define_borders(hb: var Hexboard) =
     hb.finish_border[ord(Marker.playerO)].add(hb.rowcol2linear(row, col))
 
 
-proc make_board*(hb: var Hexboard) =
+# create graph of hexboard positions
+proc make_hex_graph*(hb: var Hexboard) =
 
   hb.define_borders()
 
@@ -205,7 +208,6 @@ proc make_board*(hb: var Hexboard) =
     hb.hex_graph.add_edge(hb.rowcol2linear(r, c), hb.rowcol2linear(r + 1, c - 1))
     hb.hex_graph.add_edge(hb.rowcol2linear(r, c), hb.rowcol2linear(r + 1, c))
     
-
   # interior tiles: 6 edges per hex
   for r in 2..hb.edge_len-1:
     # for (int c = 2 c != edge_len ++c) {
@@ -218,9 +220,13 @@ proc make_board*(hb: var Hexboard) =
       hb.hex_graph.add_edge(hb.rowcol2linear(r, c), hb.rowcol2linear(r - 1, c))
 
 
+# create ascii display of hexboard
 proc display_board*(hb: Hexboard) =
   var 
     last: bool
+  let
+    connector:            string  = r" \ /"
+    last_connector:       string = r" \"
   
   # number legend across the top of the board
   write(stdout, "  ", 1)
@@ -239,58 +245,13 @@ proc display_board*(hb: Hexboard) =
       write(stdout, lead_space(row - 2), " ", row, " ")
     for col in 1..hb.edge_len:
       last = if col < hb.edge_len: false else: true
-      write(stdout, symdash(hb.get_hex_marker(hb.hex_graph,row, col), last))
+      write(stdout, markerdash(hb.get_hex_marker(hb.hex_graph,row, col), last))
     echo()
 
     # connector lines to show edges between board positions
     if row != hb.edge_len:
       write(stdout, lead_space(row))
-      write(stdout, repeat(hb.connector, (hb.edge_len - 1)), hb.last_connector, "\n")
+      write(stdout, repeat(connector, (hb.edge_len - 1)), last_connector, "\n")
     else:
       write(stdout, "\n\n")
-
-
-#[   HINTS for various approaches
-
-echo "Please enter your name:"
-let name = readLine(stdin)
-
-let yearOfBirth = readLine(stdin).parseInt()
-let
-  strNums = readFile("numbers.txt").strip().splitLines()  
-  nums = strNums.map(parseFloat)  
-
-echo "Can be used ", 4, " as a statement or function"
-
-use ord(myEnum_val) to cast the enum to its underlying int
-
-type arr_3 =  array[1..3, int]
-var arr_y: arr_3 = [5,6,7]
-
-for i, value in @[3, 4, 5]:
-  echo "index: ", $i, ", value:", $value
-
-   to inline a function (maybe!)
-
-  pre-allocate a seq, use assignment by index to set values
-  var foo = newSeq[int](5) # initializes to zero
-
-
-  to create custom string representations:
-
-    from strformat import fmt
-
-type Point = object
-    x: int
-    y: int
-
-proc `$`(point: Point): string = fmt"({point.x}, {point.y})"
-
-
-let p = Point(x:4, y:5)
-echo p   # prints "(4, 5)"
-
-]#
-
-
-    
+  

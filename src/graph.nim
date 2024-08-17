@@ -1,7 +1,5 @@
-
 import 
-  tables,
-  deques
+  tables
 
 type
   Edge* = object
@@ -20,11 +18,11 @@ type
     node_elem*: T_data  # might not need this
 
 
-proc count_nodes*(gr: Graph) : int =
+proc count_nodes*(gr: Graph) : int =  # reasonable thing to have, not used
   return gr.gmap.len
 
 
-proc newgraph*[T_data](node_elem: T_data, size: int): Graph[T_data] =
+proc newgraph*[T_data](node_elem: T_data, size: int): Graph[T_data] =  # in c++ terms, a custom constructor
   var gr = Graph[T_data](size: size, node_elem: node_elem) 
   for i in 0..(size-1):
     gr.node_data.add(node_elem)
@@ -94,14 +92,6 @@ proc get_neighbor_nodes*[T_data, T_cont](hex_graph: Graph[T_data], current_node:
       res.add(e.to_node)
   return res;
 
-# TODO: this might not print out in the load_from_file format
-proc display_graph*(gr: Graph) =
-  for idx in 0..gr.size:
-    echo("node: ", idx)
-    echo("    data: ", gr.get_node_data(idx))
-    echo("    edges:")
-    for e in gr.get_neighbors(idx):
-      echo("       to: ", e.tonode, " cost: ", e.cost)
 
 # output graph to a "File" defaulting to stdout
 proc display_graph*(gr: Graph, outf: File = stdout) =
@@ -112,7 +102,7 @@ proc display_graph*(gr: Graph, outf: File = stdout) =
     for e in gr.get_neighbors(idx):
       write(outf, "       to: " & $e.tonode & " cost: " & $e.cost & "\n")
 
-# create a file variable and pass it to display_graph
+# create a file variable and pass it to display_graph to save graph in a text file
 proc display_graph*(gr: Graph, filename: string) =
   var f = open(filename, fmWrite)
   gr.display_graph(f)

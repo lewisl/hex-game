@@ -15,7 +15,7 @@ var
   n_trials: int = 1000
 
 if paramCount() == 0:
-  discard # run with defaults
+  discard # do nothing and run with defaults
 elif paramCount() == 1:
   size = parseInt(paramStr(1))
 elif paramCount() == 2:
@@ -30,7 +30,7 @@ if (size < 0) or (size mod 2) == 0:
   quit("Bad size input. Must be odd, positive integer. Exiting...")
 
 var hb = newhexboard(size) # create the game object
-hb.make_board()
+hb.make_hex_graph()
 
 hb.play_game(Do_move.monte_carlo, n_trials)
 

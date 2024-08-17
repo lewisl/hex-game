@@ -2,8 +2,11 @@
 .xmake/
 .vscode
 build/
+other/
 
 # MacOS Cache
 .DS_Store
 
 
+src/tst.nim
+src/hex_tst.nim
