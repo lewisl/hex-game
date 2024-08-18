@@ -14,11 +14,14 @@ var
   size: int = 5
   n_trials: int = 1000
 
-if paramCount() == 0:
+let 
+    pcnt: int = paramCount()
+    
+if pcnt == 0:
   discard # do nothing and run with defaults
-elif paramCount() == 1:
+elif pcnt == 1:
   size = parseInt(paramStr(1))
-elif paramCount() == 2:
+elif pcnt == 2:
   size = parseInt(paramStr(1)) 
   n_trials = parseInt(paramStr(2))
 else:    

@@ -223,8 +223,14 @@ proc move_input(msg: string) : RowCol =
       write(stdout, msg)
       continue
     else:
-      row = items[0].parseInt
-      col = items[1].parseInt
+      row = try: items[0].parseInt
+            except ValueError as e:
+              echo "  *** ", e.msg & ". Move inputs must be integers..."
+              continue
+      col = try: items[1].parseInt
+            except ValueError as e:
+              echo "  *** ", e.msg & ". Move inputs must be integers..."
+              continue
       break
   
   return RowCol(row: row, col: col)
