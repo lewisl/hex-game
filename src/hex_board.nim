@@ -60,8 +60,8 @@ proc newhexboard*(edge_len: int) : Hexboard =  # in c++ terms, a custom construc
 
   return hb
 
-# conversions between row/col indices and ordinal integer indices to board positions
-proc rowcol2linear(hb: Hexboard, row: int, col: int) : int  =
+# short for rowcol2linear: conversions between row/col indices and ordinal integer indices to board positions
+proc rc2l(hb: Hexboard, row: int, col: int) : int  =
   let r = row - 1
   let c = col - 1
 
@@ -70,10 +70,10 @@ proc rowcol2linear(hb: Hexboard, row: int, col: int) : int  =
   else:
     raise newException(ValueError, "Bad row or col input: both must be >= edge length")
 
-proc rowcol2linear*(hb: Hexboard, rc: RowCol) : int  =
-  return hb.rowcol2linear(rc.row, rc.col)
+proc rc2l*(hb: Hexboard, rc: RowCol) : int  =
+  return hb.rc2l(rc.row, rc.col)
 
-proc linear2rowcol*(hb: Hexboard, linear: int) : RowCol  =
+proc l2rc*(hb: Hexboard, linear: int) : RowCol  =
   if linear < hb.max_idx:
     return RowCol(row: (linear div hb.edge_len) + 1, col: (linear mod hb.edge_len) + 1)
   else:
@@ -83,23 +83,23 @@ proc is_empty*(hb: Hexboard, linear: int) : bool =
   return hb.hex_graph.node_data[linear] == Marker.empty
 
 proc is_empty*(hb: Hexboard, rc: RowCol) : bool =
-  return hb.hex_graph.node_data[hb.rowcol2linear(rc)] == Marker.empty
+  return hb.hex_graph.node_data[hb.rc2l(rc)] == Marker.empty
 
 
 # getters and setters from hex_board to graph: maybe this is reason to shadow node_data
 proc set_hex_marker*(hb: var Hex_board, rc: RowCol, val: Marker)  = 
-  hb.hex_graph.set_node_data(hb.rowcol2linear(rc), val)
+  hb.hex_graph.set_node_data(hb.rc2l(rc), val)
 proc set_hex_marker*(hb: var Hex_board,  row: int, col: int, val: Marker)  =
-  hb.hex_graph.set_node_data(hb.rowcol2linear(row, col), val)
+  hb.hex_graph.set_node_data(hb.rc2l(row, col), val)
 proc set_hex_marker*(hb: var Hex_board,  linear: int, val: Marker)  =
   hb.hex_graph.set_node_data(linear, val)
 
 proc get_hex_Marker*(hb: Hex_board,  rc: RowCol) : Marker  =
-  return get_node_data[Marker](hb.hex_graph, hb.rowcol2linear(rc))
+  return get_node_data[Marker](hb.hex_graph, hb.rc2l(rc))
 proc get_hex_Marker*(hb: Hex_board,  row: int, col: int) : Marker  =
-  return get_node_data[Marker](hb.hex_graph, hb.rowcol2linear(row, col))
+  return get_node_data[Marker](hb.hex_graph, hb.rc2l(row, col))
 proc get_hex_Marker*(hb: Hex_board,  linear: int) : Marker  =
-  return  get_node_data[Marker](hb.hex_graph, linear)
+  return get_node_data[Marker](hb.hex_graph, linear)
 
 
 # catenate marker at board position to the spacer between positions
@@ -136,22 +136,22 @@ proc define_borders(hb: var Hexboard) =
   # top border
   for col in 1..hb.edge_len:
     var row: int = 1
-    hb.start_border[ord(Marker.playerX)].add(hb.rowcol2linear(row, col))
+    hb.start_border[ord(Marker.playerX)].add(hb.rc2l(row, col))
   
   # bottom border
   for col in 1..hb.edge_len:
     let row = hb.edge_len
-    hb.finish_border[ord(Marker.playerX)].add(hb.rowcol2linear(row, col))
+    hb.finish_border[ord(Marker.playerX)].add(hb.rc2l(row, col))
 
   # left border
   for row in 1..hb.edge_len:
     let col = 1
-    hb.start_border[ord(Marker.playerO)].add(hb.rowcol2linear(row, col))
+    hb.start_border[ord(Marker.playerO)].add(hb.rc2l(row, col))
   
   # right border
   for row in 1..hb.edge_len:
     let col = hb.edge_len
-    hb.finish_border[ord(Marker.playerO)].add(hb.rowcol2linear(row, col))
+    hb.finish_border[ord(Marker.playerO)].add(hb.rc2l(row, col))
 
 
 # create graph of hexboard positions
@@ -165,59 +165,43 @@ proc make_hex_graph*(hb: var Hexboard) =
   # 
   # 4 corners of the board: 2 or 3 edges per node                            
   # upper left
-  hb.hex_graph.add_edge(hb.rowcol2linear(1, 1), hb.rowcol2linear(2, 1))
-  hb.hex_graph.add_edge(hb.rowcol2linear(1, 1), hb.rowcol2linear(1, 2))
+  add_edge(hb.hex_graph, node=hb.rc2l(1, 1), tonodes =[hb.rc2l(2,1), hb.rc2l(1,2)])
   # upper right
-  hb.hex_graph.add_edge(hb.rowcol2linear(1, hb.edge_len), hb.rowcol2linear(1, (hb.edge_len - 1)))
-  hb.hex_graph.add_edge(hb.rowcol2linear(1, hb.edge_len), hb.rowcol2linear(2, hb.edge_len))
-  hb.hex_graph.add_edge(hb.rowcol2linear(1, hb.edge_len), hb.rowcol2linear(2, (hb.edge_len - 1)))
+  add_edge(hb.hex_graph, node=hb.rc2l(1, hb.edge_len), 
+          tonodes=[hb.rc2l(1, (hb.edge_len - 1)), hb.rc2l(2, hb.edge_len), hb.rc2l(2, hb.edge_len-1)])
   # lower right
-  hb.hex_graph.add_edge(hb.rowcol2linear(hb.edge_len, hb.edge_len), hb.rowcol2linear(hb.edge_len, (hb.edge_len - 1)))
-  hb.hex_graph.add_edge(hb.rowcol2linear(hb.edge_len, hb.edge_len), hb.rowcol2linear((hb.edge_len - 1), hb.edge_len))
+  add_edge(hb.hex_graph, node=hb.rc2l(hb.edge_len, hb.edge_len),
+            tonodes=[hb.rc2l(hb.edge_len, (hb.edge_len - 1)), hb.rc2l((hb.edge_len - 1), hb.edge_len)])
   # lower left
-  hb.hex_graph.add_edge(hb.rowcol2linear(hb.edge_len, 1), hb.rowcol2linear((hb.edge_len - 1), 1))
-  hb.hex_graph.add_edge(hb.rowcol2linear(hb.edge_len, 1), hb.rowcol2linear(hb.edge_len, 2))
-  hb.hex_graph.add_edge(hb.rowcol2linear(hb.edge_len, 1), hb.rowcol2linear((hb.edge_len - 1), 2))
+  add_edge(hb.hex_graph, node=hb.rc2l(hb.edge_len, 1), 
+            tonodes=[hb.rc2l((hb.edge_len - 1), 1),hb.rc2l(hb.edge_len, 2),hb.rc2l((hb.edge_len - 1), 2)])
 
   # 4 borders (excluding corners)  4 edges per node.
   # north-south edges: constant row, vary col
   for c in 2..hb.edge_len-1:
     var r: int = 1
-    hb.hex_graph.add_edge(hb.rowcol2linear(r, c), hb.rowcol2linear(r, c - 1))
-    hb.hex_graph.add_edge(hb.rowcol2linear(r, c), hb.rowcol2linear(r, c + 1))
-    hb.hex_graph.add_edge(hb.rowcol2linear(r, c), hb.rowcol2linear(r + 1, c - 1))
-    hb.hex_graph.add_edge(hb.rowcol2linear(r, c), hb.rowcol2linear(r + 1, c))
+    add_edge(hb.hex_graph, node=hb.rc2l(r, c), 
+              tonodes=[hb.rc2l(r, c - 1),hb.rc2l(r, c + 1), hb.rc2l(r + 1, c - 1),hb.rc2l(r + 1, c)])
 
     r = hb.edge_len
-    hb.hex_graph.add_edge(hb.rowcol2linear(r, c), hb.rowcol2linear(r, c - 1))
-    hb.hex_graph.add_edge(hb.rowcol2linear(r, c), hb.rowcol2linear(r, c + 1))
-    hb.hex_graph.add_edge(hb.rowcol2linear(r, c), hb.rowcol2linear(r - 1, c))
-    hb.hex_graph.add_edge(hb.rowcol2linear(r, c), hb.rowcol2linear(r - 1, c + 1))
+    add_edge(hb.hex_graph, node=hb.rc2l(r, c), 
+            tonodes=[hb.rc2l(r, c - 1),hb.rc2l(r, c + 1), hb.rc2l(r - 1, c),hb.rc2l(r - 1, c + 1)])
     
   # east-west edges: constant col, vary row
   for r in 2..hb.edge_len-1:
     var c: int = 1
-    hb.hex_graph.add_edge(hb.rowcol2linear(r, c), hb.rowcol2linear(r - 1, c))
-    hb.hex_graph.add_edge(hb.rowcol2linear(r, c), hb.rowcol2linear(r - 1, c + 1))
-    hb.hex_graph.add_edge(hb.rowcol2linear(r, c), hb.rowcol2linear(r, c + 1))
-    hb.hex_graph.add_edge(hb.rowcol2linear(r, c), hb.rowcol2linear(r + 1, c))
+    add_edge(hb.hex_graph, node=hb.rc2l(r, c), 
+            tonodes=[hb.rc2l(r - 1, c),hb.rc2l(r - 1, c + 1),hb.rc2l(r, c + 1),hb.rc2l(r + 1, c)])
 
     c = hb.edge_len
-    hb.hex_graph.add_edge(hb.rowcol2linear(r, c), hb.rowcol2linear(r - 1, c))
-    hb.hex_graph.add_edge(hb.rowcol2linear(r, c), hb.rowcol2linear(r, c - 1))
-    hb.hex_graph.add_edge(hb.rowcol2linear(r, c), hb.rowcol2linear(r + 1, c - 1))
-    hb.hex_graph.add_edge(hb.rowcol2linear(r, c), hb.rowcol2linear(r + 1, c))
-    
+    add_edge(hb.hex_graph, node=hb.rc2l(r, c), 
+          tonodes=[hb.rc2l(r - 1, c),hb.rc2l(r, c - 1), hb.rc2l(r + 1, c - 1),hb.rc2l(r + 1, c)])
+
   # interior tiles: 6 edges per hex
   for r in 2..hb.edge_len-1:
-    # for (int c = 2 c != edge_len ++c) {
     for c in 2..hb.edge_len-1:
-      hb.hex_graph.add_edge(hb.rowcol2linear(r, c), hb.rowcol2linear(r - 1, c + 1))
-      hb.hex_graph.add_edge(hb.rowcol2linear(r, c), hb.rowcol2linear(r, c + 1))
-      hb.hex_graph.add_edge(hb.rowcol2linear(r, c), hb.rowcol2linear(r + 1, c))
-      hb.hex_graph.add_edge(hb.rowcol2linear(r, c), hb.rowcol2linear(r + 1, c - 1))
-      hb.hex_graph.add_edge(hb.rowcol2linear(r, c), hb.rowcol2linear(r, c - 1))
-      hb.hex_graph.add_edge(hb.rowcol2linear(r, c), hb.rowcol2linear(r - 1, c))
+      add_edge(hb.hex_graph, node=hb.rc2l(r, c), tonodes=[hb.rc2l(r - 1, c + 1),hb.rc2l(r, c + 1),
+                        hb.rc2l(r + 1, c),hb.rc2l(r + 1, c - 1),hb.rc2l(r, c - 1),hb.rc2l(r - 1, c)])
 
 
 # create ascii display of hexboard

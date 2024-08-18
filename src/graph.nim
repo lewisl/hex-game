@@ -46,6 +46,11 @@ proc add_edge*(hex_graph: var Graph, node: int, tonode: int, cost: int = 0, bidi
       hex_graph.gmap[tonode].add(Edge(tonode: node, cost: cost))
 
 
+proc add_edge*(hex_graph: var Graph, node: int, cost: int = 0, bidirectional: bool = false, 
+               tonodes: varargs[int]) =
+  for tonode in tonodes:
+    add_edge(hex_graph, node, tonode, cost, bidirectional)
+
 proc set_node_data*[T_data](hex_graph: var Graph, idx: int, val: T_data) =
   hex_graph.node_data[idx] = val
 

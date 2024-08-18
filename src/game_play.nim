@@ -28,7 +28,7 @@ proc simulate_hexboard_positions(hb: var Hexboard, empties: var seq[int] ) =
 
 proc fill_board(hb: var Hexboard, indices: seq[int], value: Marker)  =
   for idx in indices:
-    hb.hex_graph.set_node_data(idx, value)
+    hb.set_hex_marker(idx, value)
 
 
 proc random_move(hb: var Hexboard) : RowCol =
@@ -41,7 +41,7 @@ proc random_move(hb: var Hexboard) : RowCol =
   for i in 0 ..< hb.max_idx:
     maybe = hb.rand_nodes[i]
     if hb.is_empty(maybe):
-      rc = hb.linear2rowcol(maybe)
+      rc = hb.l2rc(maybe)
       break
 
   if rc.row == 0 and rc.col == 0: # never found an empty position
@@ -61,23 +61,23 @@ proc naive_move(hb: var Hexboard, side: Marker) : RowCol =
     shuffle(hb.start_border[ord(side)])
     for maybe in hb.start_border[ord(side)]:
       if hb.is_empty(maybe):
-        rc = hb.linear2rowcol(maybe)
+        rc = hb.l2rc(maybe)
         return rc
 
   else:
     prev_move = hb.move_seq[ord(side)][^1]
-    prev_move_linear = hb.rowcol2linear(prev_move)
+    prev_move_linear = hb.rc2l(prev_move)
 
-    neighbor_nodes = hb.hex_graph.get_neighbor_nodes(prev_move_linear, Marker.empty)
+    neighbor_nodes = get_neighbor_nodes(hb.hex_graph, prev_move_linear, Marker.empty)
     if neighbor_nodes.len == 0:
       return hb.random_move()
 
     shuffle(neighbor_nodes)
     for node in neighbor_nodes:
-      rc = hb.linear2rowcol(node)
+      rc = hb.l2rc(node)
       if rc.col > prev_move.col:
         return rc
-    rc = hb.linear2rowcol(neighbor_nodes[neighbor_nodes.high])
+    rc = hb.l2rc(neighbor_nodes[neighbor_nodes.high])
 
   return rc
 
@@ -112,7 +112,7 @@ proc find_ends(hb: var Hexboard, side: Marker, whole_board: bool = false) : Mark
       return side
 
     # find neighbors of the current node that match the current side and exclude already captured nodes
-    hb.neighbors = hb.hex_graph.get_neighbor_nodes(possibles[0], side, hb.captured)  
+    hb.neighbors = get_neighbor_nodes(hb.hex_graph, possibles[0], side, hb.captured)  
 
     if hb.neighbors.len == 0:
       if not possibles.len == 0:
@@ -190,7 +190,7 @@ proc monte_carlo_move(hb: var Hexboard, side: Marker, n_trials: int) : RowCol =
 
   hb.fill_board(hb.empty_idxs, Marker.empty) # restore board to move state before simulation
   hb.move_sim_time_cum += cpuTime() - hb.move_sim_time_t0
-  return hb.linear2row_col(best_move)
+  return hb.l2rc(best_move)
 
 
 proc computer_move(hb: var Hexboard, side: Marker, how: Do_move, n_trials: int) : RowCol =
