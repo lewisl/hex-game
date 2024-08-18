@@ -87,19 +87,19 @@ proc is_empty*(hb: Hexboard, rc: RowCol) : bool =
 
 
 # getters and setters from hex_board to graph: maybe this is reason to shadow node_data
-proc set_hex_marker*(hb: var Hex_board, hex_graph: var Graph, rc: RowCol, val: Marker)  = 
-  hex_graph.set_node_data(hb.rowcol2linear(rc), val)
-proc set_hex_marker*(hb: var Hex_board, hex_graph: var Graph, row: int, col: int, val: Marker)  =
-  hex_graph.set_node_data(hb.rowcol2linear(row, col), val)
-proc set_hex_marker*(hb: var Hex_board, hex_graph: var Graph, linear: int, val: Marker)  =
-  hex_graph.set_node_data(linear, val)
+proc set_hex_marker*(hb: var Hex_board, rc: RowCol, val: Marker)  = 
+  hb.hex_graph.set_node_data(hb.rowcol2linear(rc), val)
+proc set_hex_marker*(hb: var Hex_board,  row: int, col: int, val: Marker)  =
+  hb.hex_graph.set_node_data(hb.rowcol2linear(row, col), val)
+proc set_hex_marker*(hb: var Hex_board,  linear: int, val: Marker)  =
+  hb.hex_graph.set_node_data(linear, val)
 
-proc get_hex_Marker*(hb: Hex_board, hex_graph: Graph[Marker], rc: RowCol) : Marker  =
-  return get_node_data[Marker](hex_graph, hb.rowcol2linear(rc))
-proc get_hex_Marker*(hb: Hex_board, hex_graph: Graph[Marker], row: int, col: int) : Marker  =
-  return get_node_data[Marker](hex_graph, hb.rowcol2linear(row, col))
-proc get_hex_Marker*(hex_graph: Graph[Marker], linear: int) : Marker  =
-  return  get_node_data[Marker](hex_graph, linear)
+proc get_hex_Marker*(hb: Hex_board,  rc: RowCol) : Marker  =
+  return get_node_data[Marker](hb.hex_graph, hb.rowcol2linear(rc))
+proc get_hex_Marker*(hb: Hex_board,  row: int, col: int) : Marker  =
+  return get_node_data[Marker](hb.hex_graph, hb.rowcol2linear(row, col))
+proc get_hex_Marker*(hb: Hex_board,  linear: int) : Marker  =
+  return  get_node_data[Marker](hb.hex_graph, linear)
 
 
 # catenate marker at board position to the spacer between positions
@@ -245,7 +245,7 @@ proc display_board*(hb: Hexboard) =
       write(stdout, lead_space(row - 2), " ", row, " ")
     for col in 1..hb.edge_len:
       last = if col < hb.edge_len: false else: true
-      write(stdout, markerdash(hb.get_hex_marker(hb.hex_graph,row, col), last))
+      write(stdout, markerdash(hb.get_hex_marker(row, col), last))
     echo()
 
     # connector lines to show edges between board positions

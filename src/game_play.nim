@@ -22,7 +22,7 @@ proc simulate_hexboard_positions(hb: var Hexboard, empties: var seq[int] ) =
     next: Marker    = playerX
   
   for pos in empties:
-    hb.set_hex_marker(hb.hex_graph, pos, current)
+    hb.set_hex_marker(pos, current)
     swap(current, next) # alternate the markers to be placed on the board at each position
 
 
@@ -102,7 +102,7 @@ proc find_ends(hb: var Hexboard, side: Marker, whole_board: bool = false) : Mark
   hb.captured.setLen(0)
 
   for pos in hb.finish_border[ord(side)]:
-    if hb.hex_graph.get_hex_marker(pos) == side:
+    if hb.get_hex_marker(pos) == side:
       possibles.addlast(pos)
       hb.captured.add(pos)
 
@@ -157,7 +157,7 @@ proc monte_carlo_move(hb: var Hexboard, side: Marker, n_trials: int) : RowCol =
   # loop over the available move positions: make tst move, setup positions to randomize
   for tst_move in hb.empty_idxs:  # tst_move is an empty position for simulating test computer moves 
     current_idx.inc # index to the container empty_idxs
-    hb.set_hex_marker(hb.hex_graph, tst_move, side) # set the test move on the board
+    hb.set_hex_marker(tst_move, side) # set the test move on the board
     wins = 0
 
     # copy indices to empties to shuffle_idxs
@@ -178,7 +178,7 @@ proc monte_carlo_move(hb: var Hexboard, side: Marker, n_trials: int) : RowCol =
 
     hb.win_pct_per_move.add(wins.toFloat / n_trials.toFloat) # calculate and save computer win pct.
 
-    hb.set_hex_marker(hb.hex_graph, tst_move, Marker.empty)  # reverse the trial move
+    hb.set_hex_marker(tst_move, Marker.empty)  # reverse the trial move
 
     # find the maximum computer win pct across all simulated moves
     var  maxpct: float= 0.0
@@ -202,7 +202,7 @@ proc computer_move(hb: var Hexboard, side: Marker, how: Do_move, n_trials: int) 
   of monte_carlo:
     rc = hb.monte_carlo_move(side, n_trials)
 
-  hb.set_hex_marker(hb.hex_graph, rc, side)
+  hb.set_hex_marker(rc, side)
   hb.move_seq[ord(side)].add(rc)
 
   hb.move_count.inc
@@ -247,7 +247,7 @@ proc is_valid_move(hb: var Hexboard, rc: RowCol) : bool =
   elif col > hb.edge_len or col < 1:
     valid_move = false
     msg = bad_position
-  elif hb.get_hex_marker(hb.hex_graph, rc) != Marker.empty:
+  elif hb.get_hex_marker(rc) != Marker.empty:
     valid_move = false
     msg = not_empty
 
@@ -285,7 +285,7 @@ proc person_move(hb: var Hexboard, side: Marker) : RowCol =
 
     valid_move = hb.is_valid_move(rc)
 
-  hb.set_hex_marker(hb.hex_graph, rc, side)
+  hb.set_hex_marker(rc, side)
   hb.move_seq[ord(side)].add(rc)
 
   inc hb.move_count
