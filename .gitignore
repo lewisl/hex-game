@@ -3,10 +3,9 @@
 .vscode
 build/
 other/
+bin/
 
 # MacOS Cache
 .DS_Store
 
 
-src/tst.nim
-src/hex_tst.nim

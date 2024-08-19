@@ -341,23 +341,23 @@ proc who_goes_first() : tuple[person_marker: Marker, computer_marker: Marker] =
 
 proc play_game*(hb: var Hexboard, how: Do_move, n_trials: int) =
   var
-    person_rc: RowCol # person's move position
-    computer_rc: RowCol # computer's move position
+    person_rc: RowCol  # person's move position
+    computer_rc: RowCol  # computer's move position
     person_marker: Marker   # marker used by human player
-    computer_marker: Marker # marker used by computer player
+    computer_marker: Marker  # marker used by computer player
     winning_side: Marker
 
   randomize()       # set seed for random module procs
   clear_screen()
   echo("\n")
 
-  let t = who_goes_first() # possible to do with anon tuple, but this is order independent
-  person_marker = t.person_marker; computer_marker = t.computer_marker
+  let tp = who_goes_first() # possible with anon tuple, but this is order independent
+  person_marker = tp.person_marker; computer_marker = tp.computer_marker
 
   hb.move_count = 0
 
-  while true:   # move loop
-    case person_marker   # human goes first playing playerX marker
+  while true:   # move loop: Marker.playerX always first, whether person or computer
+    case person_marker   # human goes first playing marker playerX
     of Marker.playerX:
       hb.display_board()
       person_rc = hb.person_move(person_marker)
@@ -370,7 +370,7 @@ proc play_game*(hb: var Hexboard, how: Do_move, n_trials: int) =
       echo("The computer moved at ", $computer_rc, ".")
       echo("Your move at ", $person_rc, " was valid.\n\n")
 
-    of Marker.playerO:    # human goes second playing playerO marker
+    of Marker.playerO:    # human goes second playing marker playerO
       computer_rc = hb.computer_move(computer_marker, how, n_trials)
       echo("The computer moved at ", $computer_rc, ".\n")
       hb.display_board()

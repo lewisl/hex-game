@@ -1,6 +1,5 @@
 
 import 
-  tables,
   strutils,
   graph
 
@@ -25,11 +24,11 @@ type
     hex_graph*:           Graph[Marker]
     edge_len*:            int
     max_idx*:             int
-    move_count*:          int
     rand_nodes*:          seq[int]
     start_border*:        seq[seq[int]]
     finish_border*:       seq[seq[int]]
     # used by game_play  
+    move_count*:          int
     move_seq*:            seq[seq[RowCol]]
     win_pct_per_move*:    seq[float]
     neighbors*:           seq[int]
@@ -47,11 +46,13 @@ proc newhexboard*(edge_len: int) : Hexboard =  # in c++ terms, a custom construc
     edge_len = edge_len
     max_idx = edge_len * edge_len
   var hb = Hexboard(edge_len: edge_len, 
-                    max_idx: max_idx,
-                    move_seq: newSeq[newSeq[RowCol](max_idx div 2 + 1)](3),
-                    start_border: newSeq[newSeq[int](edge_len)](3),
-                    finish_border: newSeq[newSeq[int](edge_len)](3))
-  hb.hex_graph = newgraph[Marker](empty, max_idx)
+              max_idx: max_idx,
+              move_seq: newSeq[newSeq[RowCol](max_idx div 2 + 1)](3),
+              start_border: newSeq[newSeq[int](edge_len)](3),
+              finish_border: newSeq[newSeq[int](edge_len)](3),
+              empty_idxs: newSeqOfCap[int](max_idx-1),
+              shuffle_idxs: newSeqOfCap[int](max_idx-2),
+              hex_graph: newgraph[Marker](Marker.empty, max_idx))
 
   for i in 0..max_idx-1:
     hb.rand_nodes.add(i)
@@ -101,29 +102,6 @@ proc get_hex_Marker*(hb: Hex_board,  row: int, col: int) : Marker  =
 proc get_hex_Marker*(hb: Hex_board,  linear: int) : Marker  =
   return get_node_data[Marker](hb.hex_graph, linear)
 
-
-# catenate marker at board position to the spacer between positions
-proc markerdash(val: Marker, last: bool): string =
-  var
-    segment: string
-    dot  = "."
-    x = "X"
-    o = "O"
-    spacer = "___"
-
-  if last:
-    spacer = ""
-
-  if val == Marker.empty:
-    segment = dot & spacer
-  elif val == Marker.playerX:
-    segment = x & spacer
-  elif val == Marker.playerO:
-    segment = o & spacer
-  else:
-    raise newException(ValueError, "Error: invalid hexboard value.")
-
-  return segment
 
 
 proc lead_space(row: int): string =
@@ -181,27 +159,51 @@ proc make_hex_graph*(hb: var Hexboard) =
   for c in 2..hb.edge_len-1:
     var r: int = 1
     add_edge(hb.hex_graph, node=hb.rc2l(r, c), 
-              tonodes=[hb.rc2l(r, c - 1),hb.rc2l(r, c + 1), hb.rc2l(r + 1, c - 1),hb.rc2l(r + 1, c)])
+              tonodes=[hb.rc2l(r, c - 1), hb.rc2l(r, c + 1), hb.rc2l(r + 1, c - 1), hb.rc2l(r + 1, c)])
 
     r = hb.edge_len
     add_edge(hb.hex_graph, node=hb.rc2l(r, c), 
-            tonodes=[hb.rc2l(r, c - 1),hb.rc2l(r, c + 1), hb.rc2l(r - 1, c),hb.rc2l(r - 1, c + 1)])
+            tonodes=[hb.rc2l(r, c - 1), hb.rc2l(r, c + 1), hb.rc2l(r - 1, c), hb.rc2l(r - 1, c + 1)])
     
   # east-west edges: constant col, vary row
   for r in 2..hb.edge_len-1:
     var c: int = 1
     add_edge(hb.hex_graph, node=hb.rc2l(r, c), 
-            tonodes=[hb.rc2l(r - 1, c),hb.rc2l(r - 1, c + 1),hb.rc2l(r, c + 1),hb.rc2l(r + 1, c)])
+            tonodes=[hb.rc2l(r - 1, c), hb.rc2l(r - 1, c + 1), hb.rc2l(r, c + 1), hb.rc2l(r + 1, c)])
 
     c = hb.edge_len
     add_edge(hb.hex_graph, node=hb.rc2l(r, c), 
-          tonodes=[hb.rc2l(r - 1, c),hb.rc2l(r, c - 1), hb.rc2l(r + 1, c - 1),hb.rc2l(r + 1, c)])
+          tonodes=[hb.rc2l(r - 1, c), hb.rc2l(r, c - 1), hb.rc2l(r + 1, c - 1), hb.rc2l(r + 1, c)])
 
   # interior tiles: 6 edges per hex
   for r in 2..hb.edge_len-1:
     for c in 2..hb.edge_len-1:
-      add_edge(hb.hex_graph, node=hb.rc2l(r, c), tonodes=[hb.rc2l(r - 1, c + 1),hb.rc2l(r, c + 1),
-                        hb.rc2l(r + 1, c),hb.rc2l(r + 1, c - 1),hb.rc2l(r, c - 1),hb.rc2l(r - 1, c)])
+      add_edge(hb.hex_graph, node=hb.rc2l(r, c), tonodes=[hb.rc2l(r - 1, c + 1), hb.rc2l(r, c + 1),
+                        hb.rc2l(r + 1, c), hb.rc2l(r + 1, c - 1), hb.rc2l(r, c - 1), hb.rc2l(r - 1, c)])
+
+
+# helper to display_board: catenate marker at board position to the spacer between positions
+proc markerdash(val: Marker, last: bool): string =
+  var
+    segment: string
+    dot  = "."
+    x = "X"
+    o = "O"
+    spacer = "___"
+
+  if last:
+    spacer = ""
+
+  if val == Marker.empty:
+    segment = dot & spacer
+  elif val == Marker.playerX:
+    segment = x & spacer
+  elif val == Marker.playerO:
+    segment = o & spacer
+  else:
+    raise newException(ValueError, "Error: invalid hexboard value.")
+
+  return segment
 
 
 # create ascii display of hexboard

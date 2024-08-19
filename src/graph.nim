@@ -6,12 +6,12 @@ type
     tonode*: int = 0
     cost*:   int = 0
 
-proc `$`*(e: Edge): string =
+proc `$`*(e: Edge): string =  # overload $ string op for Edge
   return ("to: " & $e.tonode & " cost: " & $e.cost)
 
 
 type
-  Graph*[T_data] = object  # object referred to as hex_graph from hex_board
+  Graph*[T_data] = object  # referred to as hex_graph from hex_board
     size*: int
     gmap*: Table[int, seq[Edge]]
     node_data*: seq[T_data]
@@ -46,10 +46,11 @@ proc add_edge*(hex_graph: var Graph, node: int, tonode: int, cost: int = 0, bidi
       hex_graph.gmap[tonode].add(Edge(tonode: node, cost: cost))
 
 
-proc add_edge*(hex_graph: var Graph, node: int, cost: int = 0, bidirectional: bool = false, 
-               tonodes: varargs[int]) =
+# varargs version enables adding many edges to a node in one call
+proc add_edge*(hex_graph: var Graph, node: int, cost: int = 0, bidirectional: bool = false, tonodes: varargs[int]) =
   for tonode in tonodes:
     add_edge(hex_graph, node, tonode, cost, bidirectional)
+
 
 proc set_node_data*[T_data](hex_graph: var Graph, idx: int, val: T_data) =
   hex_graph.node_data[idx] = val
