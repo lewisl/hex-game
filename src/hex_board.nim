@@ -1,6 +1,7 @@
 
 import 
   strutils,
+  sequtils,
   graph
 
 type 
@@ -8,10 +9,6 @@ type
     empty
     playerX
     playerO
-
-type    
-  Do_move* = enum
-    naive, monte_carlo
 
 type  
   RowCol* = object
@@ -25,11 +22,10 @@ type
     edge_len*:            int
     max_idx*:             int
     rand_nodes*:          seq[int]
-    start_border*:        seq[seq[int]]
-    finish_border*:       seq[seq[int]]
+    start_border*:        array[1..2, seq[int]]  # start border for each player
+    finish_border*:       array[1..2, seq[int]]  # finish border for each player
     # used by game_play  
     move_count*:          int
-    move_seq*:            seq[seq[RowCol]]
     win_pct_per_move*:    seq[float]
     neighbors*:           seq[int]
     captured*:            seq[int]
@@ -47,17 +43,12 @@ proc newhexboard*(edge_len: int) : Hexboard =  # in c++ terms, a custom construc
     max_idx = edge_len * edge_len
   var hb = Hexboard(edge_len: edge_len, 
               max_idx: max_idx,
-              move_seq: newSeq[newSeq[RowCol](max_idx div 2 + 1)](3),
-              start_border: newSeq[newSeq[int](edge_len)](3),
-              finish_border: newSeq[newSeq[int](edge_len)](3),
-              empty_idxs: newSeqOfCap[int](max_idx-1),
-              shuffle_idxs: newSeqOfCap[int](max_idx-2),
+              empty_idxs: (0..(max_idx-1)).toSeq,  # initialize to all positions empty
+              shuffle_idxs: newSeqOfCap[int](max_idx-1),
               hex_graph: newgraph[Marker](Marker.empty, max_idx))
 
   for i in 0..max_idx-1:
     hb.rand_nodes.add(i)
-  for i in 1..2:
-    hb.move_seq[i].add(@[]) # add instantiated empty seq[RowCol]
 
   return hb
 
@@ -101,7 +92,6 @@ proc get_hex_Marker*(hb: Hex_board,  row: int, col: int) : Marker  =
   return get_node_data[Marker](hb.hex_graph, hb.rc2l(row, col))
 proc get_hex_Marker*(hb: Hex_board,  linear: int) : Marker  =
   return get_node_data[Marker](hb.hex_graph, linear)
-
 
 
 proc lead_space(row: int): string =
@@ -186,10 +176,12 @@ proc make_hex_graph*(hb: var Hexboard) =
 proc markerdash(val: Marker, last: bool): string =
   var
     segment: string
+    spacer = "___"
+  let
     dot  = "."
     x = "X"
     o = "O"
-    spacer = "___"
+
 
   if last:
     spacer = ""

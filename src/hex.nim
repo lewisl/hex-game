@@ -36,7 +36,7 @@ proc main() =
   var hb = newhexboard(size) # create the game object
   hb.make_hex_graph()
 
-  hb.play_game(Do_move.monte_carlo, n_trials)
+  hb.play_game(n_trials)
 
   echo "Assessing who won took " , hb.winner_assess_time_cum, " seconds.";
   echo("Simulating and evaluating moves took ", 

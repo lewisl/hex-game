@@ -1,4 +1,4 @@
-# Xmake cache
+# project
 .xmake/
 .vscode
 build/
