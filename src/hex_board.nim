@@ -50,7 +50,6 @@ proc newhexboard*(edge_len: int) : Hexboard =  # in c++ terms, a custom construc
   hb.positions = hb.hex_graph.node_data  # alias for hex_graph.node_data: base addr of positions traces base addr of hex_graph.node_data
   for i in 0..max_idx-1:
     hb.rand_nodes.add(i)
-
   return hb
 
 # short for rowcol2linear: conversions between row/col indices and ordinal integer indices to board positions

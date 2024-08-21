@@ -137,16 +137,19 @@ proc monte_carlo_move(hb: var Hexboard, side: Marker, n_trials: int) : RowCol =
   hb.move_sim_time_cum += cpuTime() - hb.move_sim_time_t0
   return hb.l2rc(best_move)
 
+# one proc to implement a move: set the marker, remove the empty index, increment the move counter
+proc do_move(hb: var Hexboard, rc: Rowcol, side: Marker) =
+  hb.set_hex_marker(rc, side)
+  hb.empty_idxs.delete(hb.empty_idxs.find(hb.rc2l(rc)))  # delete index from list of empty board positions
+  inc hb.move_count
+
 
 proc computer_move(hb: var Hexboard, side: Marker, n_trials: int) : RowCol =
   var rc: RowCol
 
   rc = hb.monte_carlo_move(side, n_trials)
 
-  hb.set_hex_marker(rc, side)
-  hb.empty_idxs.delete(hb.empty_idxs.find(hb.rc2l(rc)))  # delete index from list of empty board positions
-
-  hb.move_count.inc
+  hb.do_move(rc, side)
   return rc
 
 
@@ -232,10 +235,7 @@ proc person_move(hb: var Hexboard, side: Marker) : RowCol =
 
     valid_move = hb.is_valid_move(rc)
 
-  hb.set_hex_marker(rc, side)
-  hb.empty_idxs.delete(hb.empty_idxs.find(hb.rc2l(rc)))  # delete index from list of empty board positions
-
-  inc hb.move_count
+  hb.do_move(rc, side)
   return rc
 
 
