@@ -24,6 +24,7 @@ type
     rand_nodes*:          seq[int]
     start_border*:        array[1..2, seq[int]]  # start border for each player
     finish_border*:       array[1..2, seq[int]]  # finish border for each player
+    positions*:           ref seq[Marker]   # alias as traced reference to node_data in Graph
     # used by game_play  
     move_count*:          int
     win_pct_per_move*:    seq[float]
@@ -46,7 +47,7 @@ proc newhexboard*(edge_len: int) : Hexboard =  # in c++ terms, a custom construc
               empty_idxs: (0..(max_idx-1)).toSeq,  # initialize to all positions empty
               shuffle_idxs: newSeqOfCap[int](max_idx-1),
               hex_graph: newgraph[Marker](Marker.empty, max_idx))
-
+  hb.positions = hb.hex_graph.node_data  # alias for hex_graph.node_data: base addr of positions traces base addr of hex_graph.node_data
   for i in 0..max_idx-1:
     hb.rand_nodes.add(i)
 
@@ -72,26 +73,26 @@ proc l2rc*(hb: Hexboard, linear: int) : RowCol  =
     raise newException(ValueError, "Error: linear index input greater than edge_len * edge_len." )
 
 proc is_empty*(hb: Hexboard, linear: int) : bool =
-  return hb.hex_graph.node_data[linear] == Marker.empty
+  return hb.positions[linear] == Marker.empty
 
 proc is_empty*(hb: Hexboard, rc: RowCol) : bool =
-  return hb.hex_graph.node_data[hb.rc2l(rc)] == Marker.empty
+  return hb.positions[hb.rc2l(rc)] == Marker.empty
 
 
-# getters and setters from hex_board to graph: maybe this is reason to shadow node_data
+# getters and setters for hex_board from ref to Graph.node_data
 proc set_hex_marker*(hb: var Hex_board, rc: RowCol, val: Marker)  = 
-  hb.hex_graph.set_node_data(hb.rc2l(rc), val)
+  hb.positions[hb.rc2l(rc)] = val
 proc set_hex_marker*(hb: var Hex_board,  row: int, col: int, val: Marker)  =
-  hb.hex_graph.set_node_data(hb.rc2l(row, col), val)
+  hb.positions[hb.rc2l(row, col)] = val
 proc set_hex_marker*(hb: var Hex_board,  linear: int, val: Marker)  =
-  hb.hex_graph.set_node_data(linear, val)
+  hb.positions[linear] = val
 
 proc get_hex_Marker*(hb: Hex_board,  rc: RowCol) : Marker  =
-  return get_node_data[Marker](hb.hex_graph, hb.rc2l(rc))
+  return hb.positions[hb.rc2l(rc)]
 proc get_hex_Marker*(hb: Hex_board,  row: int, col: int) : Marker  =
-  return get_node_data[Marker](hb.hex_graph, hb.rc2l(row, col))
+  return hb.positions[hb.rc2l(row, col)]
 proc get_hex_Marker*(hb: Hex_board,  linear: int) : Marker  =
-  return get_node_data[Marker](hb.hex_graph, linear)
+  return hb.positions[linear]
 
 
 proc lead_space(row: int): string =

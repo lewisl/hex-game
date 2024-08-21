@@ -14,7 +14,7 @@ type
   Graph*[T_data] = object  # referred to as hex_graph from hex_board
     size*: int
     gmap*: Table[int, seq[Edge]]
-    node_data*: seq[T_data]
+    node_data*: ref seq[T_data]
     node_elem*: T_data  # might not need this
 
 
@@ -24,9 +24,10 @@ proc count_nodes*(gr: Graph) : int =  # reasonable thing to have, not used
 
 proc newgraph*[T_data](node_elem: T_data, size: int): Graph[T_data] =  # in c++ terms, a custom constructor
   var gr = Graph[T_data](size: size, node_elem: node_elem) 
+  new(gr.node_data)
   for i in 0 ..< size:
-    gr.node_data.add(node_elem)
     gr.gmap[i] = @[] # create a node and empty seq[Edge]
+    gr.node_data[].add(node_elem)
   return gr
 
 
