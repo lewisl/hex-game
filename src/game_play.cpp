@@ -12,127 +12,55 @@
 using namespace std;
 
 
-void Hex::simulate_hexboard_positions(vector<int> empty_hex_positions)
+void Hex::simulate_hexboard_positions(vector<int> empties)
 {
     // put the empty positions in the graph in random order
-    shuffle(empty_hex_positions.begin(), empty_hex_positions.end(), rng);
+    shuffle(empties.begin(), empties.end(), rng);
 
     // swap the scalars each iteration to alternate markers    
     Marker current = Marker::playerO; Marker next = Marker::playerX; Marker tmp = Marker::empty;
-    for (int i = 0; i != empty_hex_positions.size(); ++i) {
-      set_hex_Marker(current, empty_hex_positions[i]);
-      tmp = current; current = next; next = tmp;  // faster than std::swap
-      }
+    for (int i = 0; i != empties.size(); ++i) {
+        set_hex_Marker(current, empties[i]);
+        tmp = current; current = next; next = tmp;  // faster than std::swap
+    }
 }
 
-
-// Not used for the monte carlo simulation: used for naive computer move
-Hex::RowCol Hex::random_move()
-{
-    RowCol rc;
-    int maybe; // candidate node to place a Marker on
-
-    shuffle(rand_nodes.begin(), rand_nodes.end(), rng);
-
-    for (int i = 0; i != max_idx; ++i) {
-        maybe = rand_nodes[i];
-        if (is_empty(maybe)) {
-            rc = linear2row_col(maybe);
-            break;
-        }
-    }
-    if (rc.row == 0 && rc.col == 0) { // never found an empty position->no possible move
-        rc.row = -1;
-        rc.col = -1; // no move
-    }
-
-    return rc;
-}
-
-// the program makes a naive move to extend its longest path
-// Not used for the monte carlo simulation
-Hex::RowCol Hex::naive_move(Marker side)
-{
-    RowCol rc;
-    RowCol prev_move;
-    int prev_move_linear;
-    vector<int> neighbor_nodes;
-
-    if (move_seq[enum2int(side)].empty()) {
-        shuffle(start_border[static_cast<int>(side)].begin(), start_border[static_cast<int>(side)].end(), rng);
-        for (int maybe : start_border[static_cast<int>(side)]) {
-            if (is_empty(maybe)) {
-                rc = linear2row_col(maybe);
-                return rc;
-            }
-        }
-    }
-    else {
-        prev_move = move_seq[enum2int(side)].back();
-        prev_move_linear = linear_index(prev_move);
-
-        neighbor_nodes = hex_graph.get_neighbor_nodes(prev_move_linear, Marker::empty);
-
-        if (neighbor_nodes.empty())
-            return random_move();
-
-        shuffle(neighbor_nodes.begin(), neighbor_nodes.end(), rng); // why twice?
-        shuffle(neighbor_nodes.begin(), neighbor_nodes.end(), rng);
-
-        for (int node : neighbor_nodes) {
-            rc = linear2row_col(node);
-            if (rc.col > prev_move.col)
-                return rc;
-        }
-        rc = linear2row_col(neighbor_nodes.back());
-    }
-
-    return rc;
-}
 
 Hex::RowCol Hex::monte_carlo_move(Marker side, int n_trials)
 {
     move_simulation_time.start();
 
     // method uses class fields: clear them instead of creating new objects each time
-    empty_hex_pos.clear();
-    random_pos.clear();
+    shuffle_idxs.clear();
     win_pct_per_move.clear();
 
     int wins = 0;
     Marker winning_side;
     int best_move = 0;
 
-    // loop over positions on the board to find available moves = empty positions
-    for (int i = 0; i != max_idx; ++i) {
-        if (is_empty(i)) {
-            empty_hex_pos.push_back(i); // indices of where the board is empty
-        }
-    }
-
     int move_num = 0; // the index of empty hex positions that will be assigned the move to evaluate
 
     // loop over the available move positions: make eval move, setup positions to randomize
-    for (move_num = 0; move_num != empty_hex_pos.size(); ++move_num) {
+    for (move_num = 0; move_num != empty_idxs.size(); ++move_num) {
 
         // make the computer's move to be evaluated
-        set_hex_Marker(side, empty_hex_pos[move_num]);
+        set_hex_Marker(side, empty_idxs[move_num]);
         wins = 0; // reset the win counter across the trials
 
-        // only on the first move, copy all the empty_hex_pos except 0 to the vector to be shuffled
+        // only on the first move, copy all the empty_idxs except 0 to the vector to be shuffled
         if (move_num == 0) {
             for (auto j = 0; j != move_num; ++j)
-                random_pos.push_back(empty_hex_pos[j]); 
-            for (auto j = move_num; j != empty_hex_pos.size() - 1; ++j)
-                random_pos.push_back(empty_hex_pos[j + 1]);
+                shuffle_idxs.push_back(empty_idxs[j]); 
+            for (auto j = move_num; j != empty_idxs.size() - 1; ++j)
+                shuffle_idxs.push_back(empty_idxs[j + 1]);
         }
         else { // for the other moves, faster to simply change 2 values
-            random_pos[move_num - 1] = empty_hex_pos[move_num - 1];
-            random_pos[move_num] = empty_hex_pos[move_num + 1]; // skip empty_hex_pos[move_num]
+            shuffle_idxs[move_num - 1] = empty_idxs[move_num - 1];
+            shuffle_idxs[move_num] = empty_idxs[move_num + 1]; // skip empty_idxs[move_num]
         }
 
         for (int trial = 0; trial != n_trials; ++trial) {
-            simulate_hexboard_positions(random_pos);
+            simulate_hexboard_positions(shuffle_idxs);
 
             winning_side = find_ends(side, true);
 
@@ -143,44 +71,49 @@ Hex::RowCol Hex::monte_carlo_move(Marker side, int n_trials)
         win_pct_per_move.push_back(static_cast<float>(wins) / n_trials);
 
         // reverse the trial move
-        set_hex_Marker(Marker::empty, empty_hex_pos[move_num]);
+        set_hex_Marker(Marker::empty, empty_idxs[move_num]);
     }
 
     // find the maximum computer win percentage across all the candidate moves
     float maxpct = 0.0;
-    best_move = empty_hex_pos[0];
+    best_move = empty_idxs[0];
     for (int i = 0; i != win_pct_per_move.size(); ++i) { // linear search
         if (win_pct_per_move[i] > maxpct) {
             maxpct = win_pct_per_move[i];
-            best_move = empty_hex_pos[i];
+            best_move = empty_idxs[i];
         }
     }
 
     // restore the board
-    fill_board(empty_hex_pos, Marker::empty);
+    fill_board(empty_idxs, Marker::empty);
 
     move_simulation_time.cum();
 
     return linear2row_col(best_move);
 }
 
-Hex::RowCol Hex::computer_move(Marker side, Hex::Do_move how, int n_trials)
+void Hex::do_move(Marker side, RowCol rc)
+{
+    set_hex_Marker(side, rc);
+
+    // remove empty
+    auto emptypos = find(empty_idxs.begin(), empty_idxs.end(), linear_index(rc));
+    auto foo = empty_idxs.erase(emptypos);  // we don't need foo
+    
+    move_count++;
+}
+
+Hex::RowCol Hex::computer_move(Marker side, int n_trials)
 {
     RowCol rc;
 
-    switch (how) {
-    case Hex::Do_move::naive:
-        rc = naive_move(side);
-        break;
-    case Hex::Do_move::monte_carlo:
-        rc = monte_carlo_move(side, n_trials);
-        break;
-    }
+    rc = monte_carlo_move(side, n_trials);
 
-    set_hex_Marker(side, rc);
+    // set_hex_Marker(side, rc);
+    do_move(side, rc);
     move_seq[enum2int(side)].push_back(rc);
 
-    move_count++;
+    // move_count++;
     return rc;
 }
 
@@ -245,10 +178,12 @@ Hex::RowCol Hex::person_move(Marker side)
         valid_move = is_valid_move(rc);
         }
 
-    set_hex_Marker(side, rc);
+        // set_hex_Marker(side, rc);
+    // cout << " the move was " << rc << endl;
+    do_move(side, rc);
     move_seq[enum2int(side)].push_back(rc);
 
-    move_count++;
+    // move_count++;
 
     return rc;
 }
@@ -371,12 +306,10 @@ Hex::Marker Hex::who_won() // we use this when we may not have a full board, so 
     return winner;
 }
 
-void Hex::play_game(Hex::Do_move how, int n_trials) 
+void Hex::play_game(int n_trials) 
 {
     RowCol person_rc; // person's move
     RowCol computer_rc; // computer's move
-    // bool valid_move;
-    // bool person_first = true;
     string answer;
     Marker person_Marker;
     Marker computer_Marker;
@@ -436,7 +369,7 @@ void Hex::play_game(Hex::Do_move how, int n_trials)
                 exit(0);
             }
 
-            computer_rc = computer_move(computer_Marker, how, n_trials);
+            computer_rc = computer_move(computer_Marker, n_trials);
             clear_screen();
             cout << "The computer moved at " << computer_rc << "\n";
             cout << "Your move at " << person_rc << " was valid.\n\n\n";
@@ -446,7 +379,7 @@ void Hex::play_game(Hex::Do_move how, int n_trials)
         // computer goes first
         case Marker::playerO:
 
-            computer_rc = computer_move(computer_Marker, how, n_trials);
+            computer_rc = computer_move(computer_Marker, n_trials);
             cout << "The computer moved at " << computer_rc << "\n\n";
 
             display_board();

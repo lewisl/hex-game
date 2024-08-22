@@ -94,7 +94,7 @@ void Hex::make_board()
     // initial values:  all tiles are empty = 0
     for (int i = 0; i != max_idx; ++i) {
         hex_graph.create_edge_container(i); // create an empty edge container at each node
-        rand_nodes.push_back(i);            // vector of nodes
+
         // NOTE: node_data, which holds the Marker at each board position,
         //              initialized by class Graph constructor, called by class Hex constructor
         

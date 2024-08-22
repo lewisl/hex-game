@@ -20,7 +20,9 @@
 
 using namespace std;
 
-
+// ##########################################################################
+// #             Definition/Declaration of Class Hex
+// ##########################################################################
 class Hex {
 public:
   enum class Marker {
@@ -29,7 +31,7 @@ public:
     playerO = 2
   }; // for the data held at each board position
 
-  enum class Do_move { naive = 0, monte_carlo };
+//   enum class Do_move { naive = 0, monte_carlo };
 
   // row and col on the hexboard to address a hexagon
   // row and col are seen by the human player so we use 1-based indexing
@@ -49,6 +51,10 @@ public:
                     "Bad size input. Must be odd, positive integer.");
             }
             max_idx = edge_len * edge_len;
+            empty_idxs.resize(max_idx);
+            for (size_t i=0; i < empty_idxs.size(); ++i) {
+                empty_idxs[i] = i;  // add all positions-> all start empty
+            }
             Graph<Marker> hex_graph(max_idx, Hex::Marker::empty);  // initializes all board positions to empty
     }
     // Hex::make_board() greats the graph of the board and the ascii display of the board
@@ -74,16 +80,15 @@ private:
   const int edge_len;
   int max_idx; // maximum linear index
   int move_count{0}; // number of moves played during the game: each player's move adds 1
-  vector<int> rand_nodes; // use in rand move method
   vector<vector<int>> start_border; // indices to the top and left edges of the board
   vector<vector<int>> finish_border; // indices to the bottom and right edges of the board
   vector<vector<RowCol>> move_seq; // history of moves: use ONLY indices 1 and 2 for outer vector
   vector<Marker> &positions = hex_graph.node_data; // positions ofMarkers on the board: alias to Graph
 
   // used by monte_carlo_move: pre-allocated memory by method set_storage
-  vector<int> empty_hex_pos; // empty positions that are available for candidate
+  vector<int> empty_idxs; // empty positions that are available for candidate
                              // move and for simulated moves
-  vector<int> random_pos; // copy of empty_hex_pos (except the candidate move)
+  vector<int> shuffle_idxs; // copy of empty_idxs (except the candidate move)
                           // to be shuffled
   vector<float> win_pct_per_move;
   // used by find_ends: pre-allocated memory by method set_storage
@@ -115,8 +120,8 @@ private:
 
   void set_storage(int max_idx) { // optimization to reduce memory allocations
                                   // for resizing containers
-    empty_hex_pos.reserve(max_idx);
-    random_pos.reserve(max_idx);
+    // empty_idxs.reserve(max_idx);
+    shuffle_idxs.reserve(max_idx);
     win_pct_per_move.reserve(max_idx);
     captured.reserve(max_idx / 2 + 1);
     // for a player, can only be half the board positions + 1 for the player
@@ -231,14 +236,15 @@ public:
 
     // externally defined methods of class Hex in file game_play.cpp
     public:
-        void play_game(Hex::Do_move how, int n_trials = 1000);
+        void play_game(int n_trials = 1000);
     private:
         void initialize_move_seq();
-        void simulate_hexboard_positions(vector<int> empty_hex_positions);
-        RowCol random_move();
-        RowCol naive_move(Marker side);
+        void simulate_hexboard_positions(vector<int> empty_idxsitions);
+        // RowCol random_move();
+        // RowCol naive_move(Marker side);
         RowCol monte_carlo_move(Marker side, int n_trials);
-        RowCol computer_move(Marker side, Hex::Do_move how, int n_trials);
+        void do_move(Marker side, RowCol rc);
+        RowCol computer_move(Marker side, int n_trials);
         RowCol move_input(const string &msg) const;   
         RowCol person_move(Marker side);
         bool is_valid_move(RowCol rc) const;

@@ -31,7 +31,7 @@ int main(int argc, char *argv[])
     Hex hb(size);  // create the game object
     hb.make_board();
     
-    hb.play_game(Hex::Do_move::monte_carlo, n_trials);
+    hb.play_game(n_trials);
 
     cout << "Assessing who won took " << hb.winner_assess_time.show() << " seconds.\n";
     cout << "Simulating and evaluating moves took "
