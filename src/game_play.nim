@@ -43,36 +43,34 @@ proc is_in_start(hb: Hexboard, idx: int, side: Marker) : bool =
 # depth first search from positions in finish_border to connected graph to a move in the start_border
 proc find_ends(hb: var Hexboard, side: Marker, whole_board: bool = false) : Marker =
   hb.winner_assess_time_t0 = cpuTime()
-  var 
-    possibles = initDeque[int](hb.max_idx-1)
 
   # clear instead of create new containers
-  hb.neighbors.setLen(0)
   hb.captured.setLen(0)
+  hb.possibles.clear()
 
   for pos in hb.finish_border[ord(side)]:
     if hb.get_hex_marker(pos) == side:
-      possibles.addlast(pos)
+      hb.possibles.addlast(pos)
       hb.captured.add(pos)
 
-  while not (possibles.len == 0):
-    if hb.is_in_start(possibles[0], side):
+  while not (hb.possibles.len == 0):
+    if hb.is_in_start(hb.possibles[0], side):
       # hb.winner_assess_time_cum += cpuTime() - hb.winner_assess_time_t0
       return side
 
     # find neighbors of the current node that match the current side and exclude already captured nodes
-    hb.neighbors = get_neighbor_nodes(hb.hex_graph, possibles[0], side, hb.captured)  
+    hb.neighbors = get_neighbor_nodes(hb.hex_graph, hb.possibles[0], side, hb.captured)  
 
     if hb.neighbors.len == 0:
-      if not possibles.len == 0:
-        possibles.popFirst()
+      if not hb.possibles.len == 0:
+        hb.possibles.popFirst()
       break
     else:
-      possibles[0] = hb.neighbors[0]
+      hb.possibles[0] = hb.neighbors[0]
       hb.captured.add(hb.neighbors[0])
 
       for i in 1 ..< hb.neighbors.len:
-        possibles.addlast(hb.neighbors[i])
+        hb.possibles.addlast(hb.neighbors[i])
         hb.captured.add(hb.neighbors[i])
 
   hb.winner_assess_time_cum += (cpuTime() - hb.winner_assess_time_t0)

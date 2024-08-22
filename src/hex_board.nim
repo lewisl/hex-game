@@ -2,6 +2,7 @@
 import 
   strutils,
   sequtils,
+  std/deques,
   graph
 
 type 
@@ -31,6 +32,7 @@ type
     win_pct_per_move*:    seq[float]
     neighbors*:           seq[int]
     captured*:            seq[int]
+    possibles*:           Deque[int]  # candidates for finding connected path from edge to edge
     shuffle_idxs*:        seq[int]
     empty_idxs*:          seq[int]
     winner_assess_time_t0*:  float
@@ -47,6 +49,7 @@ proc newhexboard*(edge_len: int) : Hexboard =  # in c++ terms, a custom construc
               max_idx: max_idx,
               empty_idxs: (0..(max_idx-1)).toSeq,  # initialize to all positions empty
               shuffle_idxs: newSeqOfCap[int](max_idx-1),
+              possibles: initDeque[int](max_idx-1),
               hex_graph: newgraph[Marker](max_idx, Marker.empty))
   hb.positions = hb.hex_graph.node_data  # alias for hex_graph.node_data: base addr of positions traces base addr of hex_graph.node_data
   for i in 0..max_idx-1:
@@ -182,7 +185,6 @@ proc markerdash(val: Marker, last: bool): string =
     dot  = "."
     x = "X"
     o = "O"
-
 
   if last:
     spacer = ""

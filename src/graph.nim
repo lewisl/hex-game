@@ -13,7 +13,7 @@ proc `$`*(e: Edge): string =  # overload $ string op for Edge
 type
   Graph*[T_data] = object  # referred to as hex_graph from hex_board
     size*: int
-    gmap*: Table[int, seq[Edge]]
+    gmap*: seq[seq[Edge]]
     node_data*: ref seq[T_data]
     node_elem*: T_data  # might not need this
 
@@ -26,9 +26,9 @@ proc newgraph*[T_data](size: int, node_elem: T_data, ): Graph[T_data] =  # in c+
   var gr = Graph[T_data](size: size, node_elem: node_elem) 
   new(gr.node_data)
   gr.node_data[] = newSeq[T_data](size)
-  # initialize table and node_data
+  gr.gmap = newSeq[seq[Edge]](size)
+  # initialize node_data
   for i in 0 ..< size:
-    gr.gmap[i] = @[] 
     gr.node_data[i] = node_elem
   return gr
 
@@ -45,8 +45,8 @@ proc add_edge*(hex_graph: var Graph, node: int, tonode: int, cost: int = 0, bidi
   
   if no_match:
     hex_graph.gmap[node].add(Edge(tonode: tonode, cost: cost))
-    if bidirectional:
-      hex_graph.gmap[tonode].add(Edge(tonode: node, cost: cost))
+    # if bidirectional:
+    #   hex_graph.gmap[tonode].add(Edge(tonode: node, cost: cost))
 
 
 # varargs version enables adding many edges to a node in one call
@@ -70,7 +70,7 @@ proc get_neighbors*[T_data](hex_graph: Graph[T_data], current_node: int) : seq[E
 # get the neighbors whose data match to filter data
 proc get_neighbors*[T_data](hex_graph: Graph[T_data], current_node: int, item_filter: T_data) : seq[Edge]  =
   
-  var res: seq[Edge]
+  var res = newSeqOfCap[Edge](6)
   for e in hex_graph.gmap[current_node]:
     if hex_graph.node_data[e.tonode] == item_filter:
       res.add(e)
@@ -79,7 +79,7 @@ proc get_neighbors*[T_data](hex_graph: Graph[T_data], current_node: int, item_fi
 
 # get the neighbors that match the select data and are not in the excluded nodes in a set, deque or vector
 proc get_neighbors*[T_data, T_cont](hex_graph: Graph[T_data], current_node: int, item_filter: T_data, exclude: T_cont) : seq[Edge]  =
-  var res: seq[Edge]
+  var res = newSeqOfCap[Edge](6)
   for e in hex_graph.gmap[current_node]:
     if hex_graph.node_data[e.tonode] == item_filter and (not (contains(exclude, e.to_node))):
       res.add(e)
@@ -88,7 +88,7 @@ proc get_neighbors*[T_data, T_cont](hex_graph: Graph[T_data], current_node: int,
 
 # get the neighbor_nodes as a vector of nodes instead of the edges
 proc get_neighbor_nodes*[T_data](hex_graph: Graph[T_data], current_node: int, item_filter: T_data) : seq[int]  =
-  var res : seq[int]
+  var res = newSeqOfCap[int](6)
   for e in get_neighbors(hex_graph, current_node, item_filter):
       res.add(e.to_node)
   return res;
@@ -96,7 +96,7 @@ proc get_neighbor_nodes*[T_data](hex_graph: Graph[T_data], current_node: int, it
 
 # get the neighbor_nodes as a vector of nodes instead of the edges
 proc get_neighbor_nodes*[T_data, T_cont](hex_graph: Graph[T_data], current_node: int, item_filter: T_data, exclude: T_cont) : seq[int]  =
-  var res: seq[int]
+  var res= newSeqOfCap[int](6)
   for e in get_neighbors(hex_graph, current_node, item_filter, exclude):
       res.add(e.to_node)
   return res;
