@@ -22,12 +22,14 @@ proc count_nodes*(gr: Graph) : int =  # reasonable thing to have, not used
   return gr.gmap.len
 
 
-proc newgraph*[T_data](node_elem: T_data, size: int): Graph[T_data] =  # in c++ terms, a custom constructor
+proc newgraph*[T_data](size: int, node_elem: T_data, ): Graph[T_data] =  # in c++ terms, a custom constructor
   var gr = Graph[T_data](size: size, node_elem: node_elem) 
   new(gr.node_data)
+  gr.node_data[] = newSeq[T_data](size)
+  # initialize table and node_data
   for i in 0 ..< size:
-    gr.gmap[i] = @[] # create a node and empty seq[Edge]
-    gr.node_data[].add(node_elem)
+    gr.gmap[i] = @[] 
+    gr.node_data[i] = node_elem
   return gr
 
 

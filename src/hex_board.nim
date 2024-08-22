@@ -25,7 +25,8 @@ type
     start_border*:        array[1..2, seq[int]]  # start border for each player
     finish_border*:       array[1..2, seq[int]]  # finish border for each player
     positions*:           ref seq[Marker]   # alias as traced reference to node_data in Graph
-    # used by game_play  
+    # used by game_play: 
+      # using this object prevents game_play functions from allocating/deallocating many small seqs  
     move_count*:          int
     win_pct_per_move*:    seq[float]
     neighbors*:           seq[int]
@@ -46,7 +47,7 @@ proc newhexboard*(edge_len: int) : Hexboard =  # in c++ terms, a custom construc
               max_idx: max_idx,
               empty_idxs: (0..(max_idx-1)).toSeq,  # initialize to all positions empty
               shuffle_idxs: newSeqOfCap[int](max_idx-1),
-              hex_graph: newgraph[Marker](Marker.empty, max_idx))
+              hex_graph: newgraph[Marker](max_idx, Marker.empty))
   hb.positions = hb.hex_graph.node_data  # alias for hex_graph.node_data: base addr of positions traces base addr of hex_graph.node_data
   for i in 0..max_idx-1:
     hb.rand_nodes.add(i)

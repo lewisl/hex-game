@@ -137,6 +137,7 @@ proc monte_carlo_move(hb: var Hexboard, side: Marker, n_trials: int) : RowCol =
   hb.move_sim_time_cum += cpuTime() - hb.move_sim_time_t0
   return hb.l2rc(best_move)
 
+
 # one proc to implement a move: set the marker, remove the empty index, increment the move counter
 proc do_move(hb: var Hexboard, rc: Rowcol, side: Marker) =
   hb.set_hex_marker(rc, side)
@@ -145,10 +146,9 @@ proc do_move(hb: var Hexboard, rc: Rowcol, side: Marker) =
 
 
 proc computer_move(hb: var Hexboard, side: Marker, n_trials: int) : RowCol =
-  var rc: RowCol
-
+  var 
+    rc: RowCol
   rc = hb.monte_carlo_move(side, n_trials)
-
   hb.do_move(rc, side)
   return rc
 
@@ -156,26 +156,27 @@ proc computer_move(hb: var Hexboard, side: Marker, n_trials: int) : RowCol =
 # prompting sequence for human player's move
 proc move_input(msg: string) : RowCol =
   var 
-    row, col: int
+    row, col, cnt: int
     input: string
-    items: seq[string]
+    more_input = true
 
-  while true:
+  while more_input:
     input = readLineFromStdin("row col: ")
-    items = input.splitWhitespace()
-    if items.len != 2:
-      write(stdout, msg)
-      continue
-    else:
-      row = try: items[0].parseInt
+    cnt = 1
+    for item in splitWhitespace(input):  # lot'o'rigamorole to avoid splitting input into a seq
+      if cnt == 1:
+        row = try: item.parseInt
             except ValueError as e:
               echo "  *** ", e.msg & ". Move inputs must be integers..."
-              continue
-      col = try: items[1].parseInt
+              break
+        cnt = 2
+      elif cnt == 2:
+        col = try: item.parseInt
             except ValueError as e:
               echo "  *** ", e.msg & ". Move inputs must be integers..."
-              continue
-      break
+              break
+        more_input = false
+        break
   
   return RowCol(row: row, col: col)
 
@@ -308,8 +309,8 @@ proc play_game*(hb: var Hexboard, n_trials: int) =
 
       computer_rc = hb.computer_move(computer_marker, n_trials)
       clear_screen()
-      echo("The computer moved at ", $computer_rc, ".")
-      echo("Your move at ", $person_rc, " was valid.\n\n")
+      echo("Your move at ", $person_rc, " was valid.")
+      echo("The computer moved at ", $computer_rc, ".\n\n")
 
     of Marker.playerO:    # human goes second playing marker playerO
       computer_rc = hb.computer_move(computer_marker, n_trials)
