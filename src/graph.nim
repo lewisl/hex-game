@@ -15,7 +15,7 @@ type
     size*: int
     gmap*: seq[seq[Edge]]
     node_data*: ref seq[T_data]
-    node_elem*: T_data  # might not need this
+    node_elem*: T_data  # initial fill value for graph
 
 
 proc count_nodes*(gr: Graph) : int =  # reasonable thing to have, not used
@@ -115,3 +115,4 @@ proc display_graph*(gr: Graph, outf: File = stdout) =
 proc display_graph*(gr: Graph, filename: string) =
   var f = open(filename, fmWrite)
   gr.display_graph(f)
+  f.close

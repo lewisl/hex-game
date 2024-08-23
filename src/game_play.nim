@@ -13,15 +13,16 @@ import
   helpers
 
 # simulate a hex game by filling empty positions with shuffled markers (doesn't include the test move)
-proc simulate_hexboard_positions(hb: var Hexboard, empties: var seq[int] ) =  
-
-  shuffle(empties)   # does not include current test move
+proc simulate_hexboard_positions[T](hb: var Hexboard, empties:  seq[T])  =  
+  
+  var foo = empties  # create a non-destructive shuffle=>must discard in the caller
+  shuffle(foo)   # does not include current test move
 
   var
-    current: Marker = playerO  # computer goes first because we do this after the person has moved
+    current: Marker = playerO  # computer first after person's move
     next: Marker    = playerX
   
-  for pos in empties:
+  for pos in foo:
     hb.set_hex_marker(pos, current)
     swap(current, next) # alternate the markers to be placed on the board at each position
 
@@ -92,44 +93,54 @@ proc monte_carlo_move(hb: var Hexboard, side: Marker, n_trials: int) : RowCol =
     winning_side: Marker = empty
     best_move: int
 
-  hb.shuffle_idxs.setLen(hb.empty_idxs.len - 1)  # one less than number of empties->one of the empties is the test move
+  hb.shuffle_idxs.setLen(hb.empty_idxs.len - 1)         # setLen(hb.empty_idxs.len - 1)  # one less than number of empties->one of the empties is the test move
 
-  var current_idx = -1  # keep track of index in empty_idxs=>NOT same as loop counter
+  var current_move = -1  # keep track of index in empty_idxs=>NOT same as loop counter
 
   # loop over the available move positions: make tst move, setup positions to randomize
   for tst_move in hb.empty_idxs:  # tst_move is an empty position for simulating test computer moves 
-    current_idx.inc # index to the container empty_idxs
+    current_move.inc # index to the container empty_idxs
     hb.set_hex_marker(tst_move, side) # set the test move on the board
 
     wins = 0
 
     # copy indices to empties to shuffle_idxs
-    for copy_idx in 0 ..< hb.empty_idxs.len:  # range over all the empties
-      if copy_idx > hb.shuffle_idxs.len:
-        break  # no room!
-      elif copy_idx < current_idx:
-        hb.shuffle_idxs[copy_idx] = hb.empty_idxs[copy_idx]
-      elif copy_idx == current_idx:
-        continue  # don't copy index of the test move into shuffle_idxs
-      else:  # copy_idx > current 
-        hb.shuffle_idxs[copy_idx - 1] = hb.empty_idxs[copy_idx] # fill the place we skipped in shuffle_idxs...
+    if current_move == 0:
+      for copy_idx in 0 ..< hb.empty_idxs.len:  # range over all the empties
+        if copy_idx > hb.shuffle_idxs.len:
+          break  # no room!
+        elif copy_idx < current_move:
+          hb.shuffle_idxs[copy_idx] = hb.empty_idxs[copy_idx]
+        elif copy_idx == current_move:
+          continue  # don't copy index of the test move into shuffle_idxs
+        else:  # copy_idx > current 
+          hb.shuffle_idxs[copy_idx - 1] = hb.empty_idxs[copy_idx] # fill the place we skipped in shuffle_idxs...
+    else:
+      hb.shuffle_idxs[current_move - 1] = hb.empty_idxs[current_move - 1]
+      if current_move < hb.shuffle_idxs.len:
+        hb.shuffle_idxs[current_move] = hb.empty_idxs[current_move + 1]
 
     for trial in 0 ..< n_trials:
       hb.simulate_hexboard_positions(hb.shuffle_idxs)
       winning_side = hb.find_ends(side, true)
       wins += (if winning_side == side: 1 else: 0)
 
-    hb.win_pct_per_move.add(wins.toFloat / n_trials.toFloat) # calculate and save computer win pct.
+    hb.win_pct_per_move.add(wins.toBiggestFloat / n_trials.toBiggestFloat) # calculate and save computer win pct.
 
     hb.set_hex_marker(tst_move, Marker.empty)  # reverse the trial move
 
   # after all test moves have been tried, find the maximum computer win pct across them
-  var  maxpct: float= 0.0
+  var  maxpct: float64 = 0.0
+  var choice: int = 0
   best_move = hb.empty_idxs[0]
   for i in 0 ..< hb.win_pct_per_move.len:
+    echo "win % ", hb.win_pct_per_move, " i ", i, " move: ", hb.empty_idxs[i], "\n"
     if hb.win_pct_per_move[i] > maxpct:
       maxpct = hb.win_pct_per_move[i]
-      best_move = hb.empty_idxs[i]
+      best_move = hb.empty_idxs[i]  
+      choice  = i
+
+  # echo "************ ", "choice ", choice, " maxpct ", maxpct, " move ", hb.empty_idxs[choice]
 
   hb.fill_board(hb.empty_idxs, Marker.empty) # restore board to move state before simulation
   hb.move_sim_time_cum += cpuTime() - hb.move_sim_time_t0
@@ -146,6 +157,7 @@ proc do_move(hb: var Hexboard, rc: Rowcol, side: Marker) =
 proc computer_move(hb: var Hexboard, side: Marker, n_trials: int) : RowCol =
   var 
     rc: RowCol
+    
   rc = hb.monte_carlo_move(side, n_trials)
   hb.do_move(rc, side)
   return rc
@@ -250,6 +262,7 @@ proc who_won(hb: var Hexboard) : Marker =
 
 
 proc who_goes_first() : tuple[person_marker: Marker, computer_marker: Marker] =
+  # playerX is always first; playerO is always second. Who gets each marker?
   while true:
     write(stdout, repeat("\n", 15))
     # write(stdout, "*** Do you want to go first? (enter y or yes or n or no) ")

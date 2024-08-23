@@ -29,13 +29,13 @@ type
     # used by game_play: 
       # using this object prevents game_play functions from allocating/deallocating many small seqs  
     move_count*:          int
-    win_pct_per_move*:    seq[float]
+    win_pct_per_move*:    seq[float64]
     neighbors*:           seq[int]
     captured*:            seq[int]
     possibles*:           Deque[int]  # candidates for finding connected path from edge to edge
     shuffle_idxs*:        seq[int]
     empty_idxs*:          seq[int]
-    winner_assess_time_t0*:  float
+    winner_assess_time_t0*:  float    # enables time measurements to be spread across procs
     winner_assess_time_cum*: float
     move_sim_time_t0*:       float
     move_sim_time_cum*:      float

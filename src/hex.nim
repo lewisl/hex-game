@@ -13,7 +13,7 @@ import
 proc main() =
   var 
     size: int = 5
-    n_trials: int = 1000
+    n_trials: int = 1500
 
   let 
       pcnt: int = paramCount()
@@ -41,5 +41,6 @@ proc main() =
   echo "Assessing who won took " , hb.winner_assess_time_cum, " seconds.";
   echo("Simulating and evaluating moves took ", 
     hb.move_sim_time_cum - hb.winner_assess_time_cum, " seconds.\n");
+
 
 main()
