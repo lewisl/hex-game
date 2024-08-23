@@ -47,8 +47,8 @@ proc newhexboard*(edge_len: int) : Hexboard =  # in c++ terms, a custom construc
     max_idx = edge_len * edge_len
   var hb = Hexboard(edge_len: edge_len, 
               max_idx: max_idx,
-              empty_idxs: (0..(max_idx-1)).toSeq,  # initialize to all positions empty
-              shuffle_idxs: newSeqOfCap[int](max_idx),
+              empty_idxs: (0..(max_idx-1)).toSeq,  # initialize to all positions empty, length is max_idx, memory allocated
+              shuffle_idxs: newSeqOfCap[int](max_idx),  # reserve the memory, but length is zero
               possibles: initDeque[int](max_idx-1),
               hex_graph: newgraph[Marker](max_idx, Marker.empty))
   hb.positions = hb.hex_graph.node_data  # alias for hex_graph.node_data: base addr of positions traces base addr of hex_graph.node_data
@@ -126,17 +126,17 @@ proc define_borders(hb: var Hexboard) =
     hb.finish_border[ord(Marker.playerO)].add(hb.rc2l(row, col))
 
 
-# create graph of hexboard positions
+## create graph of hexboard positions
+## add graph edges for adjacent hexes based on the layout of a Hex game
+##   linear indices run from 0 at upper, left then across the row,
+##   then down 1 row at the left edge, and across, etc.
 proc make_hex_graph*(hb: var Hexboard) =
 
   hb.define_borders()
 
-  # add graph edges for adjacent hexes based on the layout of a Hex game
-  #    linear indices run from 0 at upper, left then across the row,
-  #    then down 1 row at the left edge, and across, etc.
-  # 
-  # 4 corners of the board: 2 or 3 edges per node                            
-  # upper left
+
+   #4 corners of the board: 2 or 3 edges per node                            
+   #upper left
   add_edge(hb.hex_graph, node=hb.rc2l(1, 1), tonodes =[hb.rc2l(2,1), hb.rc2l(1,2)])
   # upper right
   add_edge(hb.hex_graph, node=hb.rc2l(1, hb.edge_len), 

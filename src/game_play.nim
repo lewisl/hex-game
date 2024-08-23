@@ -80,6 +80,18 @@ proc find_ends(hb: var Hexboard, side: Marker, whole_board: bool = false) : Mark
   else:
     return Marker.empty
 
+# makes new copy of destination--probably returns via move semantics
+proc copy_except[T](source: seq[T], exclude: int) : seq[T] =
+  assert exclude in 0 ..< source.len
+  result = newSeq[T](source.len - 1)   # magic variable is returned
+  var j = 0  # j is index counter for result
+  for i in 0 ..< source.len:  # i is index counter for source
+    if i == exclude:
+      discard
+    else:
+      result[j] = source[i]
+      inc j
+
 
 proc monte_carlo_move(hb: var Hexboard, side: Marker, n_trials: int) : RowCol =
 
@@ -93,35 +105,18 @@ proc monte_carlo_move(hb: var Hexboard, side: Marker, n_trials: int) : RowCol =
     winning_side: Marker = empty
     best_move: int
 
-  hb.shuffle_idxs.setLen(hb.empty_idxs.len - 1)         # setLen(hb.empty_idxs.len - 1)  # one less than number of empties->one of the empties is the test move
-
   var current_move = -1  # keep track of index in empty_idxs=>NOT same as loop counter
 
   # loop over the available move positions: make tst move, setup positions to randomize
   for tst_move in hb.empty_idxs:  # tst_move is an empty position for simulating test computer moves 
-    current_move.inc # index to the container empty_idxs
+    inc current_move  # index to the container empty_idxs NOT = to the tst_move position
     hb.set_hex_marker(tst_move, side) # set the test move on the board
 
     wins = 0
-
-    # copy indices to empties to shuffle_idxs
-    if current_move == 0:
-      for copy_idx in 0 ..< hb.empty_idxs.len:  # range over all the empties
-        if copy_idx > hb.shuffle_idxs.len:
-          break  # no room!
-        elif copy_idx < current_move:
-          hb.shuffle_idxs[copy_idx] = hb.empty_idxs[copy_idx]
-        elif copy_idx == current_move:
-          continue  # don't copy index of the test move into shuffle_idxs
-        else:  # copy_idx > current 
-          hb.shuffle_idxs[copy_idx - 1] = hb.empty_idxs[copy_idx] # fill the place we skipped in shuffle_idxs...
-    else:
-      hb.shuffle_idxs[current_move - 1] = hb.empty_idxs[current_move - 1]
-      if current_move < hb.shuffle_idxs.len:
-        hb.shuffle_idxs[current_move] = hb.empty_idxs[current_move + 1]
+    hb.shuffle_idxs = hb.empty_idxs.copy_except(current_move)
 
     for trial in 0 ..< n_trials:
-      hb.simulate_hexboard_positions(hb.shuffle_idxs)
+      hb.simulate_hexboard_positions(hb.shuffle_idxs)  # argument is mutable!
       winning_side = hb.find_ends(side, true)
       wins += (if winning_side == side: 1 else: 0)
 
@@ -134,7 +129,7 @@ proc monte_carlo_move(hb: var Hexboard, side: Marker, n_trials: int) : RowCol =
   var choice: int = 0
   best_move = hb.empty_idxs[0]
   for i in 0 ..< hb.win_pct_per_move.len:
-    echo "win % ", hb.win_pct_per_move, " i ", i, " move: ", hb.empty_idxs[i], "\n"
+    # echo "win % ", hb.win_pct_per_move, " i ", i, " move: ", hb.empty_idxs[i], "\n"
     if hb.win_pct_per_move[i] > maxpct:
       maxpct = hb.win_pct_per_move[i]
       best_move = hb.empty_idxs[i]  
@@ -147,10 +142,10 @@ proc monte_carlo_move(hb: var Hexboard, side: Marker, n_trials: int) : RowCol =
   return hb.l2rc(best_move)
 
 
-# one proc to implement a move: set the marker, remove the empty index, increment the move counter
+# one proc to do a move: set the marker, remove the empty index, increment the move counter
 proc do_move(hb: var Hexboard, rc: Rowcol, side: Marker) =
   hb.set_hex_marker(rc, side)
-  hb.empty_idxs.delete(hb.empty_idxs.find(hb.rc2l(rc)))  # delete index from list of empty board positions
+  hb.empty_idxs.delete(hb.empty_idxs.find(hb.rc2l(rc)))  # update list of empty board positions
   inc hb.move_count
 
 
@@ -227,7 +222,6 @@ proc person_move(hb: var Hexboard, side: Marker) : RowCol =
     echo("Enter your move as the row number and the column number, separated by a space.\n")
     echo("The computer prompts row col:  and you enter 3 5, followed by the enter key.\n")
     echo("Enter -1 -1 to quit...\n")
-    # write(stdout, "row col: ")
 
     rc = move_input("Please enter 2 integers: ")
 
@@ -311,34 +305,34 @@ proc play_game*(hb: var Hexboard, n_trials: int) =
 
   while true:   # move loop: Marker.playerX always first, whether person or computer
     case person_marker   # human goes first playing marker playerX
-    of Marker.playerX:
-      hb.display_board()
-      person_rc = hb.person_move(person_marker)
-      if person_rc.row == -1:
-        echo("Game over! Come back again...")
-        quit()
+      of Marker.playerX:
+        hb.display_board()
+        person_rc = hb.person_move(person_marker)
+        if person_rc.row == -1:
+          echo("Game over! Come back again...")
+          quit()
 
-      computer_rc = hb.computer_move(computer_marker, n_trials)
-      clear_screen()
-      echo("Your move at ", $person_rc, " was valid.")
-      echo("The computer moved at ", $computer_rc, ".\n\n")
+        computer_rc = hb.computer_move(computer_marker, n_trials)
+        clear_screen()
+        echo("Your move at ", $person_rc, " was valid.")
+        echo("The computer moved at ", $computer_rc, ".\n\n")
 
-    of Marker.playerO:    # human goes second playing marker playerO
-      computer_rc = hb.computer_move(computer_marker, n_trials)
-      echo("The computer moved at ", $computer_rc, ".\n")
-      hb.display_board()
+      of Marker.playerO:    # human goes second playing marker playerO
+        computer_rc = hb.computer_move(computer_marker, n_trials)
+        echo("The computer moved at ", $computer_rc, ".\n")
+        hb.display_board()
 
-      person_rc = hb.person_move(person_marker)
-      if (person_rc.row == -1):
-        echo("Game over! Come back again...")
-        quit()
+        person_rc = hb.person_move(person_marker)
+        if (person_rc.row == -1):
+          echo("Game over! Come back again...")
+          quit()
 
-      clear_screen()
-      echo("Your move at ", $person_rc, " was valid.")
-      break
+        clear_screen()
+        echo("Your move at ", $person_rc, " was valid.")
+        break
 
-    of Marker.empty:
-      raise newException(ValueError, "Error: Player Marker for human player cannot be empty.\n")
+      of Marker.empty:
+        raise newException(ValueError, "Error: Player Marker for human player cannot be empty.\n")
 
     # test for winner
     if hb.move_count >= (hb.edge_len + hb.edge_len - 1):  # minimum no. of moves to complete a path from start to end borders

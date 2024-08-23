@@ -2,6 +2,7 @@
 .xmake/
 .vscode
 build/
+nim_build/
 other/
 bin/
 

@@ -1,4 +1,4 @@
-# nim c -d:release --mm:orc --threads:on --opt:speed --outdir:nim_build src/hex.nim
+# nim c -d:release --mm:arc --opt:speed -d:lto --outdir:nim_build src/hex.nim
 
 #######################################################
 # script to initiate the game
