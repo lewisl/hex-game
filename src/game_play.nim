@@ -13,16 +13,16 @@ import
   helpers
 
 # simulate a hex game by filling empty positions with shuffled markers (doesn't include the test move)
-proc simulate_hexboard_positions[T](hb: var Hexboard, empties:  seq[T])  =  
+proc simulate_hexboard_positions[T](hb: var Hexboard, empties: var seq[T])  =  
   
-  var foo = empties  # create a non-destructive shuffle=>must discard in the caller
-  shuffle(foo)   # does not include current test move
+  # var foo = empties  # create a non-destructive shuffle=>must discard in the caller
+  shuffle(empties)   # does not include current test move
 
   var
     current: Marker = playerO  # computer first after person's move
     next: Marker    = playerX
   
-  for pos in foo:
+  for pos in empties:
     hb.set_hex_marker(pos, current)
     swap(current, next) # alternate the markers to be placed on the board at each position
 

@@ -48,7 +48,7 @@ proc newhexboard*(edge_len: int) : Hexboard =  # in c++ terms, a custom construc
   var hb = Hexboard(edge_len: edge_len, 
               max_idx: max_idx,
               empty_idxs: (0..(max_idx-1)).toSeq,  # initialize to all positions empty
-              shuffle_idxs: newSeqOfCap[int](max_idx-1),
+              shuffle_idxs: newSeqOfCap[int](max_idx),
               possibles: initDeque[int](max_idx-1),
               hex_graph: newgraph[Marker](max_idx, Marker.empty))
   hb.positions = hb.hex_graph.node_data  # alias for hex_graph.node_data: base addr of positions traces base addr of hex_graph.node_data
