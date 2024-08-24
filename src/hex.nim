@@ -14,6 +14,7 @@ proc main() =
   var 
     size: int = 5
     n_trials: int = 1500
+    debug: bool = false
 
   let 
       pcnt: int = paramCount()
@@ -25,9 +26,14 @@ proc main() =
   elif pcnt == 2:
     size = parseInt(paramStr(1)) 
     n_trials = parseInt(paramStr(2))
+  elif pcnt == 3:
+    size = parseInt(paramStr(1)) 
+    n_trials = parseInt(paramStr(2))    
+    debug = parseBool(paramstr(3))
   else:    
-    echo("Wrong number of input arguments.")
-    echo("Run as hex [size] [n_trials]. Exiting...")
+    echo "Wrong number of input arguments."
+    echo "Run as hex [size] [n_trials] [debug] Exiting..."
+    echo "To enter the 2nd or 3rd arguments, you must also enter the preceding arguments."
     quit()
 
   if (size < 0) or (size mod 2) == 0:
@@ -36,7 +42,7 @@ proc main() =
   var hb = newhexboard(size) # create the game object
   hb.make_hex_graph()
 
-  hb.play_game(n_trials)
+  hb.play_game(n_trials, debug)
 
   echo "Assessing who won took " , hb.winner_assess_time_cum, " seconds.";
   echo("Simulating and evaluating moves took ", 

@@ -7,30 +7,35 @@ import
   strutils,
   times,
   std/deques,
+  std/enumerate,
   std/rdstdin, # read stdin ignoring control keys
   hex_board,
   graph,
   helpers
 
 
-# makes new copy of destination--probably returns via move semantics
-proc copy_except[T](source: seq[T], exclude_idx: int) : seq[T] =
+# copies source (less 1 index)--probably returns via move semantics
+proc copy_except[T](source: seq[T], exclude_pos: int) : seq[T] =
   result = newSeq[T](source.len - 1)
-  assert exclude_idx in 0 ..< source.len
+  assert exclude_pos in source
   
-  for i in 0 ..< exclude_idx:
-    result[i] = source[i]
-
-  # var j = exclude_idx  # j =  index for destination: include the exclude_idx in next position to copy
-  for i in exclude_idx ..< source.len - 1:  # i = index for source: skip the exclude_idx
-    result[i] = source[i+1]
-    # inc j
-
+  # for i in 0 ..< exclude_idx:
+  #   result[i] = source[i]
+  # for i in exclude_idx ..< source.len - 1:  
+  #   result[i] = source[i+1]  # source skips exclude_idx; stops at source.len; result gets exclude_idx; stops at source.len - 1
+  var i = 0
+  for pos in source:
+    if pos == exclude_pos:
+      discard
+    else:
+      result[i] = pos
+      inc i
 
 # simulate a hex game by filling empty positions with shuffled markers (doesn't include the test move)
-proc simulate_hexboard_positions[T](hb: var Hexboard, empties: seq[T], exclude_idx: int)  =  
-  hb.shuffle_idxs = copy_except(empties, exclude_idx)   # capacity of hb.shuffle_idxs set in constructor
-  shuffle(hb.shuffle_idxs)   # does not include current test move
+proc simulate_hexboard_positions[T](hb: var Hexboard, empties: seq[T], exclude_pos: int)  =  
+  hb.shuffle_idxs = copy_except(empties, exclude_pos)   # capacity of hb.shuffle_idxs set in constructor
+  shuffle(hb.shuffle_idxs)   
+  hb.fill_board(hb.shuffle_idxs, empty)
   for i in countup(0, hb.shuffle_idxs.len-2, 2):
     hb.set_hex_marker(hb.shuffle_idxs[i], Marker.playerX)  # first regardless of whether computer or person
     hb.set_hex_marker(hb.shuffle_idxs[i+1], Marker.playerO)
@@ -96,8 +101,7 @@ proc monte_carlo_move(hb: var Hexboard, side: Marker, n_trials: int) : RowCol =
 
   hb.move_sim_time_t0 = cpuTime()
 
-  # method uses class fields: clear them instead of creating new objects each time
-  hb.win_pct_per_move.setLen(0)
+  hb.win_pct_per_move.setLen(0) # clear class member, don't create new object
 
   var
     wins: int
@@ -110,14 +114,15 @@ proc monte_carlo_move(hb: var Hexboard, side: Marker, n_trials: int) : RowCol =
     hb.set_hex_marker(tst_move, side) # set the test move on the board
     wins = 0
     for trial in 0 ..< n_trials:
-      hb.simulate_hexboard_positions(hb.empty_idxs, current_idx)  
+      hb.simulate_hexboard_positions(hb.empty_idxs, tst_move)  
       winning_side = hb.find_ends(side, true)
       wins += (if winning_side == side: 1 else: 0)
+      # hb.fill_board(hb.empty_idxs, Marker.empty)   # TODO this is expensive to do each iteration
 
     hb.win_pct_per_move.add(wins.toBiggestFloat / n_trials.toBiggestFloat) # calculate and save computer win pct.
 
     hb.set_hex_marker(tst_move, Marker.empty)  # reverse the trial move
-    inc current_idx  # index to the container empty_idxs NOT = to the tst_move position
+    inc current_idx  
 
 
   # after all test moves have been tried, find the maximum computer win pct across them
@@ -140,6 +145,8 @@ proc monte_carlo_move(hb: var Hexboard, side: Marker, n_trials: int) : RowCol =
 
 # one proc to do a move: set the marker, remove the empty index, increment the move counter
 proc do_move(hb: var Hexboard, rc: Rowcol, side: Marker) =
+  assert hb.empty_idxs.find(hb.rc2l(rc)) != -1
+  assert hb.positions[hb.rc2l(rc)] == Marker.empty
   hb.set_hex_marker(rc, side)
   hb.empty_idxs.delete(hb.empty_idxs.find(hb.rc2l(rc)))  # update list of empty board positions
   inc hb.move_count
@@ -157,29 +164,22 @@ proc computer_move(hb: var Hexboard, side: Marker, n_trials: int) : RowCol =
 # prompting sequence for human player's move
 proc move_input(msg: string) : RowCol =
   var 
-    row, col, cnt: int
+    rcinput = [0,0]
     input: string
     more_input = true
 
   while more_input:
     input = readLineFromStdin("row col: ")
-    cnt = 1
-    for item in splitWhitespace(input):  # lot'o'rigamorole to avoid splitting input into a seq
-      if cnt == 1:
-        row = try: item.parseInt
-            except ValueError as e:
-              echo "  *** ", e.msg & ". Move inputs must be integers..."
-              break
-        cnt = 2
-      elif cnt == 2:
-        col = try: item.parseInt
-            except ValueError as e:
-              echo "  *** ", e.msg & ". Move inputs must be integers..."
-              break
+    for cnt, item in enumerate(splitWhitespace(input)):  # lot'o'rigamorole to avoid splitting input into a seq
+      rcinput[cnt] = try: item.parseInt
+          except ValueError as e:
+            echo "  *** ", e.msg & ". Move inputs must be integers..."
+            break
+      if cnt == 1:  # ignore more inputs than 2 or inputs done
         more_input = false
         break
-  
-  return RowCol(row: row, col: col)
+
+  return RowCol(row: rcinput[0], col: rcinput[1])
 
 
 proc is_valid_move(hb: var Hexboard, rc: RowCol) : bool =
@@ -282,7 +282,7 @@ proc who_goes_first() : tuple[person_marker: Marker, computer_marker: Marker] =
       echo("    Please enter [y]es or [n]o")
 
 
-proc play_game*(hb: var Hexboard, n_trials: int) =
+proc play_game*(hb: var Hexboard, n_trials: int, debug: bool = false) =
   var
     person_rc: RowCol  # person's move position
     computer_rc: RowCol  # computer's move position
@@ -291,7 +291,7 @@ proc play_game*(hb: var Hexboard, n_trials: int) =
     winning_side: Marker
 
   randomize()       # set seed for random module procs
-  clear_screen()
+  if not debug:  clear_screen()
   echo("\n")
 
   let tp = who_goes_first() # possible with anon tuple, but this is order independent
@@ -309,7 +309,7 @@ proc play_game*(hb: var Hexboard, n_trials: int) =
           quit()
 
         computer_rc = hb.computer_move(computer_marker, n_trials)
-        clear_screen()
+        if not debug: clear_screen()
         echo("Your move at ", $person_rc, " was valid.")
         echo("The computer moved at ", $computer_rc, ".\n\n")
 
@@ -323,7 +323,7 @@ proc play_game*(hb: var Hexboard, n_trials: int) =
           echo("Game over! Come back again...")
           quit()
 
-        clear_screen()
+        if not debug: clear_screen()
         echo("Your move at ", $person_rc, " was valid.")
         break
 

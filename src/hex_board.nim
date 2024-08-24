@@ -84,10 +84,16 @@ proc is_empty*(hb: Hexboard, rc: RowCol) : bool =
 
 # getters and setters for hex_board from ref to Graph.node_data
 proc set_hex_marker*(hb: var Hex_board, rc: RowCol, val: Marker)  = 
+  assert (hb.positions[hb.rc2l(rc)] == Marker.empty) and (val != Marker.empty)
   hb.positions[hb.rc2l(rc)] = val
 proc set_hex_marker*(hb: var Hex_board,  row: int, col: int, val: Marker)  =
+  assert (hb.positions[hb.rc2l(row, col)] == Marker.empty) and (val != Marker.empty)
   hb.positions[hb.rc2l(row, col)] = val
 proc set_hex_marker*(hb: var Hex_board,  linear: int, val: Marker)  =
+  # assert ((val == Marker.empty) and (hb.positions[linear] != Marker.empty)) or
+  #         ((val != Marker.empty) and (hb.positions[linear] == Marker.empty)) or
+  #          ((val == Marker.empty) and (hb.positions[linear] == Marker.empty)), 
+  #             "val: " & $val &  " marker at " & $linear & ": " & $hb.positions[linear]
   hb.positions[linear] = val
 
 proc get_hex_Marker*(hb: Hex_board,  rc: RowCol) : Marker  =

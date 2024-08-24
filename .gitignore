@@ -6,7 +6,8 @@ nim_build/
 other/
 bin/
 
+# files
+*.txt
+
 # MacOS Cache
 .DS_Store
-
-
