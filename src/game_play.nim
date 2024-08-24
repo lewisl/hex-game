@@ -12,18 +12,30 @@ import
   graph,
   helpers
 
-# simulate a hex game by filling empty positions with shuffled markers (doesn't include the test move)
-proc simulate_hexboard_positions[T](hb: var Hexboard, empties: var seq[T])  =  
-  
-  shuffle(empties)   # does not include current test move
 
-  var
-    current: Marker = playerO  # computer first after person's move
-    next: Marker    = playerX
+# makes new copy of destination--probably returns via move semantics
+proc copy_except[T](source: seq[T], exclude_idx: int) : seq[T] =
+  result = newSeq[T](source.len - 1)
+  assert exclude_idx in 0 ..< source.len
   
-  for pos in empties:
-    hb.set_hex_marker(pos, current)
-    swap(current, next) # alternate the markers to be placed on the board at each position
+  for i in 0 ..< exclude_idx:
+    result[i] = source[i]
+
+  # var j = exclude_idx  # j =  index for destination: include the exclude_idx in next position to copy
+  for i in exclude_idx ..< source.len - 1:  # i = index for source: skip the exclude_idx
+    result[i] = source[i+1]
+    # inc j
+
+
+# simulate a hex game by filling empty positions with shuffled markers (doesn't include the test move)
+proc simulate_hexboard_positions[T](hb: var Hexboard, empties: seq[T], exclude_idx: int)  =  
+  hb.shuffle_idxs = copy_except(empties, exclude_idx)   # capacity of hb.shuffle_idxs set in constructor
+  shuffle(hb.shuffle_idxs)   # does not include current test move
+  for i in countup(0, hb.shuffle_idxs.len-2, 2):
+    hb.set_hex_marker(hb.shuffle_idxs[i], Marker.playerX)  # first regardless of whether computer or person
+    hb.set_hex_marker(hb.shuffle_idxs[i+1], Marker.playerO)
+  
+  hb.set_hex_marker(hb.shuffle_idxs.len-1, Marker.playerX) # last even numbered index: can't do + 1
 
 
 proc fill_board(hb: var Hexboard, indices: seq[int], value: Marker)  =
@@ -79,19 +91,6 @@ proc find_ends(hb: var Hexboard, side: Marker, whole_board: bool = false) : Mark
   else:
     return Marker.empty
 
-# makes new copy of destination--probably returns via move semantics
-proc copy_except[T](source: seq[T], exclude_idx: int) : seq[T] =
-  result = newSeq[T](source.len - 1)
-  assert exclude_idx in 0 ..< source.len
-  
-  for i in 0 ..< exclude_idx:
-    result[i] = source[i]
-
-  var j = exclude_idx  # j =  index for destination: include the exclude_idx
-  for i in exclude_idx + 1 ..< source.len:  # i = index for source: skip the exclude_idx
-    result[j] = source[i]
-    inc j
-
 
 proc monte_carlo_move(hb: var Hexboard, side: Marker, n_trials: int) : RowCol =
 
@@ -105,24 +104,21 @@ proc monte_carlo_move(hb: var Hexboard, side: Marker, n_trials: int) : RowCol =
     winning_side: Marker = empty
     best_move: int
 
-  var current_move = -1  # keep track of index in empty_idxs=>NOT same as loop counter
-
+  var current_idx = 0  # index in empty_idxs: NOT same as loop variable, which iterates CONTENTS of empty_idxs
   # loop over the available move positions: make tst move, setup positions to randomize
   for tst_move in hb.empty_idxs:  # tst_move is an empty position for simulating test computer moves 
-    inc current_move  # index to the container empty_idxs NOT = to the tst_move position
     hb.set_hex_marker(tst_move, side) # set the test move on the board
-
     wins = 0
-    hb.shuffle_idxs = hb.empty_idxs.copy_except(current_move)
-
     for trial in 0 ..< n_trials:
-      hb.simulate_hexboard_positions(hb.shuffle_idxs)  # argument is mutable!
+      hb.simulate_hexboard_positions(hb.empty_idxs, current_idx)  
       winning_side = hb.find_ends(side, true)
       wins += (if winning_side == side: 1 else: 0)
 
     hb.win_pct_per_move.add(wins.toBiggestFloat / n_trials.toBiggestFloat) # calculate and save computer win pct.
 
     hb.set_hex_marker(tst_move, Marker.empty)  # reverse the trial move
+    inc current_idx  # index to the container empty_idxs NOT = to the tst_move position
+
 
   # after all test moves have been tried, find the maximum computer win pct across them
   var  maxpct: float64 = 0.0
