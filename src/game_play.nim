@@ -15,7 +15,6 @@ import
 # simulate a hex game by filling empty positions with shuffled markers (doesn't include the test move)
 proc simulate_hexboard_positions[T](hb: var Hexboard, empties: var seq[T])  =  
   
-  # var foo = empties  # create a non-destructive shuffle=>must discard in the caller
   shuffle(empties)   # does not include current test move
 
   var
@@ -81,16 +80,17 @@ proc find_ends(hb: var Hexboard, side: Marker, whole_board: bool = false) : Mark
     return Marker.empty
 
 # makes new copy of destination--probably returns via move semantics
-proc copy_except[T](source: seq[T], exclude: int) : seq[T] =
-  assert exclude in 0 ..< source.len
-  result = newSeq[T](source.len - 1)   # magic variable is returned
-  var j = 0  # j is index counter for result
-  for i in 0 ..< source.len:  # i is index counter for source
-    if i == exclude:
-      discard
-    else:
-      result[j] = source[i]
-      inc j
+proc copy_except[T](source: seq[T], exclude_idx: int) : seq[T] =
+  result = newSeq[T](source.len - 1)
+  assert exclude_idx in 0 ..< source.len
+  
+  for i in 0 ..< exclude_idx:
+    result[i] = source[i]
+
+  var j = exclude_idx  # j =  index for destination: include the exclude_idx
+  for i in exclude_idx + 1 ..< source.len:  # i = index for source: skip the exclude_idx
+    result[j] = source[i]
+    inc j
 
 
 proc monte_carlo_move(hb: var Hexboard, side: Marker, n_trials: int) : RowCol =

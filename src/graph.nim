@@ -70,36 +70,33 @@ proc get_neighbors*[T_data](hex_graph: Graph[T_data], current_node: int) : seq[E
 # get the neighbors whose data match to filter data
 proc get_neighbors*[T_data](hex_graph: Graph[T_data], current_node: int, item_filter: T_data) : seq[Edge]  =
   
-  var res = newSeqOfCap[Edge](6)
+  result = newSeqOfCap[Edge](6)
   for e in hex_graph.gmap[current_node]:
     if hex_graph.node_data[e.tonode] == item_filter:
-      res.add(e)
-  return res
+      result.add(e)
 
 
 # get the neighbors that match the select data and are not in the excluded nodes in a set, deque or vector
 proc get_neighbors*[T_data, T_cont](hex_graph: Graph[T_data], current_node: int, item_filter: T_data, exclude: T_cont) : seq[Edge]  =
-  var res = newSeqOfCap[Edge](6)
+  result = newSeqOfCap[Edge](6)
   for e in hex_graph.gmap[current_node]:
     if hex_graph.node_data[e.tonode] == item_filter and (not (contains(exclude, e.to_node))):
-      res.add(e)
-  return res
-
+      result.add(e)
+  
 
 # get the neighbor_nodes as a vector of nodes instead of the edges
 proc get_neighbor_nodes*[T_data](hex_graph: Graph[T_data], current_node: int, item_filter: T_data) : seq[int]  =
-  var res = newSeqOfCap[int](6)
+  result = newSeqOfCap[int](6)
   for e in get_neighbors(hex_graph, current_node, item_filter):
-      res.add(e.to_node)
-  return res;
+      result.add(e.to_node)
 
 
 # get the neighbor_nodes as a vector of nodes instead of the edges
-proc get_neighbor_nodes*[T_data, T_cont](hex_graph: Graph[T_data], current_node: int, item_filter: T_data, exclude: T_cont) : seq[int]  =
-  var res= newSeqOfCap[int](6)
+proc get_neighbor_nodes*[T_data, T_cont](hex_graph: Graph[T_data], current_node: int, 
+    item_filter: T_data, exclude: T_cont) : seq[int]  =
+  result = newSeqOfCap[int](6)
   for e in get_neighbors(hex_graph, current_node, item_filter, exclude):
-      res.add(e.to_node)
-  return res;
+      result.add(e.to_node)
 
 
 # output graph to a "File" defaulting to stdout
