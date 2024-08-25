@@ -7,6 +7,7 @@
 import 
   os,
   strutils,
+  # project modules
   hex_board,
   game_play
 
@@ -39,17 +40,17 @@ proc main() =
   if (size < 0) or (size mod 2) == 0:
     quit("Bad size input. Must be odd, positive integer. Exiting...")
 
-  var hb = newhexboard(size) # create the game object
+  var hb = initHexboard(size) # create the game object
   hb.make_hex_graph()
 
   hb.play_game(n_trials, debug)
 
   echo "Assessing who won took " , hb.winner_assess_time_cum, " seconds.";
   echo("Simulating and evaluating moves took ", 
-    hb.move_sim_time_cum - hb.winner_assess_time_cum, " seconds.\n");
+    hb.move_sim_time_cum, " seconds.\n");
 
   if debug:
-    hb.save_diagnostics
+    hb.save_diagnostics()
 
-
-main()
+when isMainModule:
+  main()

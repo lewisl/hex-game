@@ -2,10 +2,10 @@ add_rules("mode.debug", "mode.release")
 
 target("hex")
     set_kind("binary")
-    add_ncflags("-d:release", "--opt:speed", "--mm:arc", "-d:lto")
+    add_ncflags("-d:release", "--opt:speed", "--mm:arc", "-d:lto") -- , "-d:lto"
     add_files("src/hex.nim")
 
--- alternative compile options: "-d:release", "--mm:arc", "-d:useMalloc", one of "-d:lto" or "--passC:-flto" , "--passC:-flto", "--passL:-flto"
+-- alternative compile options: "-d:release", "--mm:arc", "-d:useMalloc", one of "-d:lto" or "--passC:-flto" , "--passL:-flto"
 
 --
 -- If you want to known more usage about xmake, please see https://xmake.io

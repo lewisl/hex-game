@@ -3,6 +3,8 @@ import
   strutils,
   sequtils,
   std/deques,
+  std/strformat,
+  # project module
   graph
 
 type 
@@ -30,9 +32,9 @@ type
     rand_nodes*:          seq[int]
     start_border*:        array[1..2, seq[int]]  # start border for each player
     finish_border*:       array[1..2, seq[int]]  # finish border for each player
-    positions*:           ref seq[Marker]   # alias as traced reference to node_data in Graph
+    positions*:           ref seq[Marker]   # traced reference to node_data in Graph
     # used by game_play: 
-      # using this object prevents game_play functions from allocating/deallocating many small seqs  
+      # using this object reduces game_play allocations of many small seqs  
     move_count*:          int
     move_history*:        seq[Move]
     wins_per_move*:       seq[int]
@@ -46,8 +48,9 @@ type
     move_sim_time_t0*:       float
     move_sim_time_cum*:      float
 
-  
-proc newhexboard*(edge_len: int) : Hexboard =  # in c++ terms, a custom constructor
+proc make_hex_graph*(hb: var Hexboard)  # forward declaration
+
+proc initHexboard*(edge_len: int) : Hexboard =  # in c++ terms, a custom constructor
   var 
     edge_len = edge_len
     max_idx = edge_len * edge_len
@@ -56,14 +59,14 @@ proc newhexboard*(edge_len: int) : Hexboard =  # in c++ terms, a custom construc
               empty_idxs: (0..(max_idx-1)).toSeq,  # initialize to all positions empty, length is max_idx, memory allocated
               shuffle_idxs: newSeqOfCap[int](max_idx),  # reserve the memory, but length is zero
               possibles: initDeque[int](max_idx-1),
-              hex_graph: newgraph[Marker](max_idx, Marker.empty))
+              hex_graph: initGraph[Marker](max_idx, Marker.empty))
   hb.positions = hb.hex_graph.node_data  # alias for hex_graph.node_data: base addr of positions traces base addr of hex_graph.node_data
   for i in 0..max_idx-1:
     hb.rand_nodes.add(i)
   return hb
 
 # short for rowcol2linear: conversions between row/col indices and ordinal integer indices to board positions
-proc rc2l(hb: Hexboard, row: int, col: int) : int  =
+proc rc2l*(hb: Hexboard, row: int, col: int) : int  =
   let r = row - 1
   let c = col - 1
 
@@ -90,16 +93,10 @@ proc is_empty*(hb: Hexboard, rc: RowCol) : bool =
 
 # getters and setters for hex_board from ref to Graph.node_data
 proc set_hex_marker*(hb: var Hex_board, rc: RowCol, val: Marker)  = 
-  assert (hb.positions[hb.rc2l(rc)] == Marker.empty) and (val != Marker.empty)
   hb.positions[hb.rc2l(rc)] = val
 proc set_hex_marker*(hb: var Hex_board,  row: int, col: int, val: Marker)  =
-  assert (hb.positions[hb.rc2l(row, col)] == Marker.empty) and (val != Marker.empty)
   hb.positions[hb.rc2l(row, col)] = val
 proc set_hex_marker*(hb: var Hex_board,  linear: int, val: Marker)  =
-  # assert ((val == Marker.empty) and (hb.positions[linear] != Marker.empty)) or
-  #         ((val != Marker.empty) and (hb.positions[linear] == Marker.empty)) or
-  #          ((val == Marker.empty) and (hb.positions[linear] == Marker.empty)), 
-  #             "val: " & $val &  " marker at " & $linear & ": " & $hb.positions[linear]
   hb.positions[linear] = val
 
 proc get_hex_Marker*(hb: Hex_board,  rc: RowCol) : Marker  =
@@ -144,11 +141,10 @@ proc define_borders(hb: var Hexboard) =
 ##   then down 1 row at the left edge, and across, etc.
 proc make_hex_graph*(hb: var Hexboard) =
 
-  hb.define_borders()
+  hb.define_borders() # set positions that are in the top, right, bottom, and left borders
 
-
-   #4 corners of the board: 2 or 3 edges per node                            
-   #upper left
+  #4 corners of the board: 2 or 3 edges per node                            
+  #upper left
   add_edge(hb.hex_graph, node=hb.rc2l(1, 1), tonodes =[hb.rc2l(2,1), hb.rc2l(1,2)])
   # upper right
   add_edge(hb.hex_graph, node=hb.rc2l(1, hb.edge_len), 
@@ -194,7 +190,7 @@ proc markerdash(val: Marker, last: bool): string =
     segment: string
     spacer = "___"
   let
-    dot  = "."
+    dot = "."
     x = "X"
     o = "O"
 
@@ -250,5 +246,7 @@ proc display_board*(hb: Hexboard) =
   
 # output move history to a "File" defaulting to stdout
 proc display_move_history*(hb: Hexboard, mh: seq[Move], outf: File = stdout) =
+  write(outf, "player  ","  linear", "   row", "   col\n" )
   for move in mh:
-    write(outf, "player: ", $move.player, " linear: ", $hb.rc2l(move.row, move.col), " row: ", $move.row,  " col: ", $move.col, "\n")
+    write(outf,  $move.player,  fmt"{(hb.rc2l(move.row, move.col)):>7}",  
+      fmt"{move.row:>8}",  fmt"{move.col:>6}", "\n")

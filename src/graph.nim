@@ -14,7 +14,7 @@ type
   Graph*[T_data] = object  # referred to as hex_graph from hex_board
     size*: int
     gmap*: seq[seq[Edge]]
-    node_data*: ref seq[T_data]
+    node_data*: ref seq[T_data]  # other referent is positions in Hexboard
     node_elem*: T_data  # initial fill value for graph
 
 
@@ -22,11 +22,11 @@ proc count_nodes*(gr: Graph) : int =  # reasonable thing to have, not used
   return gr.gmap.len
 
 
-proc newgraph*[T_data](size: int, node_elem: T_data, ): Graph[T_data] =  # in c++ terms, a custom constructor
+proc initGraph*[T_data](size: int, node_elem: T_data, ): Graph[T_data] =  # in c++ terms, a custom constructor
   var gr = Graph[T_data](size: size, node_elem: node_elem) 
   new(gr.node_data)
   gr.node_data[] = newSeq[T_data](size)
-  gr.gmap = newSeq[seq[Edge]](size)
+  gr.gmap = newSeq[seq[Edge]](size)  # used to be a Table, but keys are consecutive integers from 0..  ..so seq works
   # initialize node_data
   for i in 0 ..< size:
     gr.node_data[i] = node_elem

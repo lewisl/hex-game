@@ -9,17 +9,18 @@ import
   std/deques,
   std/enumerate,
   std/rdstdin, # read stdin ignoring control keys
+  # project modules
   hex_board,
   graph,
   helpers
 
 
-# copies source (less 1 index)--probably returns via move semantics
+# copies source (less 1 value)--probably returns via move semantics
 proc copy_except(source: seq[int], tst_move: int) : seq =
   result = newSeq[int](source.len - 1)
-  assert tst_move in source, "Test move not in empty_idxs"
+  # assert tst_move in source, "Test move not in empty_idxs"
   
-  var i = 0
+  var i = 0   # index for result, which is 1 element shorter than source
   for pos in source:
     if pos == tst_move:
       discard
@@ -27,13 +28,16 @@ proc copy_except(source: seq[int], tst_move: int) : seq =
       result[i] = pos
       inc i
 
+
 # simulate a hex game by filling empty positions with shuffled markers (doesn't include the test move)
 proc simulate_hexboard_positions(hb: var Hexboard)  =  
-  shuffle(hb.shuffle_idxs)   
-  for i in countup(0, hb.shuffle_idxs.len-2, 2):
-    hb.set_hex_marker(hb.shuffle_idxs[i], Marker.playerX)  # first regardless of whether computer or person
-    hb.set_hex_marker(hb.shuffle_idxs[i+1], Marker.playerO)
-  hb.set_hex_marker(hb.shuffle_idxs[hb.shuffle_idxs.len-1], Marker.playerX) # last even numbered index: can't do + 1
+  var 
+    setmarker: Marker = playerX  # first regardless of whether computer or person
+    nextmarker: Marker = playerO
+  shuffle(hb.shuffle_idxs)  
+  for i in 0 ..< hb.shuffle_idxs.len:
+    hb.set_hex_marker(hb.shuffle_idxs[i], setmarker)
+    swap(setmarker, nextmarker)
 
 
 proc fill_board(hb: var Hexboard, indices: seq[int], value: Marker)  =
@@ -43,16 +47,15 @@ proc fill_board(hb: var Hexboard, indices: seq[int], value: Marker)  =
 
 proc is_in_start(hb: Hexboard, idx: int, side: Marker) : bool =
   if side == Marker.playerX:
-    return idx < hb.edge_len
+    return idx < hb.edge_len  # always plays first, so start is first row
   elif side == Marker.playerO:
-    return idx mod hb.edge_len == 0
+    return idx mod hb.edge_len == 0  # always plays second, so start is first column
   else:
     raise newException(ValueError, "Error: Invalid side: must be Marker.playerX or Marker.playerO\n")
 
 
 # depth first search from positions in finish_border to connected graph to a move in the start_border
 proc find_ends(hb: var Hexboard, side: Marker, whole_board: bool = false) : Marker =
-  hb.winner_assess_time_t0 = cpuTime()
 
   # clear instead of create new containers
   hb.captured.setLen(0)
@@ -66,7 +69,6 @@ proc find_ends(hb: var Hexboard, side: Marker, whole_board: bool = false) : Mark
   while not (hb.possibles.len == 0):
 
     if hb.is_in_start(hb.possibles[0], side):
-      hb.winner_assess_time_cum += cpuTime() - hb.winner_assess_time_t0
       return side
 
     # find neighbors of the current node that match the current side and exclude already captured nodes
@@ -84,7 +86,6 @@ proc find_ends(hb: var Hexboard, side: Marker, whole_board: bool = false) : Mark
         hb.possibles.addlast(hb.neighbors[i])
         hb.captured.add(hb.neighbors[i])
 
-  hb.winner_assess_time_cum += (cpuTime() - hb.winner_assess_time_t0)
   if whole_board:
     return (if side == playerO: playerX else: playerO)
   else:
@@ -99,27 +100,26 @@ proc monte_carlo_move(hb: var Hexboard, side: Marker, n_trials: int) : RowCol =
   var
     wins: int
     winning_side: Marker = empty
-    best_move: int
 
-  # loop over the available move positions: make tst move, setup positions to randomize
-  for tst_move in hb.empty_idxs:  # tst_move is an empty position for simulating test computer moves 
-    hb.set_hex_marker(tst_move, side) # set the test move on the board
-    hb.shuffle_idxs = copy_except(hb.empty_idxs, tst_move)   # capacity of hb.shuffle_idxs set in constructor
-
+  # pick a test move, run the trials, track wins, reset test move, pick best move
+  for tst_move in hb.empty_idxs:  # empty position,  simulate rest of the board for both sides 
+    hb.set_hex_marker(tst_move, side) 
+    hb.shuffle_idxs = copy_except(hb.empty_idxs, tst_move)   # hb.shuffle_idxs not re-allocated: capacity set in constructor
     wins = 0
+
     for trial in 0 ..< n_trials:
-      hb.simulate_hexboard_positions()  
+      hb.simulate_hexboard_positions()  # object hb contains everything needed
       winning_side = hb.find_ends(side, true)
       wins += (if winning_side == side: 1 else: 0)
-      # hb.fill_board(hb.empty_idxs, Marker.empty)   # TODO this is expensive to do each iteration
 
-    hb.wins_per_move.add(wins)    #(wins.toBiggestFloat / n_trials.toBiggestFloat) # calculate and save computer win pct.
+    hb.wins_per_move.add(wins)   
     hb.set_hex_marker(tst_move, Marker.empty)  # reverse the trial move
 
-  # after all test moves have been tried, find the maximum computer win pct across them
-  var  maxwins = 0
-  var choice: int = 0
-  best_move = 0
+  # find the maximum wins across all test moves to select the best test move
+  var  
+    maxwins = 0
+    choice = 0
+    best_move = 0
   for i in 0 ..< hb.wins_per_move.len:
     # echo "win % ", hb.wins_per_move, " i ", i, " move: ", hb.empty_idxs[i], "\n"
     if hb.wins_per_move[i] > maxwins:
@@ -127,7 +127,7 @@ proc monte_carlo_move(hb: var Hexboard, side: Marker, n_trials: int) : RowCol =
       best_move = hb.empty_idxs[i]  
       choice  = i
   # echo "************ ", "choice ", choice, " maxpct ", maxpct, " move ", hb.empty_idxs[choice]
-  hb.fill_board(hb.empty_idxs, Marker.empty) # restore board to move state before simulation
+  hb.fill_board(hb.empty_idxs, Marker.empty) # restore board to state before simulation
   hb.move_sim_time_cum += cpuTime() - hb.move_sim_time_t0
   return hb.l2rc(best_move)
 
@@ -135,17 +135,41 @@ proc monte_carlo_move(hb: var Hexboard, side: Marker, n_trials: int) : RowCol =
 # one proc to do a move: set the marker, remove the empty index, increment the move counter
 proc do_move(hb: var Hexboard, rc: Rowcol, side: Marker) =
   var linear = hb.rc2l(rc)
-  assert linear in hb.empty_idxs
+  # assert linear in hb.empty_idxs
   var empty_idx = hb.empty_idxs.find(linear) # index in empty_idxs of the new move position
-  assert empty_idx != -1, "new move was not to an empty\n"
-  assert hb.is_empty(linear), "Move is not to empty position" # the new move position has to be empty on the board
+  # assert empty_idx != -1, "new move was not to an empty\n"
+  # assert hb.is_empty(linear), "Move is not to empty position" # the new move position has to be empty on the board
 
   hb.set_hex_marker(linear, side)
   hb.empty_idxs.delete(empty_idx)  # delete the value at linear index
   hb.move_history.add(Move(player: side, row: rc.row, col: rc.col))
   inc hb.move_count
 
-proc is_valid_move(hb: Hexboard, rc: RowCol) : bool;  # forward declaration
+
+proc is_valid_move(hb: Hexboard, rc: RowCol) : bool =
+  var
+    row: int = rc.row
+    col: int = rc.col
+    valid_move = true
+  let
+    bad_position: string = "Your move used an invalid row or column.\n\n"
+    not_empty: string = "Your move didn't choose an empty position.\n\n"
+  var
+    msg: string = ""
+
+  if row > hb.edge_len or row < 1:
+    valid_move = false
+    msg = bad_position
+  elif col > hb.edge_len or col < 1:
+    valid_move = false
+    msg = bad_position
+  elif hb.get_hex_marker(rc) != Marker.empty:
+    valid_move = false
+    msg = not_empty
+
+  echo(msg)
+  return valid_move
+
 
 proc computer_move(hb: var Hexboard, side: Marker, n_trials: int) : RowCol =
   var 
@@ -175,32 +199,7 @@ proc move_input(msg: string) : RowCol =
   return RowCol(row: rcinput[0], col: rcinput[1])
 
 
-proc is_valid_move(hb: Hexboard, rc: RowCol) : bool =
-  var
-    row: int = rc.row
-    col: int = rc.col
-    valid_move = true
-  let
-    bad_position: string = "Your move used an invalid row or column.\n\n"
-    not_empty: string = "Your move didn't choose an empty position.\n\n"
-  var
-    msg: string = ""
-
-  if row > hb.edge_len or row < 1:
-    valid_move = false
-    msg = bad_position
-  elif col > hb.edge_len or col < 1:
-    valid_move = false
-    msg = bad_position
-  elif hb.get_hex_marker(rc) != Marker.empty:
-    valid_move = false
-    msg = not_empty
-
-  echo(msg)
-  return valid_move
-
-
-proc save_diagnostics*(hb: Hexboard);   # forward declaration
+proc save_diagnostics*(hb: Hexboard)  # forward declaration
 
 
 proc person_move(hb: var Hexboard, side: Marker) : RowCol =
@@ -230,7 +229,7 @@ proc person_move(hb: var Hexboard, side: Marker) : RowCol =
 
 proc who_won(hb: var Hexboard) : Marker =
   var winner: Marker = empty
-  let sides: array = [Marker.playerX, Marker.playerO]
+  let sides = [Marker.playerX, Marker.playerO]
 
   for side in sides:
     winner =  hb.find_ends(side)
@@ -248,13 +247,15 @@ proc who_goes_first() : tuple[person_marker: Marker, computer_marker: Marker] =
 
     if contains("yes", answer.toLowerAscii):
       echo("\nYou go first playing X Markers.")
-      echo("Make a path from the top row to the bottom.")
+      echo("Make a path from the top to bottom or bottom to top. Connect along the lines.")
       echo("The computer goes second playing O markers.")
+      echo("The computer tries to make a path from side to side.")
       echo("\n") # 2 blank lines
       return (person_marker: Marker.playerX, computer_marker: Marker.playerO)
 
     elif contains("no", answer.toLowerAscii):
       echo("\nThe computer goes first playing X Markers.")
+      echo("The computer tries to make a path from side to side.")
       echo("You go second playing O Markers.")
       echo("Make a path from the first column to the last column.")
       echo("\n") # 2 blank lines
@@ -314,17 +315,20 @@ proc play_game*(hb: var Hexboard, n_trials: int, debug: bool = false) =
 
     # test for winner
     if hb.move_count >= (hb.edge_len + hb.edge_len - 1):  # minimum no. of moves to complete a path from start to end borders
+      hb.winner_assess_time_t0 = cpuTime()
       winning_side = hb.who_won()
+      hb.winner_assess_time_cum += cpuTime() - hb.winner_assess_time_t0
 
-      if winning_side == Marker.playerO or winning_side == Marker.playerX:  # equivalent to ord(winning_side) > 0  
+      if winning_side == Marker.playerO or winning_side == Marker.playerX:  
         echo("We have a winner. ")
         if winning_side == person_marker:
-          write(stdout, "You won. Congratulations!\n")
+          write(stdout, "You won. Congratulations!\n\n")
         else:
-          write(stdout, "The computer beat you )-:")
-          echo("\nGame over. Come back and play again!\n")
+          write(stdout, "The computer beat you )-:\n\n")
         hb.display_board()
+        echo("Game over. Come back and play again!\n")
         break
+
 
 proc save_diagnostics*(hb: Hexboard) =
   let 
