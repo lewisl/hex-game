@@ -16,6 +16,11 @@ type
     row*: int = 0
     col*: int = 0
 
+type Move* = object
+  player*: Marker
+  row*: int
+  col*: int
+
 type
   Hexboard* = object
     # used by hex_board
@@ -29,7 +34,8 @@ type
     # used by game_play: 
       # using this object prevents game_play functions from allocating/deallocating many small seqs  
     move_count*:          int
-    win_pct_per_move*:    seq[float64]
+    move_history*:        seq[Move]
+    wins_per_move*:       seq[int]
     neighbors*:           seq[int]
     captured*:            seq[int]
     possibles*:           Deque[int]  # candidates for finding connected path from edge to edge
@@ -242,3 +248,7 @@ proc display_board*(hb: Hexboard) =
     else:
       write(stdout, "\n\n")
   
+# output move history to a "File" defaulting to stdout
+proc display_move_history*(hb: Hexboard, mh: seq[Move], outf: File = stdout) =
+  for move in mh:
+    write(outf, "player: ", $move.player, " linear: ", $hb.rc2l(move.row, move.col), " row: ", $move.row,  " col: ", $move.col, "\n")

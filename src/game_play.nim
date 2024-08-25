@@ -15,32 +15,25 @@ import
 
 
 # copies source (less 1 index)--probably returns via move semantics
-proc copy_except[T](source: seq[T], exclude_pos: int) : seq[T] =
-  result = newSeq[T](source.len - 1)
-  assert exclude_pos in source
+proc copy_except(source: seq[int], tst_move: int) : seq =
+  result = newSeq[int](source.len - 1)
+  assert tst_move in source, "Test move not in empty_idxs"
   
-  # for i in 0 ..< exclude_idx:
-  #   result[i] = source[i]
-  # for i in exclude_idx ..< source.len - 1:  
-  #   result[i] = source[i+1]  # source skips exclude_idx; stops at source.len; result gets exclude_idx; stops at source.len - 1
   var i = 0
   for pos in source:
-    if pos == exclude_pos:
+    if pos == tst_move:
       discard
     else:
       result[i] = pos
       inc i
 
 # simulate a hex game by filling empty positions with shuffled markers (doesn't include the test move)
-proc simulate_hexboard_positions[T](hb: var Hexboard, empties: seq[T], exclude_pos: int)  =  
-  hb.shuffle_idxs = copy_except(empties, exclude_pos)   # capacity of hb.shuffle_idxs set in constructor
+proc simulate_hexboard_positions(hb: var Hexboard)  =  
   shuffle(hb.shuffle_idxs)   
-  hb.fill_board(hb.shuffle_idxs, empty)
   for i in countup(0, hb.shuffle_idxs.len-2, 2):
     hb.set_hex_marker(hb.shuffle_idxs[i], Marker.playerX)  # first regardless of whether computer or person
     hb.set_hex_marker(hb.shuffle_idxs[i+1], Marker.playerO)
-  
-  hb.set_hex_marker(hb.shuffle_idxs.len-1, Marker.playerX) # last even numbered index: can't do + 1
+  hb.set_hex_marker(hb.shuffle_idxs[hb.shuffle_idxs.len-1], Marker.playerX) # last even numbered index: can't do + 1
 
 
 proc fill_board(hb: var Hexboard, indices: seq[int], value: Marker)  =
@@ -71,8 +64,9 @@ proc find_ends(hb: var Hexboard, side: Marker, whole_board: bool = false) : Mark
       hb.captured.add(pos)
 
   while not (hb.possibles.len == 0):
+
     if hb.is_in_start(hb.possibles[0], side):
-      # hb.winner_assess_time_cum += cpuTime() - hb.winner_assess_time_t0
+      hb.winner_assess_time_cum += cpuTime() - hb.winner_assess_time_t0
       return side
 
     # find neighbors of the current node that match the current side and exclude already captured nodes
@@ -100,44 +94,39 @@ proc find_ends(hb: var Hexboard, side: Marker, whole_board: bool = false) : Mark
 proc monte_carlo_move(hb: var Hexboard, side: Marker, n_trials: int) : RowCol =
 
   hb.move_sim_time_t0 = cpuTime()
-
-  hb.win_pct_per_move.setLen(0) # clear class member, don't create new object
+  hb.wins_per_move.setLen(0) # clear class member, don't create new object
 
   var
     wins: int
     winning_side: Marker = empty
     best_move: int
 
-  var current_idx = 0  # index in empty_idxs: NOT same as loop variable, which iterates CONTENTS of empty_idxs
   # loop over the available move positions: make tst move, setup positions to randomize
   for tst_move in hb.empty_idxs:  # tst_move is an empty position for simulating test computer moves 
     hb.set_hex_marker(tst_move, side) # set the test move on the board
+    hb.shuffle_idxs = copy_except(hb.empty_idxs, tst_move)   # capacity of hb.shuffle_idxs set in constructor
+
     wins = 0
     for trial in 0 ..< n_trials:
-      hb.simulate_hexboard_positions(hb.empty_idxs, tst_move)  
+      hb.simulate_hexboard_positions()  
       winning_side = hb.find_ends(side, true)
       wins += (if winning_side == side: 1 else: 0)
       # hb.fill_board(hb.empty_idxs, Marker.empty)   # TODO this is expensive to do each iteration
 
-    hb.win_pct_per_move.add(wins.toBiggestFloat / n_trials.toBiggestFloat) # calculate and save computer win pct.
-
+    hb.wins_per_move.add(wins)    #(wins.toBiggestFloat / n_trials.toBiggestFloat) # calculate and save computer win pct.
     hb.set_hex_marker(tst_move, Marker.empty)  # reverse the trial move
-    inc current_idx  
-
 
   # after all test moves have been tried, find the maximum computer win pct across them
-  var  maxpct: float64 = 0.0
+  var  maxwins = 0
   var choice: int = 0
-  best_move = hb.empty_idxs[0]
-  for i in 0 ..< hb.win_pct_per_move.len:
-    # echo "win % ", hb.win_pct_per_move, " i ", i, " move: ", hb.empty_idxs[i], "\n"
-    if hb.win_pct_per_move[i] > maxpct:
-      maxpct = hb.win_pct_per_move[i]
+  best_move = 0
+  for i in 0 ..< hb.wins_per_move.len:
+    # echo "win % ", hb.wins_per_move, " i ", i, " move: ", hb.empty_idxs[i], "\n"
+    if hb.wins_per_move[i] > maxwins:
+      maxwins = hb.wins_per_move[i]
       best_move = hb.empty_idxs[i]  
       choice  = i
-
   # echo "************ ", "choice ", choice, " maxpct ", maxpct, " move ", hb.empty_idxs[choice]
-
   hb.fill_board(hb.empty_idxs, Marker.empty) # restore board to move state before simulation
   hb.move_sim_time_cum += cpuTime() - hb.move_sim_time_t0
   return hb.l2rc(best_move)
@@ -145,18 +134,24 @@ proc monte_carlo_move(hb: var Hexboard, side: Marker, n_trials: int) : RowCol =
 
 # one proc to do a move: set the marker, remove the empty index, increment the move counter
 proc do_move(hb: var Hexboard, rc: Rowcol, side: Marker) =
-  assert hb.empty_idxs.find(hb.rc2l(rc)) != -1
-  assert hb.positions[hb.rc2l(rc)] == Marker.empty
-  hb.set_hex_marker(rc, side)
-  hb.empty_idxs.delete(hb.empty_idxs.find(hb.rc2l(rc)))  # update list of empty board positions
+  var linear = hb.rc2l(rc)
+  assert linear in hb.empty_idxs
+  var empty_idx = hb.empty_idxs.find(linear) # index in empty_idxs of the new move position
+  assert empty_idx != -1, "new move was not to an empty\n"
+  assert hb.is_empty(linear), "Move is not to empty position" # the new move position has to be empty on the board
+
+  hb.set_hex_marker(linear, side)
+  hb.empty_idxs.delete(empty_idx)  # delete the value at linear index
+  hb.move_history.add(Move(player: side, row: rc.row, col: rc.col))
   inc hb.move_count
 
+proc is_valid_move(hb: Hexboard, rc: RowCol) : bool;  # forward declaration
 
 proc computer_move(hb: var Hexboard, side: Marker, n_trials: int) : RowCol =
   var 
     rc: RowCol
-    
   rc = hb.monte_carlo_move(side, n_trials)
+  assert hb.is_valid_move(rc)
   hb.do_move(rc, side)
   return rc
 
@@ -167,7 +162,6 @@ proc move_input(msg: string) : RowCol =
     rcinput = [0,0]
     input: string
     more_input = true
-
   while more_input:
     input = readLineFromStdin("row col: ")
     for cnt, item in enumerate(splitWhitespace(input)):  # lot'o'rigamorole to avoid splitting input into a seq
@@ -178,11 +172,10 @@ proc move_input(msg: string) : RowCol =
       if cnt == 1:  # ignore more inputs than 2 or inputs done
         more_input = false
         break
-
   return RowCol(row: rcinput[0], col: rcinput[1])
 
 
-proc is_valid_move(hb: var Hexboard, rc: RowCol) : bool =
+proc is_valid_move(hb: Hexboard, rc: RowCol) : bool =
   var
     row: int = rc.row
     col: int = rc.col
@@ -207,6 +200,9 @@ proc is_valid_move(hb: var Hexboard, rc: RowCol) : bool =
   return valid_move
 
 
+proc save_diagnostics*(hb: Hexboard);   # forward declaration
+
+
 proc person_move(hb: var Hexboard, side: Marker) : RowCol =
   # need to implement writing to a file
   var
@@ -225,17 +221,9 @@ proc person_move(hb: var Hexboard, side: Marker) : RowCol =
       rc.row = -1 
       rc.col = -1
       return rc
-
     if rc.row == -5:
-      let 
-        date = now()
-        filename = "board graph " & $date & ".txt"
-        f = open(filename, fmWrite) # filename will almost always be unique
-      display_graph(hb.hex_graph, f)
-      f.close
-
+      hb.save_diagnostics()
     valid_move = hb.is_valid_move(rc)
-
   hb.do_move(rc, side)
   return rc
 
@@ -259,25 +247,19 @@ proc who_goes_first() : tuple[person_marker: Marker, computer_marker: Marker] =
     let answer = readLineFromStdin("*** Do you want to go first? (enter y or yes or n or no) ")
 
     if contains("yes", answer.toLowerAscii):
-      # person_marker = Marker.playerX
-      # computer_marker = Marker.playerO
-
       echo("\nYou go first playing X Markers.")
       echo("Make a path from the top row to the bottom.")
       echo("The computer goes second playing O markers.")
       echo("\n") # 2 blank lines
-
       return (person_marker: Marker.playerX, computer_marker: Marker.playerO)
-    elif contains("no", answer.toLowerAscii):
-      # person_marker = Marker.playerO
-      # computer_marker = Marker.playerX
 
+    elif contains("no", answer.toLowerAscii):
       echo("\nThe computer goes first playing X Markers.")
       echo("You go second playing O Markers.")
       echo("Make a path from the first column to the last column.")
       echo("\n") # 2 blank lines
-
       return (person_marker: Marker.playerO, computer_marker: Marker.playerX)
+
     else:
       echo("    Please enter [y]es or [n]o")
 
@@ -289,13 +271,13 @@ proc play_game*(hb: var Hexboard, n_trials: int, debug: bool = false) =
     person_marker: Marker   # marker used by human player
     computer_marker: Marker  # marker used by computer player
     winning_side: Marker
-
   randomize()       # set seed for random module procs
   if not debug:  clear_screen()
   echo("\n")
 
   let tp = who_goes_first() # possible with anon tuple, but this is order independent
-  person_marker = tp.person_marker; computer_marker = tp.computer_marker
+  person_marker = tp.person_marker; 
+  computer_marker = tp.computer_marker
 
   hb.move_count = 0
 
@@ -343,3 +325,16 @@ proc play_game*(hb: var Hexboard, n_trials: int, debug: bool = false) =
           echo("\nGame over. Come back and play again!\n")
         hb.display_board()
         break
+
+proc save_diagnostics*(hb: Hexboard) =
+  let 
+    date = now()
+    filename = "diagnostics " & $date & ".txt"
+    f = open(filename, fmWrite) # filename will almost always be unique
+  write(f, "***** Graph map\n")
+  display_graph(hb.hex_graph, f)
+  write(f, "\n***** Move History\n")
+  display_move_history(hb, hb.move_history, f)
+  write(f, "\n***** Empty positions\n")
+  write(f, $hb.empty_idxs)
+  f.close

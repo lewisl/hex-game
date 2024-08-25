@@ -48,5 +48,8 @@ proc main() =
   echo("Simulating and evaluating moves took ", 
     hb.move_sim_time_cum - hb.winner_assess_time_cum, " seconds.\n");
 
+  if debug:
+    hb.save_diagnostics
+
 
 main()
