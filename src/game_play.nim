@@ -15,28 +15,14 @@ import
   helpers
 
 
-# copies source (less 1 value)--probably returns via move semantics
-proc copy_except(source: seq[int], tst_move: int) : seq =
-  result = newSeq[int](source.len - 1)
-  # assert tst_move in source, "Test move not in empty_idxs"
-  
-  var i = 0   # index for result, which is 1 element shorter than source
-  for pos in source:
-    if pos == tst_move:
-      discard
-    else:
-      result[i] = pos
-      inc i
-
-
 # simulate a hex game by filling empty positions with shuffled markers (doesn't include the test move)
-proc simulate_hexboard_positions(hb: var Hexboard)  =  
+proc simulate_hexboard_positions(hb: var Hexboard, throw_away: var seq[int], computer_side: Marker) {.inline.}  =  
   var 
-    setmarker: Marker = playerX  # first regardless of whether computer or person
-    nextmarker: Marker = playerO
-  shuffle(hb.shuffle_idxs)  
-  for i in 0 ..< hb.shuffle_idxs.len:
-    hb.set_hex_marker(hb.shuffle_idxs[i], setmarker)
+    setmarker: Marker = if computer_side == playerX: playerO else: playerX 
+    nextmarker: Marker = computer_side  # second in simulation because computer already made a test move
+  shuffle(throw_away)
+  for idx in throw_away:
+    hb.set_hex_marker(idx, setmarker)
     swap(setmarker, nextmarker)
 
 
@@ -95,25 +81,40 @@ proc find_ends(hb: var Hexboard, side: Marker, whole_board: bool = false) : Mark
 proc monte_carlo_move(hb: var Hexboard, side: Marker, n_trials: int) : RowCol =
 
   hb.move_sim_time_t0 = cpuTime()
-  hb.wins_per_move.setLen(0) # clear class member, don't create new object
-
   var
     wins: int
     winning_side: Marker = empty
+    throw_away: seq[int]    #= newSeqOfCap[int](hb.max_idx)
+
+  hb.wins_per_move.setLen(0) # clear class member, don't create new object
+  hb.shuffle_idxs.setLen(0)
 
   # pick a test move, run the trials, track wins, reset test move, pick best move
+  var tst_move_num = 0
   for tst_move in hb.empty_idxs:  # empty position,  simulate rest of the board for both sides 
     hb.set_hex_marker(tst_move, side) 
-    hb.shuffle_idxs = copy_except(hb.empty_idxs, tst_move)   # hb.shuffle_idxs not re-allocated: capacity set in constructor
     wins = 0
 
+    # hb.shuffle_idxs has to be stable for this to work--can't be shuffled
+    if tst_move_num == 0:
+      for i in 0 ..< hb.empty_idxs.len - 1:
+        hb.shuffle_idxs.add(hb.empty_idxs[i+1])  # excludes empty at 0
+    elif tst_move_num < hb.shuffle_idxs.len:     # exclude empty at tst_move_num
+      hb.shuffle_idxs[tst_move_num - 1] = hb.empty_idxs[tst_move_num - 1]
+      hb.shuffle_idxs[tst_move_num] = hb.empty_idxs[tst_move_num + 1]
+    else:                                        # excludes empty at max index
+      hb.shuffle_idxs[tst_move_num - 1] = hb.empty_idxs[tst_move_num - 1]
+
+    throw_away = hb.shuffle_idxs  # make copy once per move, not once per trial
+
     for trial in 0 ..< n_trials:
-      hb.simulate_hexboard_positions()  # object hb contains everything needed
+      hb.simulate_hexboard_positions(throw_away, side)  # object hb contains everything needed
       winning_side = hb.find_ends(side, true)
       wins += (if winning_side == side: 1 else: 0)
 
     hb.wins_per_move.add(wins)   
     hb.set_hex_marker(tst_move, Marker.empty)  # reverse the trial move
+    inc tst_move_num
 
   # find the maximum wins across all test moves to select the best test move
   var  
@@ -134,14 +135,14 @@ proc monte_carlo_move(hb: var Hexboard, side: Marker, n_trials: int) : RowCol =
 
 # one proc to do a move: set the marker, remove the empty index, increment the move counter
 proc do_move(hb: var Hexboard, rc: Rowcol, side: Marker) =
-  var linear = hb.rc2l(rc)
+  let linear = hb.rc2l(rc)
   # assert linear in hb.empty_idxs
-  var empty_idx = hb.empty_idxs.find(linear) # index in empty_idxs of the new move position
+  let empty_idx = hb.empty_idxs.find(linear) # index in empty_idxs of the new move position
   # assert empty_idx != -1, "new move was not to an empty\n"
   # assert hb.is_empty(linear), "Move is not to empty position" # the new move position has to be empty on the board
 
   hb.set_hex_marker(linear, side)
-  hb.empty_idxs.delete(empty_idx)  # delete the value at linear index
+  hb.empty_idxs.delete(empty_idx)  # remove move from empties
   hb.move_history.add(Move(player: side, row: rc.row, col: rc.col))
   inc hb.move_count
 
@@ -151,12 +152,11 @@ proc is_valid_move(hb: Hexboard, rc: RowCol) : bool =
     row: int = rc.row
     col: int = rc.col
     valid_move = true
+    msg: string = ""
   let
     bad_position: string = "Your move used an invalid row or column.\n\n"
     not_empty: string = "Your move didn't choose an empty position.\n\n"
-  var
-    msg: string = ""
-
+    
   if row > hb.edge_len or row < 1:
     valid_move = false
     msg = bad_position
@@ -172,9 +172,7 @@ proc is_valid_move(hb: Hexboard, rc: RowCol) : bool =
 
 
 proc computer_move(hb: var Hexboard, side: Marker, n_trials: int) : RowCol =
-  var 
-    rc: RowCol
-  rc = hb.monte_carlo_move(side, n_trials)
+  let rc = hb.monte_carlo_move(side, n_trials)
   assert hb.is_valid_move(rc)
   hb.do_move(rc, side)
   return rc

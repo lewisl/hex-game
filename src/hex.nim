@@ -45,7 +45,7 @@ proc main() =
 
   hb.play_game(n_trials, debug)
 
-  echo "Assessing who won took " , hb.winner_assess_time_cum, " seconds.";
+  # echo "Assessing who won took " , hb.winner_assess_time_cum, " seconds.";
   echo("Simulating and evaluating moves took ", 
     hb.move_sim_time_cum, " seconds.\n");
 
