@@ -12,13 +12,14 @@
 using namespace std;
 
 
-void Hex::simulate_hexboard_positions(vector<int> empties)
+void Hex::simulate_hexboard_positions(vector<int> empties, Marker computer_side)  // argument is a copy!
 {
-    // put the empty positions in the graph in random order
-    shuffle(empties.begin(), empties.end(), rng);
+    shuffle(empties.begin(), empties.end(), rng);  
 
-    // swap the scalars each iteration to alternate markers    
-    Marker current = Marker::playerO; Marker next = Marker::playerX; Marker tmp = Marker::empty;
+    // swap the scalars each iteration to alternate markers
+    Marker current = computer_side == Marker::playerX ? Marker::playerO : Marker ::playerX;
+    Marker next = computer_side;
+    Marker tmp = Marker::empty;
     for (int i = 0; i != empties.size(); ++i) {
         set_hex_Marker(current, empties[i]);
         tmp = current; current = next; next = tmp;  // faster than std::swap
@@ -28,7 +29,6 @@ void Hex::simulate_hexboard_positions(vector<int> empties)
 
 Hex::RowCol Hex::monte_carlo_move(Marker side, int n_trials)
 {
-    move_simulation_time.start();
 
     // method uses class fields: clear them instead of creating new objects each time
     shuffle_idxs.clear();
@@ -49,18 +49,18 @@ Hex::RowCol Hex::monte_carlo_move(Marker side, int n_trials)
 
         // only on the first move, copy all the empty_idxs except 0 to the vector to be shuffled
         if (move_num == 0) {
-            for (auto j = 0; j != move_num; ++j)
-                shuffle_idxs.push_back(empty_idxs[j]); 
-            for (auto j = move_num; j != empty_idxs.size() - 1; ++j)
+            for (auto j = move_num; j != empty_idxs.size() - 1; ++j)  //every index but 0 opf empty_idxs copied into shuffle_idxs
                 shuffle_idxs.push_back(empty_idxs[j + 1]);
-        }
-        else { // for the other moves, faster to simply change 2 values
-            shuffle_idxs[move_num - 1] = empty_idxs[move_num - 1];
-            shuffle_idxs[move_num] = empty_idxs[move_num + 1]; // skip empty_idxs[move_num]
+        } else if (shuffle_idxs.size() < move_num) { // faster to simply change 2 values
+            shuffle_idxs[move_num - 1] = empty_idxs[move_num - 1]; // skip empty_idxs[move_num]
+            shuffle_idxs[move_num] = empty_idxs[move_num + 1];
+        } 
+        else {
+            shuffle_idxs[move_num - 1] = empty_idxs[move_num - 1];  // skip max index value of empty_idxs
         }
 
         for (int trial = 0; trial != n_trials; ++trial) {
-            simulate_hexboard_positions(shuffle_idxs);
+            simulate_hexboard_positions(shuffle_idxs, side);
 
             winning_side = find_ends(side, true);
 
@@ -87,8 +87,6 @@ Hex::RowCol Hex::monte_carlo_move(Marker side, int n_trials)
     // restore the board
     fill_board(empty_idxs, Marker::empty);
 
-    move_simulation_time.cum();
-
     return linear2row_col(best_move);
 }
 
@@ -98,7 +96,7 @@ void Hex::do_move(Marker side, RowCol rc)
 
     // remove empty
     auto emptypos = find(empty_idxs.begin(), empty_idxs.end(), linear_index(rc));
-    auto foo = empty_idxs.erase(emptypos);  // we don't need foo
+    auto foo = empty_idxs.erase(emptypos);  // we don't use foo but we have to catch the return value
     
     move_count++;
 }
@@ -106,8 +104,10 @@ void Hex::do_move(Marker side, RowCol rc)
 Hex::RowCol Hex::computer_move(Marker side, int n_trials)
 {
     RowCol rc;
-
+    
+    move_simulation_time.start();
     rc = monte_carlo_move(side, n_trials);
+    move_simulation_time.cum();
 
     // set_hex_Marker(side, rc);
     do_move(side, rc);
@@ -223,8 +223,6 @@ bool Hex::is_valid_move(Hex::RowCol rc) const
 // in the start border, we have a winner.  We don't care about the middle steps of the path.
 Hex::Marker Hex::find_ends(Hex::Marker side, bool whole_board = false)
 {
-    winner_assess_time.start();
-
     int front = 0;
     deque<int> possibles; // MUST BE A DEQUE! hold candidate sequences across the board
 
@@ -247,7 +245,6 @@ Hex::Marker Hex::find_ends(Hex::Marker side, bool whole_board = false)
         while (true) // extend, branch, reject, find winner for this sequence
         {
             if (is_in_start(possibles[front], side)) { // if node in start border we have a winner
-                winner_assess_time.cum();
                 return side;
             }
 
@@ -271,7 +268,6 @@ Hex::Marker Hex::find_ends(Hex::Marker side, bool whole_board = false)
         } // while(true)
     } // while (!working.empty())
 
-    winner_assess_time.cum();
     // we've exhausted all the possibles w/o finding a complete branch
     if (whole_board) { // the winner has to be the other side because the side we tested doesn't have a complete path
         return (side == Marker::playerO ? Marker::playerX : Marker::playerO); // just reverse the side
@@ -287,12 +283,14 @@ bool inline Hex::is_in_start(int idx, Marker side) const {
         return idx % edge_len == 0;
     } else
         throw invalid_argument("Error: invalid side. Must be Marker::playerX  "
-                               "or  Marker::playerO.\n");
+                            "or  Marker::playerO.\n");
 }
 
-
-Hex::Marker Hex::who_won() // we use this when we may not have a full board, so do need to evaluate both sides
+// used when board may not be full, so do need to evaluate both sides
+Hex::Marker Hex::who_won() 
 {
+    winner_assess_time.start();
+
     Marker winner = Marker::empty;
     vector<Marker> sides{Marker::playerX, Marker::playerO};
 
@@ -302,6 +300,7 @@ Hex::Marker Hex::who_won() // we use this when we may not have a full board, so 
             break;
         }
     }
+    winner_assess_time.cum();
 
     return winner;
 }
@@ -403,9 +402,9 @@ void Hex::play_game(int n_trials)
             winning_side = who_won(); // result is Marker::empty, Marker::playerX, or Marker::playerO
 
             if (enum2int(winning_side)) { // e.g., wasn't Marker::empty
-                cout << "We have a winner. "
-                     << (winning_side == person_Marker ? "You won. Congratulations!" : " The computer beat you )-:")
-                     << "\nGame over. Come back and play again!\n\n";
+                cout    << "We have a winner. "
+                        << (winning_side == person_Marker ? "You won. Congratulations!" : " The computer beat you )-:")
+                        << "\nGame over. Come back and play again!\n\n";
                 display_board();
                 break;
             }

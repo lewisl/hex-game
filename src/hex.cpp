@@ -33,9 +33,9 @@ int main(int argc, char *argv[])
     
     hb.play_game(n_trials);
 
-    cout << "Assessing who won took " << hb.winner_assess_time.show() << " seconds.\n";
+    // cout << "Assessing who won took " << hb.winner_assess_time.show() << " seconds.\n";
     cout << "Simulating and evaluating moves took "
-        << hb.move_simulation_time.show() - hb.winner_assess_time.show() << " seconds.\n";
+        << hb.move_simulation_time.show() << " seconds.\n";
 
     return 0;
 }

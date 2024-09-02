@@ -239,7 +239,7 @@ public:
         void play_game(int n_trials = 1000);
     private:
         void initialize_move_seq();
-        void simulate_hexboard_positions(vector<int> empty_idxsitions);
+        void simulate_hexboard_positions(vector<int> empty_idxsitions, Marker computer_side);
         // RowCol random_move();
         // RowCol naive_move(Marker side);
         RowCol monte_carlo_move(Marker side, int n_trials);
