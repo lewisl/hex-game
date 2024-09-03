@@ -92,13 +92,13 @@ void Hex::make_board()
 
     // add vector<Edge> for each node to hold edges in the graph for each node
     // initial values:  all tiles are empty = 0
-    for (int i = 0; i != max_idx; ++i) {
-        hex_graph.create_edge_container(i); // create an empty edge container at each node
+    // for (int i = 0; i != max_idx; ++i) {
+    //     hex_graph.create_edge_container(i); // create an empty edge container at each node
 
         // NOTE: node_data, which holds the Marker at each board position,
         //              initialized by class Graph constructor, called by class Hex constructor
         
-    }
+    // }
 
     // add graph edges for adjacent hexes based on the layout of a Hex game
     //    linear indices run from 0 at upper, left then across the row,
