@@ -55,23 +55,23 @@ inline ostream& operator<<(ostream  &out, const vector<Edge> &ve) {
 template <typename T_data> // T_data can be various primitive data types
 class Graph {
   public:
-    Graph<T_data>() = default; // for arbitrary graphs
-    Graph<T_data>(size_t size, T_data node_elem)
+    Graph() = default; // for arbitrary graphs
+    Graph(size_t size, T_data node_elem)
         : size(size), node_data(size, node_elem), graph(size, vector<Edge>()) {}
-    ~Graph<T_data>() = default;
+    ~Graph() = default;
 
     vector<T_data> node_data; // holds Data values of all nodes
 
-  private:
+//   private:
     // unordered_map<int, vector<Edge>> graph;
     vector<vector<Edge>> graph;
     size_t size;
     T_data node_elem; // initial value for node_data
 
-public:
+  public:
+  // used only when reading a graph from a file because we don't know how big it will be until the file is read
   void set_storage(int size) {
     graph.reserve(size);
-    // graph.max_load_factor(0.8);
     node_data.reserve(size);
     }
 
@@ -131,33 +131,12 @@ public:
         return vec;
     }
 
-    // void create_edge_container(const int node) // empty Edge container
-    // {
-    //     graph.emplace(node, vector<Edge>{});
-    // }
 
     // with to_node and cost
-    void add_edge(const int node, const int y, const int cost = 1, const bool bidirectional = false)
+    void add_edge(const int node, const int y, const int cost = 1)
     {
-        // if (graph.find(node) != graph.cend()) {
-        //     if (graph.find(y) != graph.cend()) {
-        //         for (auto &edge : graph[node]) { // iterate over edges of node
-        //             if (y == edge.to_node) {
-        //                 return; // to_node y already exists as an edge of node
-        //             }
-        //         }
-                graph[node].push_back(Edge(y, cost));
-                if (bidirectional)
-                    graph[y].push_back(Edge(node, cost));
-            }
-        //     else {
-        //         cout << "node " << y << " not found in graph.";
-        //     }
-        // }
-        // else {
-        //     cout << "node " << node << " not found in graph.";
-        // }
-    // }
+        graph[node].push_back(Edge(y, cost));  // pushes back to the inner vector!
+    }
 
     /** 
     display_graph
@@ -167,25 +146,18 @@ public:
     pass an fstream as the output stream to save the graph in a text file.
     cout is the default value of ot to print to console.
     */
-    // void display_graph(ostream &ot = cout, bool to_file = false) const
-    // {
-    //     vector<int> nodes_sorted(graph.size());
-
-    //     // copy and sort the keys in graph
-    //     std::transform(graph.begin(), graph.end(), nodes_sorted.begin(), [](const auto &pair) { return pair.first; });
-    //     std::sort(nodes_sorted.begin(), nodes_sorted.end());
-
-    //     ot << "\nsize " << graph.size() << "\n";
-    //     for (const auto node : nodes_sorted) { // just an int node
-    //         ot << "node " << node << endl;
-    //         ot << "    data " << get_node_data(node) << endl;
-    //         auto &ve = graph.at(node); // vector<Edge>
-    //         for (const auto &edge : ve) { // Edge in vector<Edge>
-    //             ot << "    "
-    //                << "edge " << edge.to_node << " " << edge.cost << endl;
-    //         }
-    //     }
-    // }
+    void display_graph(ostream &ot = cout, bool to_file = false) const
+    {
+        ot << "\nsize " << graph.size() << "\n";
+        for (int idx = 0; idx != graph.size(); ++idx) { // just an int node
+            ot << "node " << idx << endl;
+            ot << "    data " << get_node_data(idx) << endl;
+            auto &ve = graph.at(idx); // vector<Edge>
+            for (const auto &edge : ve) { // Edge in vector<Edge>
+                ot << "    " << "edge " << edge.to_node << " " << edge.cost << endl;
+            }
+        }
+    }
 
     // note: we don't use this for the monte carlo simulation, but it's good for testing
     /*** load_graph_from_file

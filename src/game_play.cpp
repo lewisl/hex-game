@@ -93,6 +93,7 @@ Hex::RowCol Hex::monte_carlo_move(Marker side, int n_trials)
 void Hex::do_move(Marker side, RowCol rc)
 {
     set_hex_Marker(side, rc);
+    move_seq[enum2int(side)].push_back(rc);
 
     // remove empty
     auto emptypos = find(empty_idxs.begin(), empty_idxs.end(), linear_index(rc));
@@ -109,11 +110,8 @@ Hex::RowCol Hex::computer_move(Marker side, int n_trials)
     rc = monte_carlo_move(side, n_trials);
     move_simulation_time.cum();
 
-    // set_hex_Marker(side, rc);
     do_move(side, rc);
-    move_seq[enum2int(side)].push_back(rc);
 
-    // move_count++;
     return rc;
 }
 
@@ -160,30 +158,21 @@ Hex::RowCol Hex::person_move(Marker side)
             return rc;
         }
 
-        if (rc.row == -5) { // hidden command to write the current board positions
-            // to a file
-            // prepare output file
-            // string filename = "Board Graph.txt";
-            // ofstream outfile;
-            // outfile.open(filename,
-            //                 ios::out); // open a file to perform write operation
-            // // using file object
-            // if (!(outfile.is_open())) {
-            //     throw invalid_argument("Error opening file.");
-            // }
-            // hex_graph.display_graph(outfile, true);
-            // outfile.close();
+        if (rc.row == -5) { // hidden command to write the current board positions to a file
+            string filename = "Board Graph.txt";
+            ofstream outfile;
+            outfile.open(filename, ios::out); // open file to write
+            if (!(outfile.is_open())) {
+                throw invalid_argument("Error opening file.");
+            }
+            hex_graph.display_graph(outfile, true);
+            outfile.close();
         }
 
         valid_move = is_valid_move(rc);
         }
 
-        // set_hex_Marker(side, rc);
-    // cout << " the move was " << rc << endl;
     do_move(side, rc);
-    move_seq[enum2int(side)].push_back(rc);
-
-    // move_count++;
 
     return rc;
 }
@@ -314,7 +303,7 @@ void Hex::play_game(int n_trials)
     Marker computer_Marker;
     Marker winning_side;
 
-    // clear_screen();
+    clear_screen();
     cout << "\n\n";
 
     // who goes first?  break when we have a valid answer
@@ -369,7 +358,7 @@ void Hex::play_game(int n_trials)
             }
 
             computer_rc = computer_move(computer_Marker, n_trials);
-            // clear_screen();
+            clear_screen();
             cout << "The computer moved at " << computer_rc << "\n";
             cout << "Your move at " << person_rc << " was valid.\n\n\n";
 
@@ -389,7 +378,7 @@ void Hex::play_game(int n_trials)
                 exit(0);
             }
 
-            // clear_screen();
+            clear_screen();
             cout << "Your move at " << person_rc << " was valid.\n";
 
             break;

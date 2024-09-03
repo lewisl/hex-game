@@ -31,8 +31,6 @@ public:
     playerO = 2
   }; // for the data held at each board position
 
-//   enum class Do_move { naive = 0, monte_carlo };
-
   // row and col on the hexboard to address a hexagon
   // row and col are seen by the human player so we use 1-based indexing
   // the linear_index conversion method handles this
@@ -55,7 +53,7 @@ public:
             for (size_t i=0; i < empty_idxs.size(); ++i) {
                 empty_idxs[i] = i;  // add all positions-> all start empty
             }
-            Graph<Marker> hex_graph(max_idx, Hex::Marker::empty);  // initializes all board positions to empty
+            hex_graph = Graph<Marker>(max_idx, Hex::Marker::empty); // initializes all board positions to empty
     }
     // Hex::make_board() greats the graph of the board and the ascii display of the board
 
@@ -124,9 +122,6 @@ private:
     shuffle_idxs.reserve(max_idx);
     win_pct_per_move.reserve(max_idx);
     captured.reserve(max_idx / 2 + 1);
-    // for a player, can only be half the board positions + 1 for the player
-    // that goes first
-    hex_graph.set_storage(max_idx); // using Graph method
     neighbors.reserve(6);
   }
 

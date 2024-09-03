@@ -30,7 +30,7 @@ int main(int argc, char *argv[])
 
     Hex hb(size);  // create the game object
     hb.make_board();
-    
+
     hb.play_game(n_trials);
 
     // cout << "Assessing who won took " << hb.winner_assess_time.show() << " seconds.\n";
