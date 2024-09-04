@@ -90,20 +90,19 @@ proc monte_carlo_move(hb: var Hexboard, side: Marker, n_trials: int) : RowCol =
   hb.shuffle_idxs.setLen(0)
 
   # pick a test move, run the trials, track wins, reset test move, pick best move
-  var tst_move_num = 0
-  for tst_move in hb.empty_idxs:  # empty position,  simulate rest of the board for both sides 
+  for move_num, tst_move in hb.empty_idxs:  # move_num indexes the seq; tst_move are values in the seq
     hb.set_hex_marker(tst_move, side) 
     wins = 0
 
     # hb.shuffle_idxs has to be stable for this to work--can't be shuffled
-    if tst_move_num == 0:
+    if move_num == 0:
       for i in 0 ..< hb.empty_idxs.len - 1:
-        hb.shuffle_idxs.add(hb.empty_idxs[i+1])  # excludes empty at 0
-    elif tst_move_num < hb.shuffle_idxs.len:     # exclude empty at tst_move_num
-      hb.shuffle_idxs[tst_move_num - 1] = hb.empty_idxs[tst_move_num - 1]
-      hb.shuffle_idxs[tst_move_num] = hb.empty_idxs[tst_move_num + 1]
-    else:                                        # excludes empty at max index
-      hb.shuffle_idxs[tst_move_num - 1] = hb.empty_idxs[tst_move_num - 1]
+        hb.shuffle_idxs.add((hb.empty_idxs[i+1]))  # add all but empty_idxs[0] 1st time
+    elif move_num < hb.shuffle_idxs.len:     # copy 2 indices; exclude empty at tst_move_num
+      hb.shuffle_idxs[move_num - 1] = hb.empty_idxs[move_num - 1]
+      hb.shuffle_idxs[move_num] = hb.empty_idxs[move_num + 1]
+    else:                                        
+      hb.shuffle_idxs[move_num - 1] = hb.empty_idxs[move_num - 1]  # copy 1 index, excludes empty at max index
 
     throw_away = hb.shuffle_idxs  # make copy once per move, not once per trial
 
@@ -114,7 +113,6 @@ proc monte_carlo_move(hb: var Hexboard, side: Marker, n_trials: int) : RowCol =
 
     hb.wins_per_move.add(wins)   
     hb.set_hex_marker(tst_move, Marker.empty)  # reverse the trial move
-    inc tst_move_num
 
   # find the maximum wins across all test moves to select the best test move
   var  

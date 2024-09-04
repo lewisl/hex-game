@@ -1,5 +1,3 @@
-import 
-  tables
 
 type
   Edge* = object
@@ -34,7 +32,7 @@ proc initGraph*[T_data](size: int, node_elem: T_data, ): Graph[T_data] =  # in c
 
 
 # TODO: handle missing nodes, although less likely given full initialization
-proc add_edge*(hex_graph: var Graph, node: int, tonode: int, cost: int = 0, bidirectional: bool = false) =
+proc add_edge*(hex_graph: var Graph, node: int, tonode: int, cost: int = 0) =
   var
     no_match: bool = true
 
@@ -45,14 +43,12 @@ proc add_edge*(hex_graph: var Graph, node: int, tonode: int, cost: int = 0, bidi
   
   if no_match:
     hex_graph.gmap[node].add(Edge(tonode: tonode, cost: cost))
-    # if bidirectional:
-    #   hex_graph.gmap[tonode].add(Edge(tonode: node, cost: cost))
 
 
 # varargs version enables adding many edges to a node in one call
 proc add_edge*(hex_graph: var Graph, node: int, cost: int = 0, bidirectional: bool = false, tonodes: varargs[int]) =
   for tonode in tonodes:
-    add_edge(hex_graph, node, tonode, cost, bidirectional)
+    add_edge(hex_graph, node, tonode, cost)
 
 
 proc set_node_data*[T_data](hex_graph: var Graph, idx: int, val: T_data) =
