@@ -20,6 +20,9 @@ Programmer: Lewis Levin Date: April 2023
 
 using namespace std;
 
+// some string constants used to draw the board
+const string connector = R"( \ /)";
+const string last_connector = R"( \)";
 
 // return hexboard Marker based on value and add the spacer lines ___ needed to draw the board
 string Hex::symdash(Marker val, bool last) const
@@ -63,19 +66,19 @@ void Hex::define_borders() // tested OK
 
     // top border
     for (int row = 1, col = 1; col < edge_len + 1; col++) {
-        start_border[enum2int(Marker::playerX)].push_back(linear_index(row, col));
+        start_border[enum2int(Marker::playerX)].push_back(rc2l(row, col));
     }
     // bottom border
     for (int row = edge_len, col = 1; col < edge_len + 1; col++) {
-        finish_border[enum2int(Marker::playerX)].push_back(linear_index(row, col));
+        finish_border[enum2int(Marker::playerX)].push_back(rc2l(row, col));
     }
     // left border
     for (int row = 1, col = 1; row < edge_len + 1; row++) {
-        start_border[enum2int(Marker::playerO)].push_back(linear_index(row, col));
+        start_border[enum2int(Marker::playerO)].push_back(rc2l(row, col));
     }
     // right border
     for (int row = 1, col = edge_len; row != edge_len + 1; ++row) {
-        finish_border[enum2int(Marker::playerO)].push_back(linear_index(row, col));
+        finish_border[enum2int(Marker::playerO)].push_back(rc2l(row, col));
     }
 }
 
@@ -88,7 +91,6 @@ void Hex::make_board()
 
     // define the board regions and move sequences
     define_borders();
-    initialize_move_seq();
 
     // add graph edges for adjacent hexes based on the layout of a Hex game
     //    linear indices run from 0 at upper, left then across the row,
@@ -96,73 +98,63 @@ void Hex::make_board()
     // 
     // 4 corners of the board: 2 or 3 edges per node                            
     // upper left
-    hex_graph.add_edge(linear_index(1, 1), linear_index(2, 1));
-    hex_graph.add_edge(linear_index(1, 1), linear_index(1, 2));
+    hex_graph.add_edge(rc2l(1, 1), rc2l(2, 1));
+    hex_graph.add_edge(rc2l(1, 1), rc2l(1, 2));
     // upper right
-    hex_graph.add_edge(linear_index(1, edge_len), linear_index(1, (edge_len - 1)));
-    hex_graph.add_edge(linear_index(1, edge_len), linear_index(2, edge_len));
-    hex_graph.add_edge(linear_index(1, edge_len), linear_index(2, (edge_len - 1)));
+    hex_graph.add_edge(rc2l(1, edge_len), rc2l(1, (edge_len - 1)));
+    hex_graph.add_edge(rc2l(1, edge_len), rc2l(2, edge_len));
+    hex_graph.add_edge(rc2l(1, edge_len), rc2l(2, (edge_len - 1)));
     // lower right
-    hex_graph.add_edge(linear_index(edge_len, edge_len), linear_index(edge_len, (edge_len - 1)));
-    hex_graph.add_edge(linear_index(edge_len, edge_len), linear_index((edge_len - 1), edge_len));
+    hex_graph.add_edge(rc2l(edge_len, edge_len), rc2l(edge_len, (edge_len - 1)));
+    hex_graph.add_edge(rc2l(edge_len, edge_len), rc2l((edge_len - 1), edge_len));
     // lower left
-    hex_graph.add_edge(linear_index(edge_len, 1), linear_index((edge_len - 1), 1));
-    hex_graph.add_edge(linear_index(edge_len, 1), linear_index(edge_len, 2));
-    hex_graph.add_edge(linear_index(edge_len, 1), linear_index((edge_len - 1), 2));
+    hex_graph.add_edge(rc2l(edge_len, 1), rc2l((edge_len - 1), 1));
+    hex_graph.add_edge(rc2l(edge_len, 1), rc2l(edge_len, 2));
+    hex_graph.add_edge(rc2l(edge_len, 1), rc2l((edge_len - 1), 2));
 
     // 4 borders (excluding corners)  4 edges per node.
     // north-south edges: constant row, vary col
     for (int c = 2; c != edge_len; ++c) {
         int r = 1;
-        hex_graph.add_edge(linear_index(r, c), linear_index(r, c - 1));
-        hex_graph.add_edge(linear_index(r, c), linear_index(r, c + 1));
-        hex_graph.add_edge(linear_index(r, c), linear_index(r + 1, c - 1));
-        hex_graph.add_edge(linear_index(r, c), linear_index(r + 1, c));
+        hex_graph.add_edge(rc2l(r, c), rc2l(r, c - 1));
+        hex_graph.add_edge(rc2l(r, c), rc2l(r, c + 1));
+        hex_graph.add_edge(rc2l(r, c), rc2l(r + 1, c - 1));
+        hex_graph.add_edge(rc2l(r, c), rc2l(r + 1, c));
 
         r = edge_len;
-        hex_graph.add_edge(linear_index(r, c), linear_index(r, c - 1));
-        hex_graph.add_edge(linear_index(r, c), linear_index(r, c + 1));
-        hex_graph.add_edge(linear_index(r, c), linear_index(r - 1, c));
-        hex_graph.add_edge(linear_index(r, c), linear_index(r - 1, c + 1));
+        hex_graph.add_edge(rc2l(r, c), rc2l(r, c - 1));
+        hex_graph.add_edge(rc2l(r, c), rc2l(r, c + 1));
+        hex_graph.add_edge(rc2l(r, c), rc2l(r - 1, c));
+        hex_graph.add_edge(rc2l(r, c), rc2l(r - 1, c + 1));
     }
     // east-west edges: constant col, vary row
     for (int r = 2; r != edge_len; ++r) {
         int c = 1;
-        hex_graph.add_edge(linear_index(r, c), linear_index(r - 1, c));
-        hex_graph.add_edge(linear_index(r, c), linear_index(r - 1, c + 1));
-        hex_graph.add_edge(linear_index(r, c), linear_index(r, c + 1));
-        hex_graph.add_edge(linear_index(r, c), linear_index(r + 1, c));
+        hex_graph.add_edge(rc2l(r, c), rc2l(r - 1, c));
+        hex_graph.add_edge(rc2l(r, c), rc2l(r - 1, c + 1));
+        hex_graph.add_edge(rc2l(r, c), rc2l(r, c + 1));
+        hex_graph.add_edge(rc2l(r, c), rc2l(r + 1, c));
 
         c = edge_len;
-        hex_graph.add_edge(linear_index(r, c), linear_index(r - 1, c));
-        hex_graph.add_edge(linear_index(r, c), linear_index(r, c - 1));
-        hex_graph.add_edge(linear_index(r, c), linear_index(r + 1, c - 1));
-        hex_graph.add_edge(linear_index(r, c), linear_index(r + 1, c));
+        hex_graph.add_edge(rc2l(r, c), rc2l(r - 1, c));
+        hex_graph.add_edge(rc2l(r, c), rc2l(r, c - 1));
+        hex_graph.add_edge(rc2l(r, c), rc2l(r + 1, c - 1));
+        hex_graph.add_edge(rc2l(r, c), rc2l(r + 1, c));
     }
 
     // interior tiles: 6 edges per hex
     for (int r = 2; r != edge_len; ++r) {
         for (int c = 2; c != edge_len; ++c) {
-            hex_graph.add_edge(linear_index(r, c), linear_index(r - 1, c + 1));
-            hex_graph.add_edge(linear_index(r, c), linear_index(r, c + 1));
-            hex_graph.add_edge(linear_index(r, c), linear_index(r + 1, c));
-            hex_graph.add_edge(linear_index(r, c), linear_index(r + 1, c - 1));
-            hex_graph.add_edge(linear_index(r, c), linear_index(r, c - 1));
-            hex_graph.add_edge(linear_index(r, c), linear_index(r - 1, c));
+            hex_graph.add_edge(rc2l(r, c), rc2l(r - 1, c + 1));
+            hex_graph.add_edge(rc2l(r, c), rc2l(r, c + 1));
+            hex_graph.add_edge(rc2l(r, c), rc2l(r + 1, c));
+            hex_graph.add_edge(rc2l(r, c), rc2l(r + 1, c - 1));
+            hex_graph.add_edge(rc2l(r, c), rc2l(r, c - 1));
+            hex_graph.add_edge(rc2l(r, c), rc2l(r - 1, c));
         }
     }
 } // end of make_board
 
-// methods for playing game externally defined
-void Hex::initialize_move_seq()
-{
-    // for move_seq for players 1 and 2
-    for (int i = 0; i != 3; ++i) {
-        move_seq.push_back(vector<RowCol>{});
-        if (i > 0)
-            move_seq[i].reserve(max_idx / 2 + 1);
-    }
-}
 
 // print the ascii board on screen
 void Hex::display_board() const

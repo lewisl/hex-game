@@ -6,3 +6,4 @@ target("hex")
     set_languages("cxx17")
     set_optimize("fastest")
     add_cxxflags("-flto")  -- supposed to be linker optimization; doesn't really do much
+            -- these don't work... -fprofile-instr-generate and -fprofile-instr-use

@@ -135,7 +135,7 @@ class Graph {
     // with to_node and cost
     void add_edge(const int node, const int y, const int cost = 1)
     {
-        graph[node].push_back(Edge(y, cost));  // pushes back to the inner vector!
+        graph[node].push_back(Edge(y, cost));  // pushes back to the inner vector!, indexes the outer vector
     }
 
     /** 

@@ -12,27 +12,26 @@
 using namespace std;
 
 
-void Hex::simulate_hexboard_positions(vector<int> empties, Marker computer_side)  // argument is a copy!
+void Hex::simulate_hexboard_positions(vector<int> &empties, Marker person_side, Marker computer_side)  // empties copy made by caller; this argument is a reference
 {
     shuffle(empties.begin(), empties.end(), rng);  
 
     // swap the scalars each iteration to alternate markers
-    Marker current = computer_side == Marker::playerX ? Marker::playerO : Marker ::playerX;
+    Marker current = person_side;  // human player always gets placed first
     Marker next = computer_side;
-    Marker tmp = Marker::empty;
     for (int i = 0; i != empties.size(); ++i) {
         set_hex_Marker(current, empties[i]);
-        tmp = current; current = next; next = tmp;  // faster than std::swap
+        swap(current, next); 
     }
 }
 
 
-Hex::RowCol Hex::monte_carlo_move(Marker side, int n_trials)
+Hex::RowCol Hex::monte_carlo_move(Marker computer_marker, int n_trials, Marker person_marker)
 {
 
     // method uses class fields: clear them instead of creating new objects each time
     shuffle_idxs.clear();
-    win_pct_per_move.clear();
+    wins_per_move.clear();
 
     int wins = 0;
     Marker winning_side;
@@ -44,7 +43,7 @@ Hex::RowCol Hex::monte_carlo_move(Marker side, int n_trials)
     for (move_num = 0; move_num != empty_idxs.size(); ++move_num) {
 
         // make the computer's move to be evaluated
-        set_hex_Marker(side, empty_idxs[move_num]);
+        set_hex_Marker(computer_marker, empty_idxs[move_num]);
         wins = 0; // reset the win counter across the trials
 
         // only on the first move, copy all the empty_idxs except 0 to the vector to be shuffled
@@ -58,28 +57,28 @@ Hex::RowCol Hex::monte_carlo_move(Marker side, int n_trials)
         else {
             shuffle_idxs[move_num - 1] = empty_idxs[move_num - 1];  // skip max index value of empty_idxs
         }
-
+        throw_away = shuffle_idxs;  // copy to pre-allocated vector;
         for (int trial = 0; trial != n_trials; ++trial) {
-            simulate_hexboard_positions(shuffle_idxs, side);
+            simulate_hexboard_positions(throw_away, person_marker, computer_marker);  // callee uses reference to throw_away
 
-            winning_side = find_ends(side, true);
+            winning_side = find_ends(computer_marker, true);
 
-            wins += (winning_side == side ? 1 : 0);
+            wins += (winning_side == computer_marker ? 1 : 0);
         }
 
         // calculate and save computer win percentage for this move
-        win_pct_per_move.push_back(static_cast<float>(wins) / n_trials);
+        wins_per_move.push_back(wins);
 
         // reverse the trial move
         set_hex_Marker(Marker::empty, empty_idxs[move_num]);
     }
 
     // find the maximum computer win percentage across all the candidate moves
-    float maxpct = 0.0;
+    int max = 0;
     best_move = empty_idxs[0];
-    for (int i = 0; i != win_pct_per_move.size(); ++i) { // linear search
-        if (win_pct_per_move[i] > maxpct) {
-            maxpct = win_pct_per_move[i];
+    for (int i = 0; i != wins_per_move.size(); ++i) { // linear search
+        if (wins_per_move[i] > max) {
+            max = wins_per_move[i];
             best_move = empty_idxs[i];
         }
     }
@@ -87,27 +86,26 @@ Hex::RowCol Hex::monte_carlo_move(Marker side, int n_trials)
     // restore the board
     fill_board(empty_idxs, Marker::empty);
 
-    return linear2row_col(best_move);
+    return l2rc(best_move);
 }
 
 void Hex::do_move(Marker side, RowCol rc)
 {
     set_hex_Marker(side, rc);
-    move_seq[enum2int(side)].push_back(rc);
-
+    move_history.emplace_back(side, rc.row, rc.col);
     // remove empty
-    auto emptypos = find(empty_idxs.begin(), empty_idxs.end(), linear_index(rc));
+    auto emptypos = find(empty_idxs.begin(), empty_idxs.end(), rc2l(rc));
     auto foo = empty_idxs.erase(emptypos);  // we don't use foo but we have to catch the return value
     
     move_count++;
 }
 
-Hex::RowCol Hex::computer_move(Marker side, int n_trials)
+Hex::RowCol Hex::computer_move(Marker side, int n_trials, Marker person_marker)
 {
     RowCol rc;
     
     move_simulation_time.start();
-    rc = monte_carlo_move(side, n_trials);
+    rc = monte_carlo_move(side, n_trials, person_marker);
     move_simulation_time.cum();
 
     do_move(side, rc);
@@ -142,7 +140,7 @@ Hex::RowCol Hex::person_move(Marker side)
     while (!valid_move) {
         cout << "Enter a move in an empty position that contains '.'" << endl;
         cout << "Enter your move as the row number and the column number, separated by a space.\n";
-        cout << "The computer prompts row col:  and you enter 3 5, followed by the enter key.";
+        cout << "The computer prompts row col:  and you enter 3 5, followed by the enter key. ";
         cout << "Enter -1 -1 to quit..." << endl;
         cout << "row col: ";
 
@@ -278,8 +276,6 @@ bool inline Hex::is_in_start(int idx, Marker side) const {
 // used when board may not be full, so do need to evaluate both sides
 Hex::Marker Hex::who_won() 
 {
-    winner_assess_time.start();
-
     Marker winner = Marker::empty;
     vector<Marker> sides{Marker::playerX, Marker::playerO};
 
@@ -289,43 +285,33 @@ Hex::Marker Hex::who_won()
             break;
         }
     }
-    winner_assess_time.cum();
-
     return winner;
 }
 
-void Hex::play_game(int n_trials) 
-{
-    RowCol person_rc; // person's move
-    RowCol computer_rc; // computer's move
+array<Hex::Marker, 2> Hex::who_goes_first() {
     string answer;
     Marker person_Marker;
     Marker computer_Marker;
-    Marker winning_side;
+    bool no_answer = true;
 
-    clear_screen();
-    cout << "\n\n";
-
-    // who goes first?  break when we have a valid answer
-    while (true) {
+    while (no_answer) {
         cout << string_by_n("\n", 15);
         cout << "*** Do you want to go first? (enter y or yes or n or no) ";
         answer = safe_input<string>("Enter y or yes or n or no: ");
 
         if (is_in(tolower(answer), "yes")) {
-            // person_first = true;
             person_Marker = Marker::playerX;
             computer_Marker = Marker::playerO;
 
             cout << "\nYou go first playing X Markers.\n";
-            cout << "Make a path from the top row to the bottom.\n";
-            cout << "The computer goes second playing O Markers.\n";
+            cout << "Make a path from the top row to the bottom (or vica versa), \n";
+            cout << "following the connection lines between the dots.\n";
+            cout << "The computer goes second playing O Markers\n";
+            cout << "to make a path across the board in either direction.\n";
             cout << string_by_n("\n", 2);
 
-            break;
-        }
-        else if (is_in(tolower(answer), "no")) {
-            // person_first = false;
+            no_answer = false;
+        } else if (is_in(tolower(answer), "no")) {
             person_Marker = Marker::playerO;
             computer_Marker = Marker::playerX;
 
@@ -334,12 +320,28 @@ void Hex::play_game(int n_trials)
             cout << "Make a path from the first column to the last column.\n";
             cout << string_by_n("\n", 2);
 
-            break;
-        }
-        else
+            no_answer = false;
+        } else
             cout << "    Please enter [y]es or [n]o\n";
     }
+    return std::array<Marker, 2>{person_Marker, computer_Marker};
+}
+    
+void Hex::play_game(int n_trials) 
+{
+    RowCol person_rc; // person's move
+    RowCol computer_rc; // computer's move
+    Marker person_Marker;
+    Marker computer_Marker;
+    Marker winning_side;
 
+    clear_screen();
+    cout << "\n\n";
+
+    auto markers = who_goes_first();
+        person_Marker = markers[0];
+        computer_Marker = markers[1];
+    
     move_count = 0;
 
     while (true) // move loop
@@ -357,17 +359,16 @@ void Hex::play_game(int n_trials)
                 exit(0);
             }
 
-            computer_rc = computer_move(computer_Marker, n_trials);
+            computer_rc = computer_move(computer_Marker, n_trials, person_Marker);
             clear_screen();
-            cout << "The computer moved at " << computer_rc << "\n";
-            cout << "Your move at " << person_rc << " was valid.\n\n\n";
-
+            cout << "Your move at " << person_rc << " was valid.\n";
+            cout << "The computer moved at " << computer_rc << "\n\n\n";
             break;
 
         // computer goes first
         case Marker::playerO:
 
-            computer_rc = computer_move(computer_Marker, n_trials);
+            computer_rc = computer_move(computer_Marker, n_trials, person_Marker);
             cout << "The computer moved at " << computer_rc << "\n\n";
 
             display_board();
@@ -390,7 +391,7 @@ void Hex::play_game(int n_trials)
         if (move_count >= (edge_len + edge_len - 1)) {
             winning_side = who_won(); // result is Marker::empty, Marker::playerX, or Marker::playerO
 
-            if (enum2int(winning_side)) { // e.g., wasn't Marker::empty
+            if ((winning_side == Marker::playerO) or (winning_side == Marker::playerX )) { // e.g., wasn't Marker::empty
                 cout    << "We have a winner. "
                         << (winning_side == person_Marker ? "You won. Congratulations!" : " The computer beat you )-:")
                         << "\nGame over. Come back and play again!\n\n";

@@ -23,7 +23,7 @@ int main(int argc, char *argv[])
             << "Run as hex [size] [n_trials]. exiting..." << endl;
         return 0;}
 
-    if ((size < 0) || (size % 2 == 0)) {
+    if ((size < 0) or (size % 2 == 0)) {
         throw std::invalid_argument(
             "Bad size input. Must be odd, positive integer.");
     }
