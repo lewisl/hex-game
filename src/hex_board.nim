@@ -29,7 +29,6 @@ type
     hex_graph*:           Graph[Marker]
     edge_len*:            int
     max_idx*:             int
-    rand_nodes*:          seq[int]
     start_border*:        array[1..2, seq[int]]  # start border for each player
     finish_border*:       array[1..2, seq[int]]  # finish border for each player
     positions*:           ref seq[Marker]   # traced reference to node_data in Graph
@@ -43,6 +42,7 @@ type
     possibles*:           Deque[int]  # candidates for finding connected path from edge to edge
     shuffle_idxs*:        seq[int]
     empty_idxs*:          seq[int]
+    throw_away*:          seq[int]
     winner_assess_time_t0*:  float    # enables time measurements to be spread across procs
     winner_assess_time_cum*: float
     move_sim_time_t0*:       float
@@ -58,11 +58,10 @@ proc initHexboard*(edge_len: int) : Hexboard =  # in c++ terms, a custom constru
               max_idx: max_idx,
               empty_idxs: (0..(max_idx-1)).toSeq,  # initialize to all positions empty, length is max_idx, memory allocated
               shuffle_idxs: newSeqOfCap[int](max_idx),  # reserve the memory, but length is zero
+              throw_away: newSeqOfCap[int](max_idx),
               possibles: initDeque[int](max_idx-1),
               hex_graph: initGraph[Marker](max_idx, Marker.empty))
   hb.positions = hb.hex_graph.node_data  # alias for hex_graph.node_data: base addr of positions traces base addr of hex_graph.node_data
-  for i in 0..max_idx-1:
-    hb.rand_nodes.add(i)
   return hb
 
 # short for rowcol2linear: conversions between row/col indices and ordinal integer indices to board positions

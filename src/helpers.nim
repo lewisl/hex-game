@@ -3,7 +3,6 @@ import std/os
 # clear screen not guaranteed to work on all OS'es.  Works on MacOs.
 # use "cls" for Windows instead of "clear"
 proc clear_screen*() =
-  # write(stdout, u8"\033[2J")
   discard execShellCmd("clear")
 
 #[

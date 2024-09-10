@@ -16,12 +16,12 @@ import
 
 
 # simulate a hex game by filling empty positions with shuffled markers (doesn't include the test move)
-proc simulate_hexboard_positions(hb: var Hexboard, throw_away: var seq[int], computer_side: Marker) {.inline.}  =  
+proc simulate_hexboard_positions(hb: var Hexboard, computer_side: Marker) {.inline.}  =  # throw_away: var seq[int], 
   var 
     setmarker: Marker = if computer_side == playerX: playerO else: playerX 
     nextmarker: Marker = computer_side  # second in simulation because computer already made a test move
-  shuffle(throw_away)
-  for idx in throw_away:
+  shuffle(hb.throw_away)
+  for idx in hb.throw_away:
     hb.set_hex_marker(idx, setmarker)
     swap(setmarker, nextmarker)
 
@@ -84,7 +84,7 @@ proc monte_carlo_move(hb: var Hexboard, side: Marker, n_trials: int) : RowCol =
   var
     wins: int
     winning_side: Marker = empty
-    throw_away: seq[int]    #= newSeqOfCap[int](hb.max_idx)
+    # throw_away: seq[int]    #= newSeqOfCap[int](hb.max_idx)  moved into object Hexboard
 
   hb.wins_per_move.setLen(0) # clear class member, don't create new object
   hb.shuffle_idxs.setLen(0)
@@ -104,10 +104,10 @@ proc monte_carlo_move(hb: var Hexboard, side: Marker, n_trials: int) : RowCol =
     else:                                        
       hb.shuffle_idxs[move_num - 1] = hb.empty_idxs[move_num - 1]  # copy 1 index, excludes empty at max index
 
-    throw_away = hb.shuffle_idxs  # make copy once per move, not once per trial
+    hb.throw_away = hb.shuffle_idxs  # make copy once per move, not once per trial
 
     for trial in 0 ..< n_trials:
-      hb.simulate_hexboard_positions(throw_away, side)  # object hb contains everything needed
+      hb.simulate_hexboard_positions(side)  # object hb contains everything needed
       winning_side = hb.find_ends(side, true)
       wins += (if winning_side == side: 1 else: 0)
 
@@ -165,7 +165,8 @@ proc is_valid_move(hb: Hexboard, rc: RowCol) : bool =
     valid_move = false
     msg = not_empty
 
-  echo(msg)
+  if msg != "":
+    echo(msg)
   return valid_move
 
 
