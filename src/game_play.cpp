@@ -11,24 +11,21 @@
 
 using namespace std;
 
-
-void Hex::simulate_hexboard_positions(vector<int> &empties, Marker person_side, Marker computer_side)  // empties copy made by caller; this argument is a reference
-{
-    shuffle(empties.begin(), empties.end(), rng);  
+void Hex::simulate_hexboard_positions(vector<int> &empties, Marker person_side, Marker computer_side) {
+                                    // empties copy made by caller; this argument is a reference
+    shuffle(empties.begin(), empties.end(), rng);  // rng object uses clock based seed;  std::minstd_rand() starts the same
 
     // swap the scalars each iteration to alternate markers
-    Marker current = person_side;  // human player always gets placed first
+    Marker current = person_side; // human player always gets placed first
     Marker next = computer_side;
     for (int i = 0; i != empties.size(); ++i) {
         set_hex_Marker(current, empties[i]);
-        swap(current, next); 
+        swap(current, next);
     }
 }
 
-
 Hex::RowCol Hex::monte_carlo_move(Marker computer_marker, int n_trials, Marker person_marker)
 {
-
     // method uses class fields: clear them instead of creating new objects each time
     shuffle_idxs.clear();
     wins_per_move.clear();
@@ -92,7 +89,7 @@ Hex::RowCol Hex::monte_carlo_move(Marker computer_marker, int n_trials, Marker p
 void Hex::do_move(Marker side, RowCol rc)
 {
     set_hex_Marker(side, rc);
-    move_history.emplace_back(side, rc.row, rc.col);
+    move_history.emplace_back(side, rc.row, rc.col); // emplace a Move object
     // remove empty
     auto emptypos = find(empty_idxs.begin(), empty_idxs.end(), rc2l(rc));
     auto foo = empty_idxs.erase(emptypos);  // we don't use foo but we have to catch the return value
@@ -186,11 +183,11 @@ bool Hex::is_valid_move(Hex::RowCol rc) const
 
     bool valid_move = true;
 
-    if (row > edge_len || row < 1) {
+    if (row > edge_len or row < 1) {
         valid_move = false;
         msg = bad_position;
     }
-    else if (col > edge_len || col < 1) {
+    else if (col > edge_len or col < 1) {
         valid_move = false;
         msg = bad_position;
     }

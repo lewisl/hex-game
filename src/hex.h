@@ -85,7 +85,7 @@ public:
 
     // for random shuffling of board moves
     unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
-    std::mt19937 rng{seed}; // difference didn't matter: std::mt19937 std::minstd_rand
+    std::minstd_rand rng{seed}; // big difference in performance: std::mt19937 std::minstd_rand
 
     //   Timing winner_assess_time;   // measure cumulative time for assessing the game
     Timing move_simulation_time; // measure cumulative time for simulating moves
@@ -181,9 +181,9 @@ private:
         }
 
 public:
-    inline bool is_empty(int linear) const {return get_hex_Marker(linear) == Marker::empty;}
+    inline bool isblank(int linear) const {return get_hex_Marker(linear) == Marker::empty;}
 
-    inline bool is_empty(RowCol rc) const { return is_empty(rc2l(rc)); }
+    inline bool isblank(RowCol rc) const { return isblank(rc2l(rc)); }
 
     // indexing the board positions: game play methods use row and col for board positions
     // row and col indices are 1-based for end users playing the game
