@@ -10,5 +10,6 @@ target("hexcpp")
 
 target("hexnim") 
     set_kind("binary")
-    add_files("nim-src/*.nim")
+    add_files("nim-src/hex.nim")
+    add_ncflags("-d:release", "--opt:speed", "--mm:arc", "-d:lto") -- , "-d:lto"
     set_optimize("fastest")
