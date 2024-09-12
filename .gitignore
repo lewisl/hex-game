@@ -6,7 +6,7 @@
 !*.*
 
 # include source files
-!src/
+!*-src/
 
 # files in .vscode and all directories below .vscode
 .vscode/
