@@ -6,17 +6,16 @@
 #define HEX_H
 
 
-#include <deque> // sequence of nodes in a path between start and destination
+
 #include <iostream>
 #include <random>
 #include <stdlib.h> // for atoi()
 #include <string>
-#include <unordered_map> // container for definition of Graph
 #include <vector>
 
 #include "graph.h"
 #include "timing.h"
-#include "helpers.h"
+// #include "helpers.h"
 
 using namespace std;
 
@@ -57,9 +56,9 @@ public:
 
     // constructor/destructor
     Hex(size_t size): edge_len(size) { // enforce input requirement and invariant
-            if ((size < 0) || (size % 2 == 0)) {
+            if (size <= 0) {
                 throw std::invalid_argument(
-                    "Bad size input. Must be odd, positive integer.");
+                    "Bad size input. Must be a positive integer.");
             }
             max_idx = edge_len * edge_len;
             empty_idxs.reserve(max_idx);
@@ -108,9 +107,9 @@ private:
     vector<int> neighbors;
     vector<int> captured;
 
-  //
-  // methods
-  //
+    //
+    // methods
+    //
 
     //
     // externally defined methods of class Hex to draw and manage board in
@@ -124,8 +123,9 @@ private:
         string lead_space(int row) const; // how many spaces to indent each line of the hexboard?
         void define_borders(); // create vectors containing start and finish
                                // borders for both sides
-
-    // externally defined methods of class Hex in file game_play.cpp
+        //
+        // externally defined methods of class Hex in file game_play.cpp
+        //
     public:
         void play_game(int n_trials = 1000);
     private:

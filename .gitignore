@@ -24,3 +24,7 @@ src/.cache/
 
 # text output
 *.txt
+
+# syncthing
+.folderinfo
+.stignore

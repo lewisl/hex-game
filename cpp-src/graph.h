@@ -5,13 +5,11 @@
 #ifndef GRAPH_H
 #define GRAPH_H
 
-#include <deque> // sequence of nodes in a path between start and destination
+// #include <deque> // sequence of nodes in a path between start and destination
 #include <fstream> // to write graph to file and read graph from file
 #include <iostream>
-#include <random>
 #include <sstream> // to use stringstream to parse inputs from file
 #include <string>
-#include <unordered_map> // container for definition of Graph
 #include <vector>
 
 using namespace std;

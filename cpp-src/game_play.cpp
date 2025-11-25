@@ -2,24 +2,25 @@
 // #             Class Hex game playing methods
 // ##########################################################################
 
-
+#include <deque> // sequence of nodes in a path between start and destination
 #include "hex.h"
 #include "helpers.h"
 #include "timing.h"
+#include <array>
 #include <stdexcept>
-#include <system_error>
+// #include <system_error>
 
 using namespace std;
 
 void Hex::simulate_hexboard_positions(vector<int> &empties, Marker person_side, Marker computer_side) {
-                                    // empties copy made by caller; this argument is a reference
-    shuffle(empties.begin(), empties.end(), rng);  // rng object uses clock based seed;  std::minstd_rand() starts the same
-
-    // swap the scalars each iteration to alternate markers
+                                // empties copy made by caller; this argument is a reference
     Marker current = person_side; // human player always gets placed first
     Marker next = computer_side;
-    for (int i = 0; i != empties.size(); ++i) {
-        set_hex_Marker(current, empties[i]);
+
+    shuffle(empties.begin(), empties.end(), rng);  // rng object uses clock based seed;  std::minstd_rand() starts the same
+
+    for (auto idx: empties) {  
+        set_hex_Marker(current, idx);
         swap(current, next);
     }
 }
@@ -45,7 +46,7 @@ Hex::RowCol Hex::monte_carlo_move(Marker computer_marker, int n_trials, Marker p
 
         // only on the first move, copy all the empty_idxs except 0 to the vector to be shuffled
         if (move_num == 0) {
-            for (auto j = move_num; j != empty_idxs.size() - 1; ++j)  //every index but 0 opf empty_idxs copied into shuffle_idxs
+            for (auto j = move_num; j != empty_idxs.size() - 1; ++j)  //every index but 0 of empty_idxs copied into shuffle_idxs
                 shuffle_idxs.push_back(empty_idxs[j + 1]);
         } else if (shuffle_idxs.size() < move_num) { // faster to simply change 2 values
             shuffle_idxs[move_num - 1] = empty_idxs[move_num - 1]; // skip empty_idxs[move_num]

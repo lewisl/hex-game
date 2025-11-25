@@ -16,14 +16,14 @@ import
 
 
 # simulate a hex game by filling empty positions with shuffled markers (doesn't include the test move)
-proc simulate_hexboard_positions(hb: var Hexboard, computer_side: Marker) {.inline.}  =  # throw_away: var seq[int], 
+proc simulate_hexboard_positions(hb: var Hexboard, computer_side: Marker) {.inline.}  =   
   var 
-    setmarker: Marker = if computer_side == playerX: playerO else: playerX 
-    nextmarker: Marker = computer_side  # second in simulation because computer already made a test move
+    current: Marker = if computer_side == playerX: playerO else: playerX 
+    next: Marker = computer_side  # second in simulation because computer already made a test move
   shuffle(hb.throw_away)
   for idx in hb.throw_away:
-    hb.set_hex_marker(idx, setmarker)
-    swap(setmarker, nextmarker)
+    hb.set_hex_marker(idx, current)
+    swap(current, next)
 
 
 proc fill_board(hb: var Hexboard, indices: seq[int], value: Marker)  =
