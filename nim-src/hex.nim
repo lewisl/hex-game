@@ -37,8 +37,8 @@ proc main() =
     echo "To enter the 2nd or 3rd arguments, you must also enter the preceding arguments."
     quit()
 
-  if (size < 0) or (size mod 2) == 0:
-    quit("Bad size input. Must be odd, positive integer. Exiting...")
+  if (size < 0) : # or (size mod 2) == 0
+    quit("Bad size input. Must be positive integer. Exiting...")
 
   var hb = initHexboard(size) # create the game object
   hb.make_hex_graph()

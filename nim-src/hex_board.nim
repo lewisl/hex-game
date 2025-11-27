@@ -144,42 +144,42 @@ proc make_hex_graph*(hb: var Hexboard) =
 
   #4 corners of the board: 2 or 3 edges per node                            
   #upper left
-  add_edge(hb.hex_graph, node=hb.rc2l(1, 1), tonodes =[hb.rc2l(2,1), hb.rc2l(1,2)])
+  add_edge(hb.hex_graph, node=hb.rc2l(1, 1), to_nodes =[hb.rc2l(2,1), hb.rc2l(1,2)])
   # upper right
   add_edge(hb.hex_graph, node=hb.rc2l(1, hb.edge_len), 
-          tonodes=[hb.rc2l(1, (hb.edge_len - 1)), hb.rc2l(2, hb.edge_len), hb.rc2l(2, hb.edge_len-1)])
+          to_nodes=[hb.rc2l(1, (hb.edge_len - 1)), hb.rc2l(2, hb.edge_len), hb.rc2l(2, hb.edge_len-1)])
   # lower right
   add_edge(hb.hex_graph, node=hb.rc2l(hb.edge_len, hb.edge_len),
-            tonodes=[hb.rc2l(hb.edge_len, (hb.edge_len - 1)), hb.rc2l((hb.edge_len - 1), hb.edge_len)])
+            to_nodes=[hb.rc2l(hb.edge_len, (hb.edge_len - 1)), hb.rc2l((hb.edge_len - 1), hb.edge_len)])
   # lower left
   add_edge(hb.hex_graph, node=hb.rc2l(hb.edge_len, 1), 
-            tonodes=[hb.rc2l((hb.edge_len - 1), 1),hb.rc2l(hb.edge_len, 2),hb.rc2l((hb.edge_len - 1), 2)])
+            to_nodes=[hb.rc2l((hb.edge_len - 1), 1),hb.rc2l(hb.edge_len, 2),hb.rc2l((hb.edge_len - 1), 2)])
 
   # 4 borders (excluding corners)  4 edges per node.
   # north-south edges: constant row, vary col
   for c in 2..hb.edge_len-1:
     var r: int = 1
     add_edge(hb.hex_graph, node=hb.rc2l(r, c), 
-              tonodes=[hb.rc2l(r, c - 1), hb.rc2l(r, c + 1), hb.rc2l(r + 1, c - 1), hb.rc2l(r + 1, c)])
+              to_nodes=[hb.rc2l(r, c - 1), hb.rc2l(r, c + 1), hb.rc2l(r + 1, c - 1), hb.rc2l(r + 1, c)])
 
     r = hb.edge_len
     add_edge(hb.hex_graph, node=hb.rc2l(r, c), 
-            tonodes=[hb.rc2l(r, c - 1), hb.rc2l(r, c + 1), hb.rc2l(r - 1, c), hb.rc2l(r - 1, c + 1)])
+            to_nodes=[hb.rc2l(r, c - 1), hb.rc2l(r, c + 1), hb.rc2l(r - 1, c), hb.rc2l(r - 1, c + 1)])
     
   # east-west edges: constant col, vary row
   for r in 2..hb.edge_len-1:
     var c: int = 1
     add_edge(hb.hex_graph, node=hb.rc2l(r, c), 
-            tonodes=[hb.rc2l(r - 1, c), hb.rc2l(r - 1, c + 1), hb.rc2l(r, c + 1), hb.rc2l(r + 1, c)])
+            to_nodes=[hb.rc2l(r - 1, c), hb.rc2l(r - 1, c + 1), hb.rc2l(r, c + 1), hb.rc2l(r + 1, c)])
 
     c = hb.edge_len
     add_edge(hb.hex_graph, node=hb.rc2l(r, c), 
-          tonodes=[hb.rc2l(r - 1, c), hb.rc2l(r, c - 1), hb.rc2l(r + 1, c - 1), hb.rc2l(r + 1, c)])
+          to_nodes=[hb.rc2l(r - 1, c), hb.rc2l(r, c - 1), hb.rc2l(r + 1, c - 1), hb.rc2l(r + 1, c)])
 
   # interior tiles: 6 edges per hex
   for r in 2..hb.edge_len-1:
     for c in 2..hb.edge_len-1:
-      add_edge(hb.hex_graph, node=hb.rc2l(r, c), tonodes=[hb.rc2l(r - 1, c + 1), hb.rc2l(r, c + 1),
+      add_edge(hb.hex_graph, node=hb.rc2l(r, c), to_nodes=[hb.rc2l(r - 1, c + 1), hb.rc2l(r, c + 1),
                         hb.rc2l(r + 1, c), hb.rc2l(r + 1, c - 1), hb.rc2l(r, c - 1), hb.rc2l(r - 1, c)])
 
 

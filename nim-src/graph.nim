@@ -1,11 +1,11 @@
 
 type
   Edge* = object
-    tonode*: int = 0
+    to_node*: int = 0
     cost*:   int = 0
 
 proc `$`*(e: Edge): string =  # overload $ string op for Edge
-  return ("to: " & $e.tonode & " cost: " & $e.cost)
+  return ("to: " & $e.to_node & " cost: " & $e.cost)
 
 
 type
@@ -32,23 +32,23 @@ proc initGraph*[T_data](size: int, node_elem: T_data, ): Graph[T_data] =  # in c
 
 
 # TODO: handle missing nodes, although less likely given full initialization
-proc add_edge*(hex_graph: var Graph, node: int, tonode: int, cost: int = 0) =
+proc add_edge*(hex_graph: var Graph, node: int, to_node: int, cost: int = 0) =
   var
     no_match: bool = true
 
-  # check if node already has tonode
+  # check if node already has to_node
   for val in hex_graph.gmap[node]:
-    if val.tonode == tonode:
+    if val.to_node == to_node:
       no_match = false
   
   if no_match:
-    hex_graph.gmap[node].add(Edge(tonode: tonode, cost: cost))
+    hex_graph.gmap[node].add(Edge(to_node: to_node, cost: cost))
 
 
 # varargs version enables adding many edges to a node in one call
-proc add_edge*(hex_graph: var Graph, node: int, cost: int = 0, bidirectional: bool = false, tonodes: varargs[int]) =
-  for tonode in tonodes:
-    add_edge(hex_graph, node, tonode, cost)
+proc add_edge*(hex_graph: var Graph, node: int, cost: int = 0, bidirectional: bool = false, to_nodes: varargs[int]) =
+  for to_node in to_nodes:
+    add_edge(hex_graph, node, to_node, cost)
 
 
 proc set_node_data*[T_data](hex_graph: var Graph, idx: int, val: T_data) =
@@ -68,7 +68,7 @@ proc get_neighbors*[T_data](hex_graph: Graph[T_data], current_node: int, item_fi
   
   result = newSeqOfCap[Edge](6)
   for e in hex_graph.gmap[current_node]:
-    if hex_graph.node_data[e.tonode] == item_filter:
+    if hex_graph.node_data[e.to_node] == item_filter:
       result.add(e)
 
 
@@ -76,7 +76,7 @@ proc get_neighbors*[T_data](hex_graph: Graph[T_data], current_node: int, item_fi
 proc get_neighbors*[T_data, T_cont](hex_graph: Graph[T_data], current_node: int, item_filter: T_data, exclude: T_cont) : seq[Edge]  =
   result = newSeqOfCap[Edge](6)
   for e in hex_graph.gmap[current_node]:
-    if hex_graph.node_data[e.tonode] == item_filter and (not (contains(exclude, e.to_node))):
+    if hex_graph.node_data[e.to_node] == item_filter and (not (contains(exclude, e.to_node))):
       result.add(e)
   
 
@@ -102,7 +102,7 @@ proc display_graph*(gr: Graph, outf: File = stdout) =
     write(outf, "    data: " & $gr.get_node_data(idx) & "\n")
     write(outf,"    edges:\n")
     for e in gr.get_neighbors(idx):
-      write(outf, "       to: " & $e.tonode & " cost: " & $e.cost & "\n")
+      write(outf, "       to: " & $e.to_node & " cost: " & $e.cost & "\n")
 
 # create a file variable and pass it to display_graph to save graph in a text file
 proc display_graph*(gr: Graph, filename: string) =

@@ -16,7 +16,7 @@ import
 
 
 # simulate a hex game by filling empty positions with shuffled markers (doesn't include the test move)
-proc simulate_hexboard_positions(hb: var Hexboard, computer_side: Marker) {.inline.}  =   
+proc simulate_hexboard_positions(hb: var Hexboard, computer_side: Marker) =   
   var 
     current: Marker = if computer_side == playerX: playerO else: playerX 
     next: Marker = computer_side  # second in simulation because computer already made a test move
@@ -52,25 +52,26 @@ proc find_ends(hb: var Hexboard, side: Marker, whole_board: bool = false) : Mark
       hb.possibles.addlast(pos)
       hb.captured.add(pos)
 
-  while not (hb.possibles.len == 0):
+  while hb.possibles.len > 0:
 
-    if hb.is_in_start(hb.possibles[0], side):
-      return side
+    while true:
+      if hb.is_in_start(hb.possibles[0], side):
+        return side
 
-    # find neighbors of the current node that match the current side and exclude already captured nodes
-    hb.neighbors = get_neighbor_nodes(hb.hex_graph, hb.possibles[0], side, hb.captured)  
+      # find neighbors of the current node that match the current side and exclude already captured nodes
+      hb.neighbors = get_neighbor_nodes(hb.hex_graph, hb.possibles[0], side, hb.captured)  
 
-    if hb.neighbors.len == 0:
-      if not hb.possibles.len == 0:
-        hb.possibles.popFirst()
-      break
-    else:
-      hb.possibles[0] = hb.neighbors[0]
-      hb.captured.add(hb.neighbors[0])
+      if hb.neighbors.len == 0:
+        if hb.possibles.len > 0:
+          hb.possibles.popFirst()
+        break    
+      else:
+        hb.possibles[0] = hb.neighbors[0]
+        hb.captured.add(hb.neighbors[0])
 
-      for i in 1 ..< hb.neighbors.len:
-        hb.possibles.addlast(hb.neighbors[i])
-        hb.captured.add(hb.neighbors[i])
+        for i in 1 ..< hb.neighbors.len:
+          hb.possibles.addlast(hb.neighbors[i])
+          hb.captured.add(hb.neighbors[i])
 
   if whole_board:
     return (if side == playerO: playerX else: playerO)
@@ -84,7 +85,6 @@ proc monte_carlo_move(hb: var Hexboard, side: Marker, n_trials: int) : RowCol =
   var
     wins: int
     winning_side: Marker = empty
-    # throw_away: seq[int]    #= newSeqOfCap[int](hb.max_idx)  moved into object Hexboard
 
   hb.wins_per_move.setLen(0) # clear class member, don't create new object
   hb.shuffle_idxs.setLen(0)
@@ -98,10 +98,7 @@ proc monte_carlo_move(hb: var Hexboard, side: Marker, n_trials: int) : RowCol =
     if move_num == 0:
       for i in 0 ..< hb.empty_idxs.len - 1:
         hb.shuffle_idxs.add((hb.empty_idxs[i+1]))  # add all but empty_idxs[0] 1st time
-    elif move_num < hb.shuffle_idxs.len:     # copy 2 indices; exclude empty at tst_move_num
-      hb.shuffle_idxs[move_num - 1] = hb.empty_idxs[move_num - 1]
-      hb.shuffle_idxs[move_num] = hb.empty_idxs[move_num + 1]
-    else:                                        
+    else:       # very fast to swap 2 positions                                 
       hb.shuffle_idxs[move_num - 1] = hb.empty_idxs[move_num - 1]  # copy 1 index, excludes empty at max index
 
     hb.throw_away = hb.shuffle_idxs  # make copy once per move, not once per trial
@@ -305,7 +302,6 @@ proc play_game*(hb: var Hexboard, n_trials: int, debug: bool = false) =
 
         if not debug: clear_screen()
         echo("Your move at ", $person_rc, " was valid.")
-        break
 
       of Marker.empty:
         raise newException(ValueError, "Error: Player Marker for human player cannot be empty.\n")

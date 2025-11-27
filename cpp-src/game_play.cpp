@@ -38,7 +38,7 @@ Hex::RowCol Hex::monte_carlo_move(Marker computer_marker, int n_trials, Marker p
     int move_num = 0; // the index of empty hex positions that will be assigned the move to evaluate
 
     // loop over the available move positions: make eval move, setup positions to randomize
-    for (move_num = 0; move_num != empty_idxs.size(); ++move_num) {
+    for (move_num = 0; move_num < empty_idxs.size(); ++move_num) {
 
         // make the computer's move to be evaluated
         set_hex_Marker(computer_marker, empty_idxs[move_num]);
@@ -48,11 +48,8 @@ Hex::RowCol Hex::monte_carlo_move(Marker computer_marker, int n_trials, Marker p
         if (move_num == 0) {
             for (auto j = move_num; j != empty_idxs.size() - 1; ++j)  //every index but 0 of empty_idxs copied into shuffle_idxs
                 shuffle_idxs.push_back(empty_idxs[j + 1]);
-        } else if (shuffle_idxs.size() < move_num) { // faster to simply change 2 values
-            shuffle_idxs[move_num - 1] = empty_idxs[move_num - 1]; // skip empty_idxs[move_num]
-            shuffle_idxs[move_num] = empty_idxs[move_num + 1];
         } 
-        else {
+        else {    // faster to simply change 2 values
             shuffle_idxs[move_num - 1] = empty_idxs[move_num - 1];  // skip max index value of empty_idxs
         }
         throw_away = shuffle_idxs;  // copy to pre-allocated vector;
@@ -61,7 +58,7 @@ Hex::RowCol Hex::monte_carlo_move(Marker computer_marker, int n_trials, Marker p
 
             winning_side = find_ends(computer_marker, true);
 
-            wins += (winning_side == computer_marker ? 1 : 0);
+            if (winning_side == computer_marker) wins++;
         }
 
         // calculate and save computer win percentage for this move
