@@ -6,6 +6,7 @@
 #define GRAPH_H
 
 // #include <deque> // sequence of nodes in a path between start and destination
+// #include <array>
 #include <fstream> // to write graph to file and read graph from file
 #include <iostream>
 #include <sstream> // to use stringstream to parse inputs from file
@@ -27,20 +28,20 @@ struct Edge {
 };
 
 // output an Edge in an output stream
-inline ostream& operator<<(ostream &out, const Edge &e) {
+inline ostream &operator<<(ostream &out, const Edge &e) {
   out << "  to: " << e.to_node << " cost: " << e.cost << endl;
   return out;
 }
 
 // output a vector of edges: used in the graph definition for each node
-inline ostream& operator<<(ostream  &out, const vector<Edge> &ve) {
+inline ostream &operator<<(ostream &out, const vector<Edge> &ve) {
   for (auto const &e : ve) {
     out << e << endl;
   }
   return out;
 }
 
-/* 
+/*
 ##########################################################################
 #                            class Graph
 #  graph: data structure holding nodes and their edge

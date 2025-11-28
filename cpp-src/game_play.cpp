@@ -2,11 +2,11 @@
 // #             Class Hex game playing methods
 // ##########################################################################
 
-#include <deque> // sequence of nodes in a path between start and destination
-#include "hex.h"
 #include "helpers.h"
+#include "hex.h"
 #include "timing.h"
 #include <array>
+#include <deque> // sequence of nodes in a path between start and destination
 #include <stdexcept>
 // #include <system_error>
 

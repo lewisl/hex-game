@@ -1,12 +1,11 @@
 // ##########################################################################
-// #             Definition/Declaration of Class Hex 
+// #             Definition/Declaration of Class Hex
 // ##########################################################################
 
 #ifndef HEX_H
 #define HEX_H
 
-
-
+#include <array>
 #include <iostream>
 #include <random>
 #include <stdlib.h> // for atoi()
@@ -16,10 +15,6 @@
 #include "graph.h"
 #include "timing.h"
 // #include "helpers.h"
-
-using namespace std;
-
-
 
 // ##########################################################################
 // #             Definition/Declaration of Class Hex
