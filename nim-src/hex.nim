@@ -37,7 +37,7 @@ proc main() =
     echo "To enter the 2nd or 3rd arguments, you must also enter the preceding arguments."
     quit()
 
-  if (size < 0) : # or (size mod 2) == 0
+  if (size < 0) : 
     quit("Bad size input. Must be positive integer. Exiting...")
 
   var hb = initHexboard(size) # create the game object
@@ -45,7 +45,6 @@ proc main() =
 
   hb.play_game(n_trials, debug)
 
-  # echo "Assessing who won took " , hb.winner_assess_time_cum, " seconds.";
   echo("Simulating and evaluating moves took ", 
     hb.move_sim_time_cum, " seconds.\n");
 

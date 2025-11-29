@@ -2,6 +2,8 @@
 
 This repository contains dual implementations of the Hex board game in both C++ and Nim. The implementations use Monte Carlo simulation to play against human opponents. The C++ version is object-oriented (based on classes), while the Nim version is procedural (using structs with uniform function call syntax).
 
+Hex is not a particularly fun game to actually play.  Whoever goes first will win with small boards. With large boards, the best computer algorithms always win. Monte Carlo game simulation is not at all competitive with good algorithms. This is just a reasonable coding test bed with a variety of gnarly little implementation problems.
+
 ## Build and Run Commands
 
 ### C++ Version
@@ -18,8 +20,9 @@ xmake build hexcpp
 
 ### Nim Version
 ```bash
-# Build the Nim executable
+# Build the Nim executable or use nim commandline
 xmake build hexnim
+nim c -d:release --mm:arc --opt:speed -d:lto --outdir:nim_build nim-src/hex.nim
 
 # Run the Nim version (default: 5x5 board, 1500 trials)
 ./build/macosx/arm64/release/hexnim
@@ -90,7 +93,7 @@ Both implementations share the same conceptual architecture:
 
 **Index Conversion**
 - Users see 1-based row/col indices
-- Internal linear indices are 0-based
+- Internal linear indices to vectors are 0-based
 - All conversions happen through `rc2l()` and `l2rc()` methods
 
 **Monte Carlo Algorithm**
