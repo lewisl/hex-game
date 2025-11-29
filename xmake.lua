@@ -11,7 +11,7 @@ target("hexcpp")
 target("hexnim") 
     set_kind("binary")
     add_files("nim-src/hex.nim")  -- all other files are included or imported
-    add_ncflags("-d:release", "--opt:speed", "--mm:arc", "-d:lto") -- , "-d:lto"
+    add_ncflags("-d:release", "--opt:speed", "--mm:arc", "-d:lto") 
     set_optimize("fastest")
 
 -- command line compile and build for nim:
