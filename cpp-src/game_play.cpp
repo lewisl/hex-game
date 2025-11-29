@@ -35,7 +35,7 @@ Hex::RowCol Hex::monte_carlo_move(Marker computer_marker, int n_trials, Marker p
     Marker winning_side;
     int best_move = 0;
 
-    int move_num = 0; // the index of empty hex positions that will be assigned the move to evaluate
+    size_t move_num = 0; // the index of empty hex positions that will be assigned the move to evaluate
 
     // loop over the available move positions: make eval move, setup positions to randomize
     for (move_num = 0; move_num < empty_idxs.size(); ++move_num) {
@@ -71,7 +71,7 @@ Hex::RowCol Hex::monte_carlo_move(Marker computer_marker, int n_trials, Marker p
     // find the maximum computer win percentage across all the candidate moves
     int max = 0;
     best_move = empty_idxs[0];
-    for (int i = 0; i != wins_per_move.size(); ++i) { // linear search
+    for (size_t i = 0; i != wins_per_move.size(); ++i) { // linear search
         if (wins_per_move[i] > max) {
             max = wins_per_move[i];
             best_move = empty_idxs[i];
@@ -90,7 +90,7 @@ void Hex::do_move(Marker side, RowCol rc)
     move_history.emplace_back(side, rc.row, rc.col); // emplace a Move object
     // remove empty
     auto emptypos = find(empty_idxs.begin(), empty_idxs.end(), rc2l(rc));
-    auto foo = empty_idxs.erase(emptypos);  // we don't use foo but we have to catch the return value
+    empty_idxs.erase(emptypos);  // we don't use foo but we have to catch the return value
     
     move_count++;
 }
@@ -118,7 +118,7 @@ Hex::RowCol Hex::move_input(const string &msg) const
             cin.clear();
             cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
             cout << msg;
-            cin >> row >> col;
+            // cin >> row >> col;
         }
         if (!cin.fail())
             break;
@@ -206,11 +206,12 @@ bool Hex::is_valid_move(Hex::RowCol rc) const
 Hex::Marker Hex::find_ends(Hex::Marker side, bool whole_board = false)
 {
     int front = 0;
-    deque<int> possibles; // MUST BE A DEQUE! hold candidate sequences across the board
+    // deque<int> possibles; // MUST BE A DEQUE! hold candidate sequences across the board
 
     // method uses class fields neighbors and captured: clear them each time instead of creating new objects
     neighbors.clear();
     captured.clear();
+    possibles.clear();
 
     // test for positions in the finish border, though start border would also work: assumption fewer Markers at the finish
     for (auto hex : finish_border[enum2int(side)]) { //look through the finish border
@@ -242,7 +243,7 @@ Hex::Marker Hex::find_ends(Hex::Marker side, bool whole_board = false)
                 possibles[front] = neighbors[0]; // advance the endpoint to this neighbor, get rid of the previous possible
                 captured.push_back(neighbors[0]);
 
-                for (int i = 1; i != neighbors.size(); ++i) { // if there is more than one neighbor..
+                for (size_t i = 1; i != neighbors.size(); ++i) { // if there is more than one neighbor..
                     possibles.push_back(neighbors[i]); // a new possible finishing end point
                     captured.push_back(neighbors[i]);
                 }

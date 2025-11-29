@@ -101,6 +101,7 @@ private:
     // used by find_ends: pre-allocated memory by method set_storage
     vector<int> neighbors;
     vector<int> captured;
+    deque<int> possibles;
 
     //
     // methods
@@ -173,6 +174,7 @@ private:
             wins_per_move.reserve(max_idx);
             captured.reserve(max_idx / 2 + 1);
             neighbors.reserve(6);
+            //possibles.reserve(max_idx);
         }
 
 public:

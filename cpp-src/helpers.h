@@ -84,7 +84,7 @@ inline std::string tolower(const std::string &str)
 
 // test if value is in vector with trivial linear search for various primitive element types
 template <typename T>
-bool is_in(T val, vector<T> vec)
+bool is_in(T val, const vector<T>& vec)
 {
     auto it = find(vec.cbegin(), vec.cend(), val);
     return it != vec.cend();
@@ -100,7 +100,7 @@ bool is_in(T val, const string &test_string)
 }
 
 // test if value is in deque with trivial linear search
-template <typename T> bool is_in(T val, deque<T> deq)
+template <typename T> bool is_in(T val, const deque<T>& deq)
 {
     auto it = find(deq.cbegin(), deq.cend(), val);
     return it != deq.cend();

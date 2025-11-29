@@ -15,6 +15,9 @@ xmake build hexcpp
 
 # Run the C++ version (default: 5x5 board, 1000 trials)
 ./build/macosx/arm64/release/hexcpp
+
+# Run with custom parameters: size, n_trials
+./build/macosx/arm64/release/hexcpp 7 2000
 ```
 
 ### Nim Version
@@ -129,7 +132,7 @@ Both implementations share the same conceptual architecture:
 
 ## Testing
 
-- Test file exists at [tests/hex_tests.cpp](tests/hex_tests.cpp) but is not integrated into build
+- Test file exists at [tests/hex_tests.cpp](tests/hex_tests.cpp) but is outdated (references old `HexBoard` class name) and not integrated into build
 - No automated test harness currently configured
 - Manual testing through gameplay
 

@@ -70,8 +70,8 @@ class Graph {
   public:
   // used only when reading a graph from a file because we don't know how big it will be until the file is read
   void set_storage(int size) {
-    graph.reserve(size);
-    node_data.reserve(size);
+    graph.resize(size);
+    node_data.resize(size);
     }
 
     int count_nodes() const { return graph.size(); }
@@ -81,7 +81,7 @@ class Graph {
     T_data get_node_data(int idx) const { return node_data[idx]; }
 
     // get the neighbors of a node as a vector of edges
-    const vector<Edge> get_neighbors(const int current_node) const
+    vector<Edge> get_neighbors(const int current_node) const
     {
         return graph.at(current_node); // the value type of graph is
             // vector<Edge> and holds the neighbors

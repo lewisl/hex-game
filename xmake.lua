@@ -13,3 +13,6 @@ target("hexnim")
     add_files("nim-src/hex.nim")  -- all other files are included or imported
     add_ncflags("-d:release", "--opt:speed", "--mm:arc", "-d:lto") -- , "-d:lto"
     set_optimize("fastest")
+
+-- command line compile and build for nim:
+-- # nim c -d:release --mm:arc --opt:speed -d:lto --outdir:nim_build nim-src/hex.nim
