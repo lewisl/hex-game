@@ -13,7 +13,7 @@ This repository contains dual implementations of the Hex board game in both C++ 
 # Build the C++ executable
 xmake build hexcpp
 
-# Run the C++ version (default: 5x5 board, 1000 trials)
+# Run the C++ version (default: 5x5 board, 1500 trials)
 ./build/macosx/arm64/release/hexcpp
 
 # Run with custom parameters: size, n_trials

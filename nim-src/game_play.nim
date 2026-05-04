@@ -9,11 +9,38 @@ import
   std/deques,
   std/enumerate,
   std/rdstdin, # read stdin ignoring control keys
+  
   # project modules
   hex_board,
   graph,
   helpers
 
+
+type 
+  PlayerKind  = enum
+    plPerson
+    plComputer
+
+type
+  Mover = ref object
+    role:        PlayerKind
+    move_rc:     RowCol
+    marker:      Marker
+    victory_msg: string
+
+var person = Mover(
+  role:        PlayerKind.plPerson,
+  move_rc:     RowCol(row: 0, col: 0),
+  marker:      Marker.playerX,
+  victory_msg: "You won. Congratulations!\n\n"
+)
+
+var computer = Mover(
+  role:         PlayerKind.plComputer,
+  move_rc:      RowCol(row: 0, col: 0),
+  marker:       Marker.playerO,
+  victory_msg:  "The computer beat you )-:\n\n"
+)
 
 # simulate a hex game by filling empty positions with shuffled markers (doesn't include the test move)
 proc simulate_hexboard_positions(hb: var Hexboard, computer_side: Marker) =   
@@ -113,9 +140,9 @@ proc monte_carlo_move(hb: var Hexboard, side: Marker, n_trials: int) : RowCol =
 
   # find the maximum wins across all test moves to select the best test move
   var  
-    maxwins = 0
+    maxwins = hb.wins_per_move[0]
     choice = 0
-    best_move = 0
+    best_move = hb.empty_idxs[0]
   for i in 0 ..< hb.wins_per_move.len:
     # echo "win % ", hb.wins_per_move, " i ", i, " move: ", hb.empty_idxs[i], "\n"
     if hb.wins_per_move[i] > maxwins:
@@ -198,6 +225,7 @@ proc save_diagnostics*(hb: Hexboard)  # forward declaration
 
 proc person_move(hb: var Hexboard, side: Marker) : RowCol =
   # need to implement writing to a file
+
   var
     rc: RowCol
     valid_move: bool = false
@@ -221,39 +249,40 @@ proc person_move(hb: var Hexboard, side: Marker) : RowCol =
   return rc
 
 
-proc who_won(hb: var Hexboard) : Marker =
+proc who_won(hb: var Hexboard, this_side: Marker) : Marker =
   var winner: Marker = empty
-  let sides = [Marker.playerX, Marker.playerO]
-
-  for side in sides:
-    winner =  hb.find_ends(side)
-    if winner != Marker.empty:
-      break
+  winner =  hb.find_ends(this_side)  # finds either player marker or Marker.empty
   return winner
 
 
-proc who_goes_first() : tuple[person_marker: Marker, computer_marker: Marker] =
+proc who_goes_first() : array[2, Mover] =
   # playerX is always first; playerO is always second. Who gets each marker?
   while true:
     write(stdout, repeat("\n", 15))
     # write(stdout, "*** Do you want to go first? (enter y or yes or n or no) ")
-    let answer = readLineFromStdin("*** Do you want to go first? (enter y or yes or n or no) ")
+    let answer = 
+      readLineFromStdin("*** Do you want to go first? (enter y or yes or n or no) ").strip.toLowerAscii
 
-    if contains("yes", answer.toLowerAscii):
+    case answer
+    of "yes", "y":
       echo("\nYou go first playing X Markers.")
       echo("Make a path from the top to bottom or bottom to top. Connect along the lines.")
       echo("The computer goes second playing O markers.")
       echo("The computer tries to make a path from side to side.")
       echo("\n") # 2 blank lines
-      return (person_marker: Marker.playerX, computer_marker: Marker.playerO)
+      person.marker = Marker.playerX
+      computer.marker = Marker.playerO
+      return [person, computer]
 
-    elif contains("no", answer.toLowerAscii):
+    of "no", "n":
       echo("\nThe computer goes first playing X Markers.")
       echo("The computer tries to make a path from side to side.")
       echo("You go second playing O Markers.")
-      echo("Make a path from the first column to the last column.")
+      echo("Make a path sideways from the first column to the last column.")
       echo("\n") # 2 blank lines
-      return (person_marker: Marker.playerO, computer_marker: Marker.playerX)
+      person.marker = Marker.playerO
+      computer.marker = Marker.playerX
+      return [computer, person]
 
     else:
       echo("    Please enter [y]es or [n]o")
@@ -261,67 +290,45 @@ proc who_goes_first() : tuple[person_marker: Marker, computer_marker: Marker] =
 
 proc play_game*(hb: var Hexboard, n_trials: int, debug: bool = false) =
   var
-    person_rc: RowCol  # person's move position
-    computer_rc: RowCol  # computer's move position
-    person_marker: Marker   # marker used by human player
-    computer_marker: Marker  # marker used by computer player
     winning_side: Marker
   randomize()       # set seed for random module procs
   if not debug:  clear_screen()
   echo("\n")
 
-  let tp = who_goes_first() # possible with anon tuple, but this is order independent
-  person_marker = tp.person_marker; 
-  computer_marker = tp.computer_marker
+  let movers = who_goes_first() # movers.first_mover, movers.second_mover
 
   hb.move_count = 0
 
-  while true:   # move loop: Marker.playerX always first, whether person or computer
-    case person_marker   # human goes first playing marker playerX
-      of Marker.playerX:
-        hb.display_board()
-        person_rc = hb.person_move(person_marker)
-        if person_rc.row == -1:
-          echo("Game over! Come back again...")
+  block gameLoop:
+    while true:   
+      for mover in movers:
+        # mover.move_rc = mover.move_func(hb, mover.marker, n_trials)  
+        case mover.role
+          of plPerson:
+            hb.display_board()   # redisplay board at each move
+            mover.move_rc = hb.person_move(mover.marker)
+          of plComputer:
+            mover.move_rc = hb.computer_move(mover.marker, n_trials)
+        if mover.move_rc.row == -1:
+          echo("Game Over! Come back again...")
           quit()
 
-        computer_rc = hb.computer_move(computer_marker, n_trials)
-        if not debug: clear_screen()
-        echo("Your move at ", $person_rc, " was valid.")
-        echo("The computer moved at ", $computer_rc, ".\n\n")
+        if hb.move_count >= (hb.edge_len + hb.edge_len - 1):
+          hb.winner_assess_time_t0 = cpuTime()
+          winning_side = hb.who_won(mover.marker)
+          hb.winner_assess_time_cum += cpuTime() - hb.winner_assess_time_t0
 
-      of Marker.playerO:    # human goes second playing marker playerO
-        computer_rc = hb.computer_move(computer_marker, n_trials)
-        echo("The computer moved at ", $computer_rc, ".\n")
-        hb.display_board()
+          if winning_side == mover.marker:
+            clear_screen()
+            echo("We have a winner. ")
+            write(stdout, mover.victory_msg)
+            hb.display_board()
+            echo("Game over. Come back and play again!\n")
+            break gameLoop
 
-        person_rc = hb.person_move(person_marker)
-        if (person_rc.row == -1):
-          echo("Game over! Come back again...")
-          quit()
-
-        if not debug: clear_screen()
-        echo("Your move at ", $person_rc, " was valid.")
-
-      of Marker.empty:
-        raise newException(ValueError, "Error: Player Marker for human player cannot be empty.\n")
-
-    # test for winner
-    if hb.move_count >= (hb.edge_len + hb.edge_len - 1):  # minimum no. of moves to complete a path from start to end borders
-      hb.winner_assess_time_t0 = cpuTime()
-      winning_side = hb.who_won()
-      hb.winner_assess_time_cum += cpuTime() - hb.winner_assess_time_t0
-
-      if winning_side == Marker.playerO or winning_side == Marker.playerX:  
-        echo("We have a winner. ")
-        if winning_side == person_marker:
-          write(stdout, "You won. Congratulations!\n\n")
-        else:
-          write(stdout, "The computer beat you )-:\n\n")
-        hb.display_board()
-        echo("Game over. Come back and play again!\n")
-        break
-
+      if not debug: clear_screen()
+      echo("Your move at ", $person.move_rc, " was valid.")
+      echo("The computer moved at ", $computer.move_rc, ".\n\n")
 
 proc save_diagnostics*(hb: Hexboard) =
   let 

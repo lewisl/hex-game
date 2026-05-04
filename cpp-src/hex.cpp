@@ -12,7 +12,7 @@ using namespace std;
 int main(int argc, char *argv[])
 {
     int size = 5;
-    int n_trials = 1000;
+    int n_trials = 1500;  // monte carlo simulated moves per computer move
 
     try {
         if (argc == 1) {

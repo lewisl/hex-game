@@ -27,6 +27,10 @@ proc main() =
   elif pcnt == 2:
     size = parseInt(paramStr(1)) 
     n_trials = parseInt(paramStr(2))
+    if (n_trials < 250):
+      echo("Number of trials input, 2nd parameter, must be between 250 and 10000:")
+      echo("Proceeding with n_trials = 250")
+      n_trials = 250
   elif pcnt == 3:
     size = parseInt(paramStr(1)) 
     n_trials = parseInt(paramStr(2))    
@@ -37,8 +41,8 @@ proc main() =
     echo "To enter the 2nd or 3rd arguments, you must also enter the preceding arguments."
     quit()
 
-  if (size < 0) : 
-    quit("Bad size input. Must be positive integer. Exiting...")
+  if (size < 2 or size > 21) : 
+    quit("Bad size input. Must be positive integer between 2 and 21. Exiting...")
 
   var hb = initHexboard(size) # create the game object
   hb.make_hex_graph()

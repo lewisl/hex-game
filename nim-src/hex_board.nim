@@ -15,8 +15,8 @@ type
 
 type  
   RowCol* = object
-    row*: int = 0
-    col*: int = 0
+    row*: int = 1
+    col*: int = 1
 
 type Move* = object
   player*: Marker
@@ -69,7 +69,7 @@ proc rc2l*(hb: Hexboard, row: int, col: int) : int  =
   let r = row - 1
   let c = col - 1
 
-  if (r < hb.edge_len) and (c < hb.edge_len):
+  if (r < hb.edge_len and r >= 0) and (c < hb.edge_len and c >= 0):
     return (r * hb.edge_len) + c
   else:
     raise newException(ValueError, "Bad row or col input: both must be >= edge length")

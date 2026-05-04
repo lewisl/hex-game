@@ -46,7 +46,8 @@ proc add_edge*(hex_graph: var Graph, node: int, to_node: int, cost: int = 0) =
 
 
 # varargs version enables adding many edges to a node in one call
-proc add_edge*(hex_graph: var Graph, node: int, cost: int = 0, bidirectional: bool = false, to_nodes: varargs[int]) =
+# a bidirectional: bool argument would enable arcs in both directions between nodes; not needed for hex game
+proc add_edge*(hex_graph: var Graph, node: int, cost: int = 0, to_nodes: varargs[int]) =
   for to_node in to_nodes:
     add_edge(hex_graph, node, to_node, cost)
 
