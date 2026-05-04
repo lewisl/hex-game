@@ -22,7 +22,7 @@ type
     plComputer
 
 type
-  Mover = ref object
+  Mover = ref object   # object is always passed by mutable reference
     role:        PlayerKind
     move_rc:     RowCol
     marker:      Marker
@@ -30,14 +30,14 @@ type
 
 var person = Mover(
   role:        PlayerKind.plPerson,
-  move_rc:     RowCol(row: 0, col: 0),
+  move_rc:     RowCol(row: 1, col: 1),
   marker:      Marker.playerX,
   victory_msg: "You won. Congratulations!\n\n"
 )
 
 var computer = Mover(
   role:         PlayerKind.plComputer,
-  move_rc:      RowCol(row: 0, col: 0),
+  move_rc:      RowCol(row: 1, col: 1),
   marker:       Marker.playerO,
   victory_msg:  "The computer beat you )-:\n\n"
 )
@@ -295,17 +295,16 @@ proc play_game*(hb: var Hexboard, n_trials: int, debug: bool = false) =
   if not debug:  clear_screen()
   echo("\n")
 
-  let movers = who_goes_first() # movers.first_mover, movers.second_mover
+  let movers = who_goes_first() # [computer, person] or [person, computer]
 
   hb.move_count = 0
 
   block gameLoop:
     while true:   
       for mover in movers:
-        # mover.move_rc = mover.move_func(hb, mover.marker, n_trials)  
         case mover.role
           of plPerson:
-            hb.display_board()   # redisplay board at each move
+            hb.display_board()   
             mover.move_rc = hb.person_move(mover.marker)
           of plComputer:
             mover.move_rc = hb.computer_move(mover.marker, n_trials)
@@ -315,7 +314,7 @@ proc play_game*(hb: var Hexboard, n_trials: int, debug: bool = false) =
 
         if hb.move_count >= (hb.edge_len + hb.edge_len - 1):
           hb.winner_assess_time_t0 = cpuTime()
-          winning_side = hb.who_won(mover.marker)
+          winning_side = hb.who_won(mover.marker)  # evaluate only the current player
           hb.winner_assess_time_cum += cpuTime() - hb.winner_assess_time_t0
 
           if winning_side == mover.marker:
@@ -324,7 +323,11 @@ proc play_game*(hb: var Hexboard, n_trials: int, debug: bool = false) =
             write(stdout, mover.victory_msg)
             hb.display_board()
             echo("Game over. Come back and play again!\n")
-            break gameLoop
+            break gameLoop  # without explicit block, nim breaks only innermost enclosing loop
+
+      if not debug: clear_screen()
+      echo("Your move at ", $person.move_rc, " was valid.")
+      echo("The computer moved at ", $computer.move_rc, ".\n\n")
 
       if not debug: clear_screen()
       echo("Your move at ", $person.move_rc, " was valid.")
