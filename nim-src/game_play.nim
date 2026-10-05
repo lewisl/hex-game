@@ -317,7 +317,7 @@ proc play_game*(hb: var Hexboard, n_trials: int, debug: bool = false) =
           winning_side = hb.who_won(mover.marker)  # evaluate only the current player
           hb.winner_assess_time_cum += cpuTime() - hb.winner_assess_time_t0
 
-          if winning_side == mover.marker:
+          if winning_side == mover.marker:   # only other alternative is Marker.empty
             clear_screen()
             echo("We have a winner. ")
             write(stdout, mover.victory_msg)
